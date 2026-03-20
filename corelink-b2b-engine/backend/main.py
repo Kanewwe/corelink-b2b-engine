@@ -14,17 +14,7 @@ import models
 import ai_service
 from contextlib import asynccontextmanager
 import email_sender_job
-
-# --- Global Log Buffer for UI visibility ---
-SYSTEM_LOGS = []
-
-def add_log(msg: str):
-    timestamp = datetime.now().strftime("%H:%M:%S")
-    full_msg = f"[{timestamp}] {msg}"
-    SYSTEM_LOGS.append(full_msg)
-    if len(SYSTEM_LOGS) > 50:
-        SYSTEM_LOGS.pop(0)
-    print(full_msg)
+from logger import add_log, SYSTEM_LOGS
 
 # Create database tables automatically
 Base.metadata.create_all(bind=engine)

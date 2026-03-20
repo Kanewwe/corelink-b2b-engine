@@ -4,7 +4,7 @@ import time
 import models
 import ai_service
 from database import SessionLocal
-from main import add_log
+from logger import add_log
 
 def scrape_and_process_task(search_url: str, max_pages: int):
     """

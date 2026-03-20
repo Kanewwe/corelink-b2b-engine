@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 import models
 from database import SessionLocal
-from main import add_log
+from logger import add_log
 
 load_dotenv()
 
