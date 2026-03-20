@@ -18,8 +18,8 @@
                 <h1>Corelink</h1>
             </div>
             <nav>
-                <a href="#" class="nav-item active">🎯 Lead Engine</a>
-                <a href="#" class="nav-item">✉️ Campaigns</a>
+                <a href="#" id="nav-lead-engine" class="nav-item active">🎯 Lead Engine</a>
+                <a href="#" id="nav-campaigns" class="nav-item">✉️ Campaigns</a>
                 <a href="#" class="nav-item">📊 Quotes & Margin</a>
                 <a href="#" class="nav-item">💸 Payment Risk</a>
             </nav>
@@ -101,6 +101,34 @@
                         <div class="leads-list" id="leads-list">
                             <!-- Populated by JS -->
                         </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- View: Campaign Logs -->
+            <div id="campaign-logs-view" class="hidden"
+                style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+                <section class="glass-panel" style="padding:1.5rem; display:flex; flex-direction:column; height:100%;">
+                    <div class="panel-header" style="margin-bottom: 1.5rem;">
+                        <h3>✉️ Dispatch History (Sent Campaigns)</h3>
+                        <button id="refresh-logs-btn" class="btn-icon">↺</button>
+                    </div>
+                    <div style="flex:1; overflow-y:auto; padding-right:10px;">
+                        <table style="width:100%; text-align:left; border-collapse: collapse;">
+                            <thead>
+                                <tr
+                                    style="border-bottom: 1px solid rgba(255,255,255,0.1); color:var(--text-muted); font-size:14px;">
+                                    <th style="padding:12px 8px;">Time</th>
+                                    <th style="padding:12px 8px;">Target Company</th>
+                                    <th style="padding:12px 8px;">Assignee</th>
+                                    <th style="padding:12px 8px;">Email Subject</th>
+                                    <th style="padding:12px 8px;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logs-table-body" style="font-size:14px;">
+                                <!-- populated by JS -->
+                            </tbody>
+                        </table>
                     </div>
                 </section>
             </div>

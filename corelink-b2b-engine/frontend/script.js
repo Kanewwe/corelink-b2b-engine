@@ -30,6 +30,19 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.reload();
     });
 
+    // Navigation Tabs
+    document.getElementById('nav-lead-engine')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        switchView('lead-engine');
+    });
+
+    document.getElementById('nav-campaigns')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        switchView('campaigns');
+    });
+
+    document.getElementById('refresh-logs-btn')?.addEventListener('click', fetchCampaignLogs);
+
     document.getElementById('lead-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         await submitLead();
@@ -89,7 +102,7 @@ async function startScrape() {
     const statusMsg = document.getElementById('scrape-status');
 
     btn.disabled = true;
-    btn.innerHTML = 'Crawling...';
+    btn.innerHTML = '🚀 背景抓取中 (Crawling)...';
 
     try {
         const response = await fetch(`${API_BASE_URL}/scrape`, {
@@ -104,10 +117,10 @@ async function startScrape() {
         setTimeout(() => { statusMsg.style.display = 'none'; }, 8000);
 
     } catch (error) {
-        alert('Scraper Error: ' + error.message);
+        alert('抓取發生錯誤 (Scraper Error): ' + error.message);
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '🚀 Start Automated Crawl';
+        btn.innerHTML = '🚀 執行背景爬蟲 (Start Crawling)';
     }
 }
 
@@ -165,7 +178,7 @@ function renderLeads(leads) {
 }
 
 async function generateEmail(leadId) {
-    alert('Started AI Email Generation. Depending on API speed this may take a few seconds...');
+    alert('通知: 正在呼叫 AI 模型為此客戶生成含有專屬關鍵字的內容。可能需要數秒鐘...');
     try {
         const response = await fetch(`${API_BASE_URL}/leads/${leadId}/generate-email`, {
             method: 'POST',
@@ -205,6 +218,58 @@ function openModal(subject, body) {
 
 function closeModal() {
     document.getElementById('email-modal').classList.add('hidden');
+}
+
+function switchView(viewName) {
+    document.getElementById('nav-lead-engine').classList.remove('active');
+    document.getElementById('nav-campaigns').classList.remove('active');
+    document.getElementById('lead-engine-view').classList.add('hidden');
+    document.getElementById('campaign-logs-view').classList.add('hidden');
+
+    if (viewName === 'lead-engine') {
+        document.getElementById('nav-lead-engine').classList.add('active');
+        document.getElementById('lead-engine-view').classList.remove('hidden');
+        fetchLeads();
+    } else if (viewName === 'campaigns') {
+        document.getElementById('nav-campaigns').classList.add('active');
+        document.getElementById('campaign-logs-view').classList.remove('hidden');
+        fetchCampaignLogs();
+    }
+}
+
+async function fetchCampaignLogs() {
+    const tbody = document.getElementById('logs-table-body');
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">Fetching global dispatch records...</td></tr>';
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/campaigns`, { headers: getAuthHeaders() });
+        if (!response.ok) throw new Error('API Error');
+        const logs = await response.json();
+
+        tbody.innerHTML = '';
+        if (logs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-muted);">No outgoing campaigns recorded yet.</td></tr>';
+            return;
+        }
+
+        logs.forEach(log => {
+            let statusColor = log.status === 'Sent' ? '#10b981' : '#f59e0b';
+            let formattedTime = log.created_at || 'Just now';
+
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+            tr.innerHTML = `
+                <td style="padding:12px 8px; color:var(--text-muted);">${formattedTime}</td>
+                <td style="padding:12px 8px; font-weight:600;">${log.company_name}</td>
+                <td style="padding:12px 8px;">${log.assigned_bd}</td>
+                <td style="padding:12px 8px; max-width:250px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${log.subject}</td>
+                <td style="padding:12px 8px;"><span style="color:${statusColor}; font-weight:bold;">${log.status}</span></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:#ef4444;">Failed to load logs. Ensure backend is running.</td></tr>`;
+    }
 }
 
 async function handleLogin() {

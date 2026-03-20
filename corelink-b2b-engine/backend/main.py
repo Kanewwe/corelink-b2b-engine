@@ -8,11 +8,20 @@ from typing import List
 from database import engine, Base, get_db
 import models
 import ai_service
+from contextlib import asynccontextmanager
+import email_sender_job
 
 # Create database tables automatically
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Corelink B2B Engine API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup Events
+    email_sender_job.start_scheduler()
+    yield
+    # Shutdown logic...
+
+app = FastAPI(title="Corelink B2B Engine API", lifespan=lifespan)
 
 # Setup CORS to allow the frontend to access the API
 app.add_middleware(
@@ -56,6 +65,18 @@ def login(req: LoginReq):
     if req.username in USERS and USERS[req.username] == req.password:
         return {"token": f"{req.username}-token", "username": req.username}
     raise HTTPException(status_code=401, detail="Invalid username or password")
+
+class CampaignLogResponse(BaseModel):
+    id: int
+    lead_id: int
+    company_name: str
+    assigned_bd: str
+    subject: str
+    status: str
+    created_at: str
+
+    class Config:
+        orm_mode = True
 
 class LeadResponse(BaseModel):
     id: int
@@ -138,6 +159,24 @@ def generate_email_for_lead(lead_id: int, db: Session = Depends(get_db), current
 @app.get("/api/leads/{lead_id}/emails", response_model=List[EmailCampaignResponse])
 def get_emails_for_lead(lead_id: int, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
     return db.query(models.EmailCampaign).filter(models.EmailCampaign.lead_id == lead_id).all()
+
+@app.get("/api/campaigns", response_model=List[CampaignLogResponse])
+def get_all_campaign_logs(db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
+    campaigns = db.query(models.EmailCampaign).order_by(models.EmailCampaign.id.desc()).all()
+    result = []
+    for c in campaigns:
+        lead = c.lead
+        if lead:
+            result.append({
+                "id": c.id,
+                "lead_id": c.lead_id,
+                "company_name": lead.company_name,
+                "assigned_bd": lead.assigned_bd,
+                "subject": c.subject,
+                "status": c.status,
+                "created_at": c.created_at.strftime("%Y-%m-%d %H:%M:%S") if c.created_at else ""
+            })
+    return result
 
 @app.post("/api/scrape")
 def trigger_scraper(req: ScrapeRequest, background_tasks: BackgroundTasks, current_user: str = Depends(verify_token)):
