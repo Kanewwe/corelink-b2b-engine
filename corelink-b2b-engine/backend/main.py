@@ -1,9 +1,12 @@
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List
+import os
 
 from database import engine, Base, get_db
 import models
@@ -183,3 +186,26 @@ def trigger_scraper(req: ScrapeRequest, background_tasks: BackgroundTasks, curre
     import scraper
     background_tasks.add_task(scraper.scrape_and_process_task, req.search_url, req.max_pages)
     return {"message": f"Scraping task for {req.search_url} started in the background."}
+
+# --- Static Files Hosting (Serve Frontend) ---
+# Assuming the 'frontend' folder is at the same level as 'backend'
+frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
+
+if os.path.exists(frontend_path):
+    app.mount("/static", StaticFiles(directory=frontend_path), name="static")
+
+    @app.get("/")
+    async def read_index():
+        return FileResponse(os.path.join(frontend_path, "index.html"))
+    
+    # Also catch common files
+    @app.get("/{file_path}")
+    async def serve_file(file_path: str):
+        full_path = os.path.join(frontend_path, file_path)
+        if os.path.isfile(full_path):
+            return FileResponse(full_path)
+        return FileResponse(os.path.join(frontend_path, "index.html"))
+else:
+    @app.get("/")
+    async def root():
+        return {"message": "Corelink API is running. Frontend folder not found in static mount."}

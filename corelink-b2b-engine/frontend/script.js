@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = window.location.origin + '/api';
 
 function getAuthHeaders() {
     const token = localStorage.getItem('corelink_token');
