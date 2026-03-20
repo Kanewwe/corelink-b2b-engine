@@ -101,31 +101,31 @@ async function submitLead() {
 }
 
 async function startScrape() {
-    const url = document.getElementById('scrape-url').value;
-    const pages = parseInt(document.getElementById('scrape-pages').value, 10);
+    const market = document.getElementById('scrape-market').value;
+    const keyword = document.getElementById('scrape-keyword').value;
     const btn = document.getElementById('start-scrape-btn');
     const statusMsg = document.getElementById('scrape-status');
 
     btn.disabled = true;
-    btn.innerHTML = '🚀 背景抓取中 (Crawling)...';
+    btn.innerHTML = '🚀 背景探勘網撒網中 (Mining)...';
 
     try {
         const response = await fetch(`${API_BASE_URL}/scrape`, {
             method: 'POST',
             headers: getAuthHeaders(),
-            body: JSON.stringify({ search_url: url, max_pages: pages })
+            body: JSON.stringify({ market: market, keyword: keyword })
         });
 
-        if (!response.ok) throw new Error('Failed to start scraper');
+        if (!response.ok) throw new Error('Failed to start automatic miner');
 
         statusMsg.style.display = 'block';
         setTimeout(() => { statusMsg.style.display = 'none'; }, 8000);
 
     } catch (error) {
-        alert('抓取發生錯誤 (Scraper Error): ' + error.message);
+        alert('尋機發生錯誤 (Server Error): ' + error.message);
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '🚀 執行背景爬蟲 (Start Crawling)';
+        btn.innerHTML = '🚀 全面發動自動探勘 (Start Mining)';
     }
 }
 

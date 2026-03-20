@@ -44,8 +44,8 @@ class LeadCreateReq(BaseModel):
     description: str
 
 class ScrapeRequest(BaseModel):
-    search_url: str
-    max_pages: int = 1
+    market: str
+    keyword: str = 1
 
 class LoginReq(BaseModel):
     username: str
@@ -195,8 +195,8 @@ def test_email_dispatch(current_user: str = Depends(verify_token)):
 @app.post("/api/scrape")
 def trigger_scraper(req: ScrapeRequest, background_tasks: BackgroundTasks, current_user: str = Depends(verify_token)):
     import scraper
-    background_tasks.add_task(scraper.scrape_and_process_task, req.search_url, req.max_pages)
-    return {"message": f"Scraping task for {req.search_url} started in the background."}
+    background_tasks.add_task(scraper.scrape_and_process_task, req.market, req.keyword)
+    return {"message": f"Scraping task for {req.market} {req.keyword} started in the background."}
 
 # --- Static Files Hosting (Serve Frontend) ---
 # Assuming the 'frontend' folder is at the same level as 'backend'

@@ -6,67 +6,83 @@ import ai_service
 from database import SessionLocal
 from logger import add_log
 
-def scrape_and_process_task(search_url: str, max_pages: int):
+def clean_company_name(title: str, domain: str) -> str:
+    """Removes the directory domain name and SEO spam from the title."""
+    clean = title.replace(f" - {domain}", "").replace(f" | {domain}", "").replace(domain, "")
+    return clean.split('|')[0].split('-')[0].strip()
+
+def scrape_and_process_task(market: str, keyword: str):
     """
-    Background task to scrape a directory, extract companies, and AI-process them.
-    Note: For highly protected sites like ThomasNet, a headless browser (Selenium) or Apify is recommended.
-    This logic assumes a generic directory with basic HTML.
+    Background task to mine companies using Search Dorking over multiple directories.
+    This avoids direct 403 Forbidden rules set by Cloudflare on Yellowpages etc.
     """
     db = SessionLocal()
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/111.0",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
     }
 
-    current_page = 1
+    directories = {
+        "US": ["yellowpages.com", "superpages.com", "yelp.com"],
+        "EU": ["europages.com", "yell.com", "pagesjaunes.fr", "gelbeseiten.de"]
+    }
     
+    target_domains = directories.get(market, directories["US"])
+    
+    add_log(f"蜘蛛 [探勘] 啟動全自動尋機！市場: {market}, 關鍵字: '{keyword}'")
+
     try:
-        while current_page <= max_pages:
-            paginated_url = f"{search_url}?page={current_page}" if "?" not in search_url else f"{search_url}&page={current_page}"
-            add_log(f"🕷️ [爬蟲] 開始執行網址: {paginated_url}")
+        for domain in target_domains:
+            query = f"site:{domain} {keyword}"
+            add_log(f"🔎 [探勘] 正在分析 {domain} 的網路目錄資料...")
             
-            response = requests.get(paginated_url, headers=headers, timeout=10)
+            url = "https://html.duckduckgo.com/html/"
+            response = requests.post(url, data={"q": query}, headers=headers, timeout=15)
+            
             if response.status_code != 200:
-                add_log(f"❌ [爬蟲] 請求失敗! 狀態碼: {response.status_code}. 可能被阻擋或網址無效。")
-                break
+                add_log(f"⚠️ [探勘] 遭受速率限制或存取失敗 (Status: {response.status_code})，跳過 {domain}。")
+                time.sleep(5)
+                continue
                 
             soup = BeautifulSoup(response.text, 'html.parser')
+            results = soup.find_all('div', class_='result')
             
-            # --- SELECTION LOGIC ---
-            # IMPORTANT: Adjust CSS selectors based on the target website.
-            # Using generic fallback selectors for MVP:
-            company_cards = soup.find_all(['div', 'section'], class_=lambda x: x and ('card' in x or 'profile' in x or 'item' in x))
-            if not company_cards:
-                company_cards = soup.find_all('h3') # ThomasNet often uses h3 for company names
+            if not results:
+                add_log(f"📉 [探勘] 在 {domain} 找不到與 '{keyword}' 相關的合格廠商。")
+                time.sleep(3)
+                continue
                 
-            if not company_cards:
-                add_log("⚠️ [爬蟲] 在此頁面找不到任何疑似公司的元件或標題。")
-                break
+            add_log(f"🎯 [探勘] 於 {domain} 發現 {len(results)} 筆可能名單，開始讓 AI 進行鑑定。")
             
-            add_log(f"🔎 [爬蟲] 偵測到 {len(company_cards)} 個潛在目標。")
-
-            for card in company_cards:
-                company_name = card.text.strip()
-                description_tag = card.find_next('p')
-                description = description_tag.text.strip() if description_tag else "Business operations and manufacturing."
+            # Take top 5 per directory to avoid getting banned or API throttling
+            for res in results[:5]: 
+                title_elem = res.find('a', class_='result__url')
+                snippet_elem = res.find('a', class_='result__snippet')
+                
+                if not title_elem or not snippet_elem:
+                    continue
+                    
+                raw_title = title_elem.text.strip()
+                description = snippet_elem.text.strip()
+                company_name = clean_company_name(raw_title, domain)
                 
                 if len(company_name) < 2:
                     continue
 
-                print(f"[Scraper] Analyzing Company: {company_name[:20]}...")
+                add_log(f"🧠 [AI] 正在解析特徵 -> {company_name[:20]}...")
                 
-                # Check duplicates
+                # Check duplicates in database
                 existing = db.query(models.Lead).filter(models.Lead.company_name == company_name).first()
                 if existing:
-                    print(f"  -> Skip {company_name} (Already exists)")
+                    add_log(f"⏭️ [AI] 自動略過 (資料庫已存在同名企業)")
                     continue
 
                 # 1. AI Analysis & Tagging
                 tag_result = ai_service.analyze_company_and_tag(company_name, description)
                 ai_tag = tag_result.get("Tag", "UNKNOWN")
                 
-                # 2. ONLY proceed if AI found relevant keywords & tag
                 if ai_tag != "UNKNOWN":
-                    add_log(f"✅ [AI] 判定符合標籤: {ai_tag}. 分派給 {tag_result.get('BD')}")
+                    add_log(f"✅ [AI] 精準鎖定產品標籤: {ai_tag}. 指派業務: {tag_result.get('BD')}")
                     keywords_list = tag_result.get("Keywords", [])
                     keywords_str = ", ".join(keywords_list) if isinstance(keywords_list, list) else str(keywords_list)
 
@@ -98,17 +114,17 @@ def scrape_and_process_task(search_url: str, max_pages: int):
                     db.add(campaign)
                     db_lead.status = "Email_Drafted"
                     db.commit()
-                    add_log(f"✉️ [AI] 自動生成開發信草稿成功: {company_name}")
+                    add_log(f"✉️ [AI] 開發信專屬草稿已產生: {company_name}")
                 else:
-                    add_log(f"⏭️ [AI] 忽略 (判定為非目標產品線)")
+                    add_log(f"⏭️ [AI] 忽略 (無法確定目標產業 / {company_name})")
                 
-                time.sleep(1) # Prevent rate-limiting
+                time.sleep(2) # Prevent OpenAI API rate limits
                 
-            current_page += 1
-            time.sleep(3) # Delay between pages
+            time.sleep(5) # Delay between directories to respect limits
             
     except Exception as e:
-        print(f"[Scraper] Error during crawl: {str(e)}")
+        add_log(f"❌ [尋機] 發生嚴重錯誤: {str(e)}")
     finally:
         db.close()
-        print("[Scraper] Run Completed.")
+        add_log("🏁 [尋機] 全自動多平台背景探勘任務圓滿執行完畢！")
+```

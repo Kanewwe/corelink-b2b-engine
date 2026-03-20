@@ -42,27 +42,30 @@
             <div class="content-grid">
                 <!-- Left Column: Input Form -->
                 <section class="lead-input-section glass-panel">
-                    <h3>🕷️ Auto-Scraper Engine</h3>
-                    <p style="color:var(--text-muted); font-size:13px; margin-bottom: 20px;">Provide a Directory Search
-                        URL. AI will scrape page-by-page, extract keywords, and Auto-Draft emails.</p>
+                    <h3>🕷️ 全自動化探勘引擎 (Auto-Miner)</h3>
+                    <p style="color:var(--text-muted); font-size:13px; margin-bottom: 20px;">不再需要手動輸入網址與換頁。只需選擇市場跟產業別，AI
+                        就會利用「無痕探勘技術」自動掃描歐美各大知名黃頁庫去撈人寫信。</p>
                     <form id="scrape-form">
                         <div class="input-group">
-                            <label>Target Search URL</label>
-                            <input type="url" id="scrape-url" required
-                                placeholder="https://www.example.com/search?q=cables">
+                            <label>目標市場板塊 (Target Market)</label>
+                            <select id="scrape-market" required
+                                style="width:100%; padding:10px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:6px; margin-bottom:15px; font-family:'Inter', sans-serif;">
+                                <option value="US" style="color:#000;">美國黃頁網路 (US) - Yelp, Yellowpages...</option>
+                                <option value="EU" style="color:#000;">歐洲黃頁網路 (EU) - Europages, Yell...</option>
+                            </select>
                         </div>
                         <div class="input-group">
-                            <label>Pages to Scrape</label>
-                            <input type="number" id="scrape-pages" min="1" max="10" value="1" required>
+                            <label>核心產業特徵 / 關鍵字 (Industry Keyword)</label>
+                            <input type="text" id="scrape-keyword" required
+                                placeholder="例如: Cable Manufacturer, Plastic Injection">
                         </div>
                         <button type="submit" class="btn-primary" id="start-scrape-btn"
-                            style="background: linear-gradient(135deg, #f59e0b, #d97706); margin-bottom: 10px;">🚀 Start
-                            Automated Crawl</button>
+                            style="background: linear-gradient(135deg, #f59e0b, #d97706); margin-bottom: 10px;">🚀
+                            全面發動自動探勘 (Start Mining)</button>
                     </form>
                     <div id="scrape-status"
                         style="font-size: 13px; color: #10b981; display: none; padding: 10px; background: rgba(16,185,129,0.1); border-radius: 8px;">
-                        Crawler dispatched! Running in the background. Refresh the pipeline panel later to view fetched
-                        leads.</div>
+                        探勘小組已佈署至背景執行！請稍後追蹤下方系統日誌。</div>
 
                     <hr style="border-color: rgba(255,255,255,0.1); margin: 30px 0;">
 
