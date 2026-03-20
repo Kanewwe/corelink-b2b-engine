@@ -127,4 +127,3 @@ def scrape_and_process_task(market: str, keyword: str):
     finally:
         db.close()
         add_log("🏁 [尋機] 全自動多平台背景探勘任務圓滿執行完畢！")
-```
