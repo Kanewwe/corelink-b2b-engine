@@ -4,6 +4,7 @@ import time
 import models
 import ai_service
 from database import SessionLocal
+from main import add_log
 
 def scrape_and_process_task(search_url: str, max_pages: int):
     """
@@ -21,11 +22,11 @@ def scrape_and_process_task(search_url: str, max_pages: int):
     try:
         while current_page <= max_pages:
             paginated_url = f"{search_url}?page={current_page}" if "?" not in search_url else f"{search_url}&page={current_page}"
-            print(f"[Scraper] Fetching page {current_page}...")
+            add_log(f"🕷️ [爬蟲] 開始執行網址: {paginated_url}")
             
             response = requests.get(paginated_url, headers=headers, timeout=10)
             if response.status_code != 200:
-                print(f"[Scraper] Blocked or failed on page {current_page}. Status: {response.status_code}")
+                add_log(f"❌ [爬蟲] 請求失敗! 狀態碼: {response.status_code}. 可能被阻擋或網址無效。")
                 break
                 
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -33,13 +34,15 @@ def scrape_and_process_task(search_url: str, max_pages: int):
             # --- SELECTION LOGIC ---
             # IMPORTANT: Adjust CSS selectors based on the target website.
             # Using generic fallback selectors for MVP:
-            company_cards = soup.find_all('div', class_='profile-card')
+            company_cards = soup.find_all(['div', 'section'], class_=lambda x: x and ('card' in x or 'profile' in x or 'item' in x))
             if not company_cards:
-                company_cards = soup.find_all('h2') # Fallback
+                company_cards = soup.find_all('h3') # ThomasNet often uses h3 for company names
                 
             if not company_cards:
-                print("[Scraper] No company items found on page. Stopping.")
+                add_log("⚠️ [爬蟲] 在此頁面找不到任何疑似公司的元件或標題。")
                 break
+            
+            add_log(f"🔎 [爬蟲] 偵測到 {len(company_cards)} 個潛在目標。")
 
             for card in company_cards:
                 company_name = card.text.strip()
@@ -63,6 +66,7 @@ def scrape_and_process_task(search_url: str, max_pages: int):
                 
                 # 2. ONLY proceed if AI found relevant keywords & tag
                 if ai_tag != "UNKNOWN":
+                    add_log(f"✅ [AI] 判定符合標籤: {ai_tag}. 分派給 {tag_result.get('BD')}")
                     keywords_list = tag_result.get("Keywords", [])
                     keywords_str = ", ".join(keywords_list) if isinstance(keywords_list, list) else str(keywords_list)
 
@@ -78,7 +82,6 @@ def scrape_and_process_task(search_url: str, max_pages: int):
                     db.add(db_lead)
                     db.commit()
                     db.refresh(db_lead)
-                    print(f"  -> Saved Lead [{ai_tag}] - Proceeding to Auto-Email")
                     
                     # 3. Auto-generate Outreach Email Draft immediately
                     k_list = [k.strip() for k in keywords_str.split(',')] if keywords_str else []
@@ -95,8 +98,9 @@ def scrape_and_process_task(search_url: str, max_pages: int):
                     db.add(campaign)
                     db_lead.status = "Email_Drafted"
                     db.commit()
+                    add_log(f"✉️ [AI] 自動生成開發信草稿成功: {company_name}")
                 else:
-                    print(f"  -> Ignored (Irrelevant)")
+                    add_log(f"⏭️ [AI] 忽略 (判定為非目標產品線)")
                 
                 time.sleep(1) # Prevent rate-limiting
                 

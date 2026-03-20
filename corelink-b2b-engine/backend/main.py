@@ -7,12 +7,24 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List
 import os
+from datetime import datetime
 
 from database import engine, Base, get_db
 import models
 import ai_service
 from contextlib import asynccontextmanager
 import email_sender_job
+
+# --- Global Log Buffer for UI visibility ---
+SYSTEM_LOGS = []
+
+def add_log(msg: str):
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    full_msg = f"[{timestamp}] {msg}"
+    SYSTEM_LOGS.append(full_msg)
+    if len(SYSTEM_LOGS) > 50:
+        SYSTEM_LOGS.pop(0)
+    print(full_msg)
 
 # Create database tables automatically
 Base.metadata.create_all(bind=engine)
@@ -180,6 +192,16 @@ def get_all_campaign_logs(db: Session = Depends(get_db), current_user: str = Dep
                 "created_at": c.created_at.strftime("%Y-%m-%d %H:%M:%S") if c.created_at else ""
             })
     return result
+
+@app.get("/api/system-logs")
+def get_system_logs(current_user: str = Depends(verify_token)):
+    return {"logs": SYSTEM_LOGS}
+
+@app.post("/api/test-email")
+def test_email_dispatch(current_user: str = Depends(verify_token)):
+    add_log(f"Manual Test Email triggered by {current_user}")
+    # In a real app, this would queue a job. For now, we just log it.
+    return {"message": "Test event logged. Check system logs."}
 
 @app.post("/api/scrape")
 def trigger_scraper(req: ScrapeRequest, background_tasks: BackgroundTasks, current_user: str = Depends(verify_token)):

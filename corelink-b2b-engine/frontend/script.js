@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         document.getElementById('display-username').innerText = username;
         fetchLeads();
+        startLogPolling();
     }
 
     document.getElementById('login-form')?.addEventListener('submit', async (e) => {
@@ -293,7 +294,36 @@ async function handleLogin() {
         document.getElementById('login-modal').classList.add('hidden');
         document.getElementById('display-username').innerText = data.username;
         fetchLeads();
+        startLogPolling();
     } catch (error) {
         err.style.display = 'block';
+    }
+}
+
+let logInterval = null;
+function startLogPolling() {
+    if (logInterval) clearInterval(logInterval);
+    fetchSystemLogs();
+    logInterval = setInterval(fetchSystemLogs, 4000);
+}
+
+async function fetchSystemLogs() {
+    const consoleDiv = document.getElementById('system-console');
+    if (!consoleDiv) return;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/system-logs`, { headers: getAuthHeaders() });
+        if (!response.ok) return;
+        const data = await response.json();
+        const logs = data.logs || [];
+
+        if (logs.length > 0) {
+            // Newest logs on top for the console feel
+            consoleDiv.innerHTML = logs.slice().reverse().join('<br>');
+        } else {
+            consoleDiv.innerHTML = '<span style="color:var(--text-muted)">等待系統事件觸發... (如: 開始爬蟲或發信排程)</span>';
+        }
+    } catch (e) {
+        consoleDiv.innerHTML = '<span style="color:#ef4444;">連線中斷，正在嘗試重新連線...</span>';
     }
 }

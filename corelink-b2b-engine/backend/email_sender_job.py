@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 
 import models
 from database import SessionLocal
+from main import add_log
 
 load_dotenv()
 
@@ -21,7 +22,7 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 def send_actual_email(to_email: str, subject: str, body: str) -> bool:
     """Send email via SMTP, or simulate sending if config is missing."""
     if not SMTP_SERVER or not SMTP_USERNAME or not SMTP_PASSWORD:
-        print(f"[Email Job] ⚠️ SMTP variables not set in .env. Mock sending ['{subject}'] to {to_email}")
+        add_log(f"📋 [發信] 檢測到尚未設定 SMTP。模擬發信中 (Mock Mode) - 目標: {to_email}")
         return True # Simulate success so status updates to 'Sent'
 
     try:
@@ -39,7 +40,7 @@ def send_actual_email(to_email: str, subject: str, body: str) -> bool:
         server.quit()
         return True
     except Exception as e:
-        print(f"[Email Job] Failed to send email to {to_email}: {e}")
+        add_log(f"❌ [發信] SMTP 錯誤: {e}")
         return False
 
 def process_draft_emails():
@@ -50,8 +51,10 @@ def process_draft_emails():
         drafts = db.query(models.EmailCampaign).filter(models.EmailCampaign.status == "Draft").all()
         
         if not drafts:
-            print("[Email Job] Pipeline clean. No drafts to send.")
+            # Silently check next time, don't spam UI logs
             return
+            
+        add_log(f"🚀 [發信排程] 檢測到 {len(drafts)} 封新草稿，準備依序自動派發。")
             
         for draft in drafts:
             lead = draft.lead
@@ -65,6 +68,7 @@ def process_draft_emails():
                 draft.status = "Sent"
                 lead.status = "Email_Sent"
                 db.commit()
+                add_log(f"✅ [發信] 成功派發至: {target_email} ({draft.subject[:10]}...)")
             time.sleep(2) # Brief delay to prevent SMTP anti-spam triggering
             
     except Exception as e:
