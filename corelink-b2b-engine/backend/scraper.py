@@ -36,8 +36,8 @@ def scrape_and_process_task(market: str, keyword: str):
             query = f"site:{domain} {keyword}"
             add_log(f"🔎 [探勘] 正在分析 {domain} 的網路目錄資料...")
             
-            url = "https://html.duckduckgo.com/html/"
-            response = requests.post(url, data={"q": query}, headers=headers, timeout=15)
+            url = f"https://search.yahoo.com/search?p={query}"
+            response = requests.get(url, headers=headers, timeout=15)
             
             if response.status_code != 200:
                 add_log(f"⚠️ [探勘] 遭受速率限制或存取失敗 (Status: {response.status_code})，跳過 {domain}。")
@@ -45,7 +45,7 @@ def scrape_and_process_task(market: str, keyword: str):
                 continue
                 
             soup = BeautifulSoup(response.text, 'html.parser')
-            results = soup.find_all('div', class_='result')
+            results = soup.find_all('div', class_='algo')
             
             if not results:
                 add_log(f"📉 [探勘] 在 {domain} 找不到與 '{keyword}' 相關的合格廠商。")
@@ -56,14 +56,14 @@ def scrape_and_process_task(market: str, keyword: str):
             
             # Take top 5 per directory to avoid getting banned or API throttling
             for res in results[:5]: 
-                title_elem = res.find('a', class_='result__url')
-                snippet_elem = res.find('a', class_='result__snippet')
+                title_elem = res.find('h3')
+                snippet_elem = res.find('div', class_='compText')
                 
-                if not title_elem or not snippet_elem:
+                if not title_elem:
                     continue
                     
                 raw_title = title_elem.text.strip()
-                description = snippet_elem.text.strip()
+                description = snippet_elem.text.strip() if snippet_elem else "Business detail."
                 company_name = clean_company_name(raw_title, domain)
                 
                 if len(company_name) < 2:
