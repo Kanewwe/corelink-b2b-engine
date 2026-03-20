@@ -87,6 +87,7 @@ class CampaignLogResponse(BaseModel):
     company_name: str
     assigned_bd: str
     subject: str
+    content: str
     status: str
     created_at: str
 
@@ -188,6 +189,7 @@ def get_all_campaign_logs(db: Session = Depends(get_db), current_user: str = Dep
                 "company_name": lead.company_name,
                 "assigned_bd": lead.assigned_bd,
                 "subject": c.subject,
+                "content": c.content,
                 "status": c.status,
                 "created_at": c.created_at.strftime("%Y-%m-%d %H:%M:%S") if c.created_at else ""
             })

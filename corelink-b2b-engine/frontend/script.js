@@ -263,6 +263,10 @@ async function fetchCampaignLogs() {
 
             const tr = document.createElement('tr');
             tr.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+            tr.style.cursor = 'pointer';
+            tr.className = 'hover-row';
+            tr.onclick = () => openModal(log.subject, log.content);
+
             tr.innerHTML = `
                 <td style="padding:12px 8px; color:var(--text-muted);">${formattedTime}</td>
                 <td style="padding:12px 8px; font-weight:600;">${log.company_name}</td>

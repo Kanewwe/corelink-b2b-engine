@@ -6,9 +6,9 @@
     --primary-hover: #2563eb;
     --text-main: #f8fafc;
     --text-muted: #94a3b8;
-    --accent-cable: #ef4444;    
-    --accent-nameplate: #eab308; 
-    --accent-plastic: #10b981;   
+    --accent-cable: #ef4444;
+    --accent-nameplate: #eab308;
+    --accent-plastic: #10b981;
 }
 
 * {
@@ -88,11 +88,13 @@ nav {
     font-size: 0.95rem;
 }
 
-.nav-item:hover, .nav-item.active {
+.nav-item:hover,
+.nav-item.active {
     background: rgba(255, 255, 255, 0.05);
     color: var(--text-main);
     transform: translateX(4px);
 }
+
 .nav-item.active {
     border-left: 3px solid var(--primary);
     border-top-left-radius: 0;
@@ -136,7 +138,8 @@ nav {
     position: relative;
 }
 
-.lead-input-section h3, .panel-header h3 {
+.lead-input-section h3,
+.panel-header h3 {
     margin-bottom: 0.5rem;
     font-weight: 600;
     font-size: 1.3rem;
@@ -153,7 +156,8 @@ nav {
     color: var(--text-muted);
 }
 
-.input-group input, .input-group textarea {
+.input-group input,
+.input-group textarea {
     width: 100%;
     padding: 0.85rem 1rem;
     background: rgba(0, 0, 0, 0.25);
@@ -164,11 +168,12 @@ nav {
     transition: all 0.3s ease;
 }
 
-.input-group input:focus, .input-group textarea:focus {
+.input-group input:focus,
+.input-group textarea:focus {
     outline: none;
     border-color: var(--primary);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-    background: rgba(0,0,0,0.4);
+    background: rgba(0, 0, 0, 0.4);
 }
 
 button {
@@ -208,6 +213,7 @@ button {
     color: var(--text-muted);
     font-size: 1.2rem;
 }
+
 .btn-icon:hover {
     color: white;
     transform: rotate(180deg);
@@ -236,9 +242,18 @@ button {
     padding-right: 0.5rem;
 }
 
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+}
 
 .lead-card {
     background: rgba(0, 0, 0, 0.3);
@@ -254,7 +269,7 @@ button {
 .lead-card:hover {
     background: rgba(0, 0, 0, 0.5);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .lead-card-header {
@@ -276,10 +291,28 @@ button {
     letter-spacing: 0.5px;
 }
 
-.tag-badge.tag-cable { background: rgba(239, 68, 68, 0.15); color: var(--accent-cable); border: 1px solid rgba(239, 68, 68, 0.3); }
-.tag-badge.tag-nameplate { background: rgba(234, 179, 8, 0.15); color: var(--accent-nameplate); border: 1px solid rgba(234, 179, 8, 0.3); }
-.tag-badge.tag-plastic { background: rgba(16, 185, 129, 0.15); color: var(--accent-plastic); border: 1px solid rgba(16, 185, 129, 0.3); }
-.tag-badge.tag-unknown { background: rgba(255, 255, 255, 0.1); color: #ccc; }
+.tag-badge.tag-cable {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--accent-cable);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.tag-badge.tag-nameplate {
+    background: rgba(234, 179, 8, 0.15);
+    color: var(--accent-nameplate);
+    border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+.tag-badge.tag-plastic {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--accent-plastic);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.tag-badge.tag-unknown {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ccc;
+}
 
 .lead-meta {
     font-size: 0.85rem;
@@ -301,8 +334,11 @@ button {
 
 .modal {
     position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.6);
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(5px);
     display: flex;
     align-items: center;
@@ -321,7 +357,7 @@ button {
     width: 600px;
     max-width: 90%;
     padding: 2rem;
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .modal-header {
@@ -333,7 +369,10 @@ button {
 
 .loading-spinner {
     position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     background: rgba(15, 23, 42, 0.8);
     backdrop-filter: blur(4px);
     display: flex;
@@ -345,13 +384,25 @@ button {
 }
 
 .spinner {
-    width: 40px; height: 40px;
-    border: 4px solid rgba(255,255,255,0.1);
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(255, 255, 255, 0.1);
     border-top-color: var(--primary);
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin-bottom: 1rem;
 }
 
-@keyframes spin { 100% { transform: rotate(360deg); } }
-.hidden { display: none !important; }
+@keyframes spin {
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.hover-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.hidden {
+    display: none !important;
+}
