@@ -45,7 +45,7 @@ class LeadCreateReq(BaseModel):
 
 class ScrapeRequest(BaseModel):
     market: str
-    keyword: str = 1
+    keyword: str
 
 class LoginReq(BaseModel):
     username: str
