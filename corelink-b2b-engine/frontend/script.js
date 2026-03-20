@@ -56,6 +56,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('refresh-btn').addEventListener('click', fetchLeads);
 
+    document.getElementById('test-log-btn')?.addEventListener('click', async () => {
+        await fetch(`${API_BASE_URL}/test-email`, { method: 'POST', headers: getAuthHeaders() });
+    });
+
     document.querySelectorAll('.close-btn').forEach(btn => {
         btn.addEventListener('click', closeModal);
     });
