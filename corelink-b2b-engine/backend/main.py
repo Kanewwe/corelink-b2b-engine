@@ -208,9 +208,13 @@ frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
 if os.path.exists(frontend_path):
     app.mount("/static", StaticFiles(directory=frontend_path), name="static")
 
-    @app.get("/")
+    @app.get("/", methods=["GET", "HEAD"])
     async def read_index():
         return FileResponse(os.path.join(frontend_path, "index.html"))
+    
+    @app.get("/health")
+    async def health_check():
+        return {"status": "healthy"}
     
     # Also catch common files
     @app.get("/{file_path}")
