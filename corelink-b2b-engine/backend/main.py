@@ -81,8 +81,7 @@ class CampaignLogResponse(BaseModel):
     status: str
     created_at: str
 
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}
 
 class LeadResponse(BaseModel):
     id: int
@@ -92,8 +91,7 @@ class LeadResponse(BaseModel):
     extracted_keywords: str = None
     status: str
 
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}
 
 class EmailCampaignResponse(BaseModel):
     id: int
@@ -102,8 +100,7 @@ class EmailCampaignResponse(BaseModel):
     content: str
     status: str
 
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}
 
 # API Endpoints
 @app.post("/api/leads", response_model=LeadResponse)
