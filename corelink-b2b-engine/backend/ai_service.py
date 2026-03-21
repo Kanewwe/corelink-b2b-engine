@@ -1,12 +1,12 @@
 import os
-from openai import OpenAI
+import openai
 import json
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Initialize OpenAI Client (Make sure OPENAI_API_KEY is in .env)
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Initialize OpenAI (legacy API for compatibility)
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Import rule-based classifier (saves tokens)
 from classifier import classify_lead as rule_classify
@@ -39,13 +39,12 @@ def analyze_company_and_tag(company_name: str, description: str, use_gpt: bool =
     """
     
     try:
-        response = client.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that strictly outputs JSON."},
                 {"role": "user", "content": prompt}
-            ],
-            response_format={"type": "json_object"}
+            ]
         )
         return json.loads(response.choices[0].message.content)
     except Exception as e:
@@ -91,13 +90,12 @@ def generate_outreach_email(company_name: str, description: str, tag: str, bd_na
     """
 
     try:
-        response = client.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are a helpful B2B sales assistant that strictly outputs JSON."},
                 {"role": "user", "content": prompt}
-            ],
-            response_format={"type": "json_object"}
+            ]
         )
         return json.loads(response.choices[0].message.content)
     except Exception as e:
