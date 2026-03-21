@@ -2,21 +2,20 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install dependencies
+# Copy requirements first for caching
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend code (excluding .env)
+# Copy backend code (without .env - use .env.example instead)
 COPY backend/ ./backend/
-COPY backend/.env.example ./backend/.env  # Use example as template
 
 # Copy frontend files
 COPY frontend/ ./frontend/
 COPY frontend/ ./backend/frontend/
 
-# Copy startup script
-COPY start.sh .
-RUN chmod +x start.sh
+# Use .env.example as template
+RUN if [ -f backend/.env.example ]; then cp backend/.env.example backend/.env; fi
 
-# Start with the script
-CMD ["./start.sh"]
+WORKDIR /app/backend
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000"]
