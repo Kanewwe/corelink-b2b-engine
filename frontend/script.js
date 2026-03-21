@@ -263,6 +263,7 @@ function renderLeads(leads) {
         if (lead.ai_tag === 'NA-CABLE') tagClass = 'tag-cable';
         else if (lead.ai_tag === 'NA-NAMEPLATE') tagClass = 'tag-nameplate';
         else if (lead.ai_tag === 'NA-PLASTIC') tagClass = 'tag-plastic';
+        else if (lead.ai_tag && lead.ai_tag.startsWith('AUTO')) tagClass = 'tag-auto';
 
         const card = document.createElement('div');
         card.className = 'lead-card';
@@ -270,6 +271,15 @@ function renderLeads(leads) {
         const emailSentBadge = lead.email_sent ? '<span style="background:#10b981; color:white; padding:2px 8px; border-radius:4px; font-size:11px; margin-left:8px;">✓ 已寄信</span>' : '';
         const assignedBD = lead.assigned_bd || '尚未指派';
         const keywords = lead.extracted_keywords || '無';
+        
+        // NEW: Contact info display
+        const contactInfo = lead.contact_name 
+            ? `<div style="margin-top:5px; font-size:12px;">👤 聯絡人: <strong>${lead.contact_name}</strong> ${lead.contact_role ? `(${lead.contact_role})` : ''}</div>`
+            : (lead.contact_role ? `<div style="margin-top:5px; font-size:12px;">👤 角色: ${lead.contact_role}</div>` : '');
+        
+        const phoneInfo = lead.phone ? `<div style="margin-top:5px; font-size:12px;">📞 電話: ${lead.phone}</div>` : '';
+        const addressInfo = lead.address ? `<div style="margin-top:5px; font-size:12px;">📍 地址: ${lead.address}${lead.city ? `, ${lead.city}` : ''}</div>` : '';
+        const sourceInfo = lead.source_domain ? `<div style="font-size:11px; color:var(--text-muted); margin-top:5px;">來源: ${lead.source_domain}</div>` : '';
         
         card.innerHTML = `
             <div class="lead-card-header">
@@ -283,6 +293,10 @@ function renderLeads(leads) {
                 </div>
                 ${lead.domain ? `<div style="margin-top:5px; font-size:12px;">🌐 網域: ${lead.domain}</div>` : ''}
                 ${lead.email_candidates ? `<div style="margin-top:5px; font-size:12px;">📧 Email: ${lead.email_candidates.split(',')[0]}...</div>` : ''}
+                ${contactInfo}
+                ${phoneInfo}
+                ${addressInfo}
+                ${sourceInfo}
             </div>
             <div class="lead-actions">
                 ${lead.status === 'Tagged' || lead.status === 'Scraped'

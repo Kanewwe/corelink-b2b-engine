@@ -28,9 +28,29 @@ class Lead(Base):
     assigned_bd = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
-    # NEW: Track if email has been sent
+    # Email tracking
     email_sent = Column(Boolean, default=False)
     email_sent_at = Column(DateTime, nullable=True)
+    
+    # NEW: Contact person info (角色定向)
+    contact_name = Column(String, nullable=True)      # 聯絡人姓名 (John Smith)
+    contact_role = Column(String, nullable=True)      # 角色 (Procurement Manager)
+    contact_email = Column(String, nullable=True)     # 聯絡人 Email
+    contact_confidence = Column(Integer, default=0)   # Hunter confidence score
+    
+    # NEW: Company details (從黃頁直接抓)
+    phone = Column(String, nullable=True)             # 公司電話
+    address = Column(String, nullable=True)           # 公司地址
+    city = Column(String, nullable=True)              # 城市
+    state = Column(String, nullable=True)             # 州/省
+    zip_code = Column(String, nullable=True)          # 郵遞區號
+    categories = Column(String, nullable=True)        # 產業類別
+    source_domain = Column(String, nullable=True)     # 來源目錄 (yellowpages.com)
+    scrape_location = Column(String, nullable=True)   # 爬取地區
+    
+    # NEW: Company size indicators
+    employee_count = Column(String, nullable=True)    # 員工數
+    revenue_range = Column(String, nullable=True)     # 營收範圍
 
     email_campaigns = relationship("EmailCampaign", back_populates="lead")
 

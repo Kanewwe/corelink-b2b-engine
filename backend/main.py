@@ -72,6 +72,18 @@ class LeadResponse(BaseModel):
     assigned_bd: Optional[str] = None
     extracted_keywords: Optional[str] = None
     status: str
+    # NEW: Contact info
+    contact_name: Optional[str] = None
+    contact_role: Optional[str] = None
+    contact_email: Optional[str] = None
+    # NEW: Company details
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    categories: Optional[str] = None
+    source_domain: Optional[str] = None
+    # Email tracking
+    email_sent: bool = False
     model_config = {"from_attributes": True}
 
 class EmailCampaignResponse(BaseModel):
