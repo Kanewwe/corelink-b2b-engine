@@ -483,3 +483,15 @@ def debug_scrape(db: Session = Depends(get_db), current_user: str = Depends(veri
     except Exception as e:
         import traceback
         return {"error": str(e), "trace": traceback.format_exc()}
+
+# INIT: Create database tables
+@app.post("/api/init-db")
+def init_db(current_user: str = Depends(verify_token)):
+    """Initialize database tables."""
+    from database import engine, Base
+    import models
+    try:
+        Base.metadata.create_all(bind=engine)
+        return {"message": "Database tables created successfully"}
+    except Exception as e:
+        return {"error": str(e)}
