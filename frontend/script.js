@@ -240,16 +240,18 @@ function renderLeads(leads) {
         card.className = 'lead-card';
         
         const emailSentBadge = lead.email_sent ? '<span style="background:#10b981; color:white; padding:2px 8px; border-radius:4px; font-size:11px; margin-left:8px;">✓ 已寄信</span>' : '';
+        const assignedBD = lead.assigned_bd || '尚未指派';
+        const keywords = lead.extracted_keywords || '無';
         
         card.innerHTML = `
             <div class="lead-card-header">
                 <span class="lead-name">${lead.company_name}${emailSentBadge}</span>
-                <span class="tag-badge ${tagClass}">${lead.ai_tag}</span>
+                <span class="tag-badge ${tagClass}">${lead.ai_tag || 'UNKNOWN'}</span>
             </div>
             <div class="lead-meta">
-                <div>負責人: <strong>${lead.assigned_bd}</strong> | 狀態: <strong>${lead.status}</strong></div>
+                <div>負責人: <strong>${assignedBD}</strong> | 狀態: <strong>${lead.status || '未知'}</strong></div>
                 <div style="margin-top:5px; font-size:12px;">
-                    🔑 關鍵字: <span style="color:#cbd5e1">${lead.extracted_keywords || '無'}</span>
+                    🔑 關鍵字: <span style="color:#cbd5e1">${keywords}</span>
                 </div>
                 ${lead.domain ? `<div style="margin-top:5px; font-size:12px;">🌐 網域: ${lead.domain}</div>` : ''}
                 ${lead.email_candidates ? `<div style="margin-top:5px; font-size:12px;">📧 Email: ${lead.email_candidates.split(',')[0]}...</div>` : ''}
@@ -421,12 +423,34 @@ async function testSMTP() {
     status.className = 'status-msg';
     status.innerText = '📧 正在測試 SMTP 連線...';
 
-    // In real implementation, this would call a backend API to test SMTP
-    setTimeout(() => {
-        status.className = 'status-msg success';
-        status.innerText = '✅ SMTP 連線測試成功（模擬）';
-        addLog('📧 SMTP 測試成功', 'success');
-    }, 1500);
+    try {
+        const response = await fetch(`${API_BASE_URL}/smtp/test`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                server: document.getElementById('smtp-server').value,
+                port: parseInt(document.getElementById('smtp-port').value),
+                user: document.getElementById('smtp-user').value,
+                password: document.getElementById('smtp-password').value
+            })
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+            status.className = 'status-msg success';
+            status.innerText = `✅ ${result.message}`;
+            addLog('📧 SMTP 測試成功', 'success');
+        } else {
+            status.className = 'status-msg error';
+            status.innerText = `❌ ${result.message}`;
+            addLog('❌ SMTP 測試失敗: ' + result.message, 'error');
+        }
+    } catch (error) {
+        status.className = 'status-msg error';
+        status.innerText = '❌ 測試失敗: ' + error.message;
+        addLog('❌ SMTP 測試錯誤', 'error');
+    }
 }
 
 // Email Generation
@@ -517,13 +541,19 @@ function updateConsole(logs) {
 
 // Email Templates Management
 async function fetchTemplates() {
+    const container = document.getElementById('templates-list');
+    
     try {
         const response = await fetch(`${API_BASE_URL}/templates`, { headers: getAuthHeaders() });
-        if (!response.ok) throw new Error('Failed to fetch');
+        if (!response.ok) {
+            container.innerHTML = '<p style="color:var(--text-muted);">API 錯誤，請檢查認證</p>';
+            throw new Error('Failed to fetch');
+        }
         const templates = await response.json();
         renderTemplates(templates);
     } catch (error) {
         console.error('Fetch templates error:', error);
+        container.innerHTML = '<p style="color:var(--text-muted);">載入失敗，請重新整理</p>';
     }
 }
 

@@ -152,6 +152,10 @@ def create_and_tag_lead(lead: LeadCreateReq, db: Session = Depends(get_db), curr
     tag_result = ai_service.analyze_company_and_tag(lead.company_name, lead.description, use_gpt=False)
     keywords_list = tag_result.get("Keywords", [])
     keywords_str = ", ".join(keywords_list) if isinstance(keywords_list, list) else str(keywords_list)
+    
+    # Ensure BD has fallback
+    assigned_bd = tag_result.get("BD") or "General"
+    ai_tag = tag_result.get("Tag") or "UNKNOWN"
 
     import email_finder
     import asyncio
@@ -165,8 +169,8 @@ def create_and_tag_lead(lead: LeadCreateReq, db: Session = Depends(get_db), curr
         mx_valid=1 if email_info.get("mx_valid") else 0,
         description=lead.description,
         extracted_keywords=keywords_str,
-        ai_tag=tag_result.get("Tag", "UNKNOWN"),
-        assigned_bd=tag_result.get("BD", "General"),
+        ai_tag=ai_tag,
+        assigned_bd=assigned_bd,
         status="Tagged"
     )
     db.add(db_lead)
@@ -278,14 +282,13 @@ class ScrapeSimpleRequest(BaseModel):
     pages: int = 3
 
 @app.post("/api/scrape-simple")
-
-@app.post("/api/scrape-simple")
 def trigger_scrape_simple(req: ScrapeSimpleRequest, background_tasks: BackgroundTasks, current_user: str = Depends(verify_token)):
     """Simplified scraper using Yahoo search dorking + email finder."""
     import scrape_simple as scrape_mod
     background_tasks.add_task(scrape_mod.scrape_simple, req.market, req.pages)
     return {"message": f"Simple scrape started for market={req.market}"}
 
+@app.get("/api/templates")
 def get_templates(db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
     templates = db.query(models.EmailTemplate).order_by(models.EmailTemplate.tag, models.EmailTemplate.name).all()
     return templates
@@ -444,6 +447,52 @@ def get_pricing(current_user: str = Depends(verify_token)):
 def update_pricing(config: PricingConfigUpdate, current_user: str = Depends(verify_token)):
     models.pricing_config.update(config.model_dump())
     add_log(f"💰 收費標準已更新: {config.model_dump()}")
+    return {"message": "Pricing updated", "config": models.pricing_config}
+
+# --- SMTP Test ---
+@app.post("/api/smtp/test")
+def test_smtp_connection(
+    server: str,
+    port: int,
+    user: str,
+    password: str,
+    current_user: str = Depends(verify_token)
+):
+    """Test SMTP connection with provided credentials."""
+    import smtplib
+    from email.mime.text import MIMEText
+    
+    try:
+        smtp = smtplib.SMTP(server, port, timeout=10)
+        smtp.starttls()
+        smtp.login(user, password)
+        smtp.quit()
+        
+        add_log(f"✅ SMTP 測試成功: {user}@{server}")
+        return {
+            "success": True,
+            "message": "SMTP connection successful",
+            "server": server,
+            "user": user
+        }
+    except smtplib.SMTPAuthenticationError:
+        add_log(f"❌ SMTP 認證失敗: {user}@{server}")
+        return {
+            "success": False,
+            "message": "Authentication failed. Check username and password."
+        }
+    except smtplib.SMTPConnectError as e:
+        add_log(f"❌ SMTP 連線失敗: {server}:{port}")
+        return {
+            "success": False,
+            "message": f"Could not connect to {server}:{port}"
+        }
+    except Exception as e:
+        add_log(f"❌ SMTP 測試錯誤: {str(e)}")
+        return {
+            "success": False,
+            "message": str(e)
+        }
     return {"message": "Pricing updated", "config": models.pricing_config}
 
 # --- Health Check ---
