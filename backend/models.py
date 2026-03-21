@@ -3,6 +3,15 @@ from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
 
+# Pricing configuration (can be stored/edited via API)
+pricing_config = {
+    "base_fee": 1000,           # 基本費用
+    "per_lead": 50,             # 每筆客戶費用
+    "email_open_track": 10,     # 開信追蹤費用
+    "email_click_track": 15,    # 點擊追蹤費用
+    "per_lead_usd": 1.5,        # 每筆客戶美元報價
+}
+
 class Lead(Base):
     __tablename__ = "leads"
 
@@ -50,3 +59,16 @@ class EmailTemplate(Base):
     attachment_url = Column(String, nullable=True)  # Optional attachment URL
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+# Engagement tracking model
+class EmailEngagement(Base):
+    __tablename__ = "email_engagements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("email_campaigns.id"))
+    opened = Column(Boolean, default=False)
+    clicked = Column(Boolean, default=False)
+    replied = Column(Boolean, default=False)
+    tracked_at = Column(DateTime, default=datetime.utcnow)
+
+    campaign = relationship("EmailCampaign", backref="engagements")

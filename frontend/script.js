@@ -3,7 +3,9 @@ const API_BASE_URL = window.location.origin + '/api';
 // Navigation
 const views = {
     'nav-lead-engine': 'lead-engine-view',
+    'nav-add-lead': 'add-lead-view',
     'nav-campaigns': 'campaign-logs-view',
+    'nav-engagements': 'engagements-view',
     'nav-search-logs': 'search-logs-view',
     'nav-templates': 'templates-view',
     'nav-smtp-settings': 'smtp-settings-view'
@@ -26,7 +28,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Event Listeners
     document.getElementById('login-form')?.addEventListener('submit', handleLogin);
     document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
-    document.getElementById('lead-form')?.addEventListener('submit', submitLead);
     document.getElementById('scrape-form')?.addEventListener('submit', startScrape);
     document.getElementById('refresh-btn')?.addEventListener('click', fetchLeads);
     document.getElementById('smtp-form')?.addEventListener('submit', saveSMTPSettings);
@@ -35,10 +36,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('refresh-search-logs-btn')?.addEventListener('click', fetchSearchLogs);
     document.getElementById('template-form')?.addEventListener('submit', saveTemplate);
     document.getElementById('refresh-templates-btn')?.addEventListener('click', fetchTemplates);
-    document.getElementById('smtp-form')?.addEventListener('submit', saveSMTPSettings);
-    document.getElementById('test-smtp-btn')?.addEventListener('click', testSMTP);
-    document.getElementById('refresh-campaigns-btn')?.addEventListener('click', fetchCampaigns);
-    document.getElementById('refresh-search-logs-btn')?.addEventListener('click', fetchSearchLogs);
+    document.getElementById('quick-lead-form')?.addEventListener('submit', submitQuickLead);
+    document.getElementById('pricing-form')?.addEventListener('submit', savePricing);
+    document.getElementById('refresh-engagements-btn')?.addEventListener('click', fetchEngagements);
+    document.getElementById('btn-scheduler-start')?.addEventListener('click', startScheduler);
+    document.getElementById('btn-scheduler-stop')?.addEventListener('click', stopScheduler);
+    document.getElementById('btn-scheduler-refresh')?.addEventListener('click', fetchSchedulerStatus);
 
     // Navigation
     Object.keys(views).forEach(navId => {
@@ -70,7 +73,9 @@ function switchView(navId) {
     // Update page title
     const titles = {
         'nav-lead-engine': 'AI Prospecting Dashboard',
+        'nav-add-lead': '新增客戶',
         'nav-campaigns': '寄信記錄',
+        'nav-engagements': '觸及率分析',
         'nav-search-logs': '搜尋記錄',
         'nav-templates': '信件模板管理',
         'nav-smtp-settings': 'SMTP 設定'
@@ -81,6 +86,7 @@ function switchView(navId) {
     if (navId === 'nav-campaigns') fetchCampaigns();
     if (navId === 'nav-search-logs') fetchSearchLogs();
     if (navId === 'nav-templates') fetchTemplates();
+    if (navId === 'nav-engagements') { fetchEngagements(); loadPricing(); }
 }
 
 // Auth
@@ -127,31 +133,45 @@ function handleLogout() {
     window.location.reload();
 }
 
-// Lead Management
-async function submitLead(e) {
+// Quick Lead Management (獨立新增頁面)
+async function submitQuickLead(e) {
     e.preventDefault();
-    const loading = document.getElementById('ai-loading');
+    const btn = document.getElementById('quick-lead-btn');
+    const loading = document.getElementById('quick-lead-loading');
+    const result = document.getElementById('quick-lead-result');
+
+    btn.disabled = true;
     loading.classList.remove('hidden');
+    result.classList.add('hidden');
 
     try {
+        // Use a placeholder description since this is a quick form
         const response = await fetch(`${API_BASE_URL}/leads`, {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({
-                company_name: document.getElementById('company-name').value,
-                website_url: document.getElementById('website-url').value,
-                description: document.getElementById('description').value
+                company_name: document.getElementById('quick-company-name').value,
+                website_url: document.getElementById('quick-website-url').value,
+                description: "Quick add from new lead form."
             })
         });
 
         if (response.ok) {
-            document.getElementById('lead-form').reset();
-            fetchLeads();
-            addLog('✅ 手動新增客戶成功', 'success');
+            const lead = await response.json();
+            result.classList.remove('hidden', 'error');
+            result.className = 'status-msg success';
+            result.innerHTML = `✅ <strong>${lead.company_name}</strong> 已新增！<br>分類標籤：<span class="tag-badge">${lead.ai_tag}</span>，負責人：${lead.assigned_bd}`;
+            document.getElementById('quick-lead-form').reset();
+            setTimeout(() => result.classList.add('hidden'), 6000);
+        } else {
+            throw new Error('Server error');
         }
     } catch (error) {
-        addLog('❌ 新增客戶失敗: ' + error.message, 'error');
+        result.classList.remove('hidden');
+        result.className = 'status-msg error';
+        result.innerText = '❌ 新增失敗，請稍後再試';
     } finally {
+        btn.disabled = false;
         loading.classList.add('hidden');
     }
 }
@@ -321,6 +341,56 @@ function loadSMTPSettings() {
     if (settings.server) document.getElementById('smtp-server').value = settings.server;
     if (settings.port) document.getElementById('smtp-port').value = settings.port;
     if (settings.user) document.getElementById('smtp-user').value = settings.user;
+    fetchSchedulerStatus();
+}
+
+// Scheduler Control
+async function fetchSchedulerStatus() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/scheduler/status`, { 
+            headers: getAuthHeaders() 
+        });
+        const data = await response.json();
+        
+        const statusEl = document.getElementById('scheduler-status');
+        if (data.running) {
+            statusEl.innerHTML = '<span style="color:#10b981;">● 運行中</span>';
+        } else {
+            statusEl.innerHTML = '<span style="color:#ef4444;">○ 已停止</span>';
+        }
+    } catch (error) {
+        console.error('Scheduler status error:', error);
+    }
+}
+
+async function startScheduler() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/scheduler/start`, { 
+            method: 'POST',
+            headers: getAuthHeaders() 
+        });
+        if (response.ok) {
+            addLog('✅ 寄信排程已啟動', 'success');
+            fetchSchedulerStatus();
+        }
+    } catch (error) {
+        addLog('❌ 啟動排程失敗', 'error');
+    }
+}
+
+async function stopScheduler() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/scheduler/stop`, { 
+            method: 'POST',
+            headers: getAuthHeaders() 
+        });
+        if (response.ok) {
+            addLog('✅ 寄信排程已停止', 'success');
+            fetchSchedulerStatus();
+        }
+    } catch (error) {
+        addLog('❌ 停止排程失敗', 'error');
+    }
 }
 
 async function saveSMTPSettings(e) {

@@ -90,6 +90,18 @@ class EmailTemplateCreate(BaseModel):
     is_default: bool = False
     attachment_url: Optional[str] = None
 
+class EngagementUpdate(BaseModel):
+    opened: bool = False
+    clicked: bool = False
+    replied: bool = False
+
+class PricingConfigUpdate(BaseModel):
+    base_fee: int
+    per_lead: int
+    email_open_track: int
+    email_click_track: int
+    per_lead_usd: float
+
 class EmailTemplateResponse(BaseModel):
     id: int
     name: str
@@ -423,6 +435,104 @@ def mark_email_sent(lead_id: int, db: Session = Depends(get_db), current_user: s
     
     add_log(f"📧 [寄信] 標記已寄信: {lead.company_name}")
     return {"message": "Email marked as sent"}
+
+# --- Email Engagement Tracking ---
+@app.get("/api/engagements")
+def get_engagements(db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
+    """取得所有追蹤資料，含標籤維度的統計"""
+    engagements = db.query(models.EmailEngagement).all()
+    campaigns = db.query(models.EmailCampaign).all()
+    leads = db.query(models.Lead).all()
+
+    # Build lookup maps
+    campaign_map = {c.id: c for c in campaigns}
+    lead_map = {l.id: l for l in leads}
+
+    # Group by tag (industry)
+    tag_stats = {}
+    for e in engagements:
+        campaign = campaign_map.get(e.campaign_id)
+        if not campaign:
+            continue
+        lead = lead_map.get(campaign.lead_id)
+        tag = lead.ai_tag if lead and lead.ai_tag else "UNKNOWN"
+
+        if tag not in tag_stats:
+            tag_stats[tag] = {"total": 0, "opened": 0, "clicked": 0, "replied": 0}
+
+        tag_stats[tag]["total"] += 1
+        if e.opened:
+            tag_stats[tag]["opened"] += 1
+        if e.clicked:
+            tag_stats[tag]["clicked"] += 1
+        if e.replied:
+            tag_stats[tag]["replied"] += 1
+
+    # Individual records
+    records = []
+    for e in engagements:
+        campaign = campaign_map.get(e.campaign_id)
+        if not campaign:
+            continue
+        lead = lead_map.get(campaign.lead_id)
+        records.append({
+            "id": e.id,
+            "campaign_id": e.campaign_id,
+            "company_name": lead.company_name if lead else "N/A",
+            "ai_tag": lead.ai_tag if lead else "UNKNOWN",
+            "opened": e.opened,
+            "clicked": e.clicked,
+            "replied": e.replied,
+            "tracked_at": e.tracked_at.strftime("%Y-%m-%d %H:%M:%S") if e.tracked_at else ""
+        })
+
+    return {
+        "records": records,
+        "tag_stats": tag_stats,
+        "total_leads": db.query(models.Lead).count(),
+        "total_campaigns": len(campaigns),
+    }
+
+@app.post("/api/engagements/{campaign_id}")
+def update_engagement(campaign_id: int, update: EngagementUpdate, db: Session = Depends(get_db)):
+    """
+    更新或建立追蹤狀態（可被外部郵件追蹤像素呼叫，無需認證以支援追蹤）
+    """
+    engagement = db.query(models.EmailEngagement).filter(
+        models.EmailEngagement.campaign_id == campaign_id
+    ).first()
+
+    if not engagement:
+        engagement = models.EmailEngagement(
+            campaign_id=campaign_id,
+            opened=update.opened,
+            clicked=update.clicked,
+            replied=update.replied,
+            tracked_at=datetime.utcnow()
+        )
+        db.add(engagement)
+    else:
+        if update.opened:
+            engagement.opened = True
+        if update.clicked:
+            engagement.clicked = True
+        if update.replied:
+            engagement.replied = True
+        engagement.tracked_at = datetime.utcnow()
+
+    db.commit()
+    return {"message": "Engagement updated"}
+
+# --- Pricing Config ---
+@app.get("/api/pricing")
+def get_pricing(current_user: str = Depends(verify_token)):
+    return models.pricing_config
+
+@app.put("/api/pricing")
+def update_pricing(config: PricingConfigUpdate, current_user: str = Depends(verify_token)):
+    models.pricing_config.update(config.model_dump())
+    add_log(f"💰 收費標準已更新: {config.model_dump()}")
+    return {"message": "Pricing updated", "config": models.pricing_config}
 
 # --- Health Check ---
 @app.get("/health")
