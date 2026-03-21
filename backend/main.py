@@ -264,116 +264,14 @@ class ScrapeSimpleRequest(BaseModel):
     pages: int = 3
 
 @app.post("/api/scrape-simple")
-def scrape_simple(req: ScrapeSimpleRequest, background_tasks: BackgroundTasks, current_user: str = Depends(verify_token)):
-    """
-    Simplified scraper — no keyword needed, no AI classification, no email drafts.
-    Directly fetches company names from YellowPages/SuperPages and saves to DB.
-    """
-    background_tasks.add_task(scrape_simple_task, req.market, req.pages)
-    return {"message": f"Simple scrape started for market={req.market}, pages={req.pages}"}
 
-def scrape_simple_task(market: str = "US", pages: int = 3):
-    """
-    Background task: scrape companies from YellowPages/SuperPages.
-    Only extracts company_name + email_candidates. Saves directly to DB.
-    No AI classification, no email draft generation.
-    """
-    import requests
-    from bs4 import BeautifulSoup
-    import time as _time
+@app.post("/api/scrape-simple")
+def trigger_scrape_simple(req: ScrapeSimpleRequest, background_tasks: BackgroundTasks, current_user: str = Depends(verify_token)):
+    """Simplified scraper using Yahoo search dorking + email finder."""
+    import scrape_simple as scrape_mod
+    background_tasks.add_task(scrape_mod.scrape_simple, req.market, req.pages)
+    return {"message": f"Simple scrape started for market={req.market}"}
 
-    db = SessionLocal()
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/111.0",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
-    }
-
-    sources = {
-        "YellowPages": f"https://www.yellowpages.com/search?search_terms=manufacturing&geo_location_terms={market}",
-        "SuperPages": f"https://www.superpages.com/search?search_terms=manufacturing&geo_location_terms={market}",
-    }
-
-    stats = {"found": 0, "new": 0, "skipped": 0}
-
-    for source_name, base_url in sources.items():
-        add_log(f"🔍 [簡化爬蟲] 來源: {source_name}")
-
-        for page in range(1, pages + 1):
-            url = f"{base_url}&page={page}" if page > 1 else base_url
-            try:
-                resp = requests.get(url, headers=headers, timeout=15)
-                if resp.status_code != 200:
-                    add_log(f"⚠️ [{source_name}] Page {page} failed: {resp.status_code}")
-                    _time.sleep(3)
-                    continue
-            except Exception as e:
-                add_log(f"⚠️ [{source_name}] Page {page} error: {e}")
-                _time.sleep(3)
-                continue
-
-            soup = BeautifulSoup(resp.text, 'html.parser')
-
-            # YellowPages pattern
-            listings = soup.select('.info-sector .company-snippet')
-            if not listings:
-                listings = soup.select('.search-results .result')
-
-            if not listings:
-                add_log(f"📭 [{source_name}] Page {page}: no listings found")
-                _time.sleep(3)
-                continue
-
-            add_log(f"🎯 [{source_name}] Page {page}: found {len(listings)} listings")
-
-            for listing in listings:
-                # Extract company name
-                name_elem = listing.find('a', class_='business-name') or listing.find('h2') or listing.find('h3')
-                company_name = name_elem.text.strip() if name_elem else None
-
-                if not company_name or len(company_name) < 2:
-                    continue
-
-                stats["found"] += 1
-
-                # Check if already in DB
-                existing = db.query(models.Lead).filter(
-                    models.Lead.company_name == company_name
-                ).first()
-                if existing:
-                    stats["skipped"] += 1
-                    continue
-
-                # Try to find emails (basic)
-                import asyncio
-                import email_finder
-                email_info = asyncio.run(email_finder.find_emails_for_company(company_name))
-                email_candidates = ", ".join(email_info.get("emails", [])) if email_info.get("emails") else None
-                domain = email_info.get("domain")
-                mx_valid = email_info.get("mx_valid", False)
-
-                # Save lead directly
-                db_lead = models.Lead(
-                    company_name=company_name,
-                    domain=domain,
-                    email_candidates=email_candidates,
-                    mx_valid=1 if mx_valid else 0,
-                    status="Scraped"
-                )
-                db.add(db_lead)
-                db.commit()
-                db.refresh(db_lead)
-                stats["new"] += 1
-                add_log(f"✅ [簡化爬蟲] {company_name[:30]} -> saved (id={db_lead.id})")
-
-                _time.sleep(2)
-
-            _time.sleep(5)
-
-    db.close()
-    add_log(f"🏁 [簡化爬蟲] 完成！發現:{stats['found']} 新增:{stats['new']} 跳過:{stats['skipped']}")
-
-# --- Email Template Management ---
-@app.get("/api/templates", response_model=List[EmailTemplateResponse])
 def get_templates(db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
     templates = db.query(models.EmailTemplate).order_by(models.EmailTemplate.tag, models.EmailTemplate.name).all()
     return templates
