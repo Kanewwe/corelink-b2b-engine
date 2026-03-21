@@ -439,49 +439,6 @@
                     </section>
                 </div>
             </div>
-                        
-                        <form id="template-form">
-                            <input type="hidden" id="template-id">
-                            <div class="input-group">
-                                <label>模板名稱</label>
-                                <input type="text" id="template-name" required placeholder="例如: Cable 標準模板">
-                            </div>
-                            <div class="input-group">
-                                <label>適用標籤</label>
-                                <select id="template-tag" required>
-                                    <option value="NA-CABLE">NA-CABLE (Cable)</option>
-                                    <option value="NA-NAMEPLATE">NA-NAMEPLATE (Nameplate)</option>
-                                    <option value="NA-PLASTIC">NA-PLASTIC (Plastic)</option>
-                                </select>
-                            </div>
-                            <div class="input-group">
-                                <label>信件主旨</label>
-                                <input type="text" id="template-subject" required placeholder="例如: Partnership Opportunity - {{company_name}}">
-                            </div>
-                            <div class="input-group">
-                                <label>信件內容</label>
-                                <textarea id="template-body" rows="10" required placeholder="支援變數: {{company_name}}, {{keywords}}, {{bd_name}}..."></textarea>
-                            </div>
-                            <div style="display:flex; gap:10px; align-items:center;">
-                                <button type="submit" class="btn-primary">儲存模板</button>
-                                <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
-                                    <input type="checkbox" id="template-default"> 設為預設模板
-                                </label>
-                            </div>
-                        </form>
-                    </section>
-                    
-                    <section class="glass-panel" style="padding:1.5rem;">
-                        <div class="panel-header" style="margin-bottom: 1rem;">
-                            <h3>現有模板</h3>
-                            <button id="refresh-templates-btn" class="btn-icon">↺</button>
-                        </div>
-                        <div id="templates-list" style="overflow-y:auto;">
-                            <p style="color:var(--text-muted);">載入中...</p>
-                        </div>
-                    </section>
-                </div>
-            </div>
 
             <!-- View: Add Lead (獨立頁面) -->
             <div id="add-lead-view" class="view-content hidden">
