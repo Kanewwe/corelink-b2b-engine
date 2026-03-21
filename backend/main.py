@@ -318,8 +318,19 @@ async def health_check():
     return {"status": "healthy"}
 
 # --- Static Files Hosting (Serve Frontend) ---
-# Try multiple paths for different deployment scenarios
-possible_paths = [
+
+# DEBUG ENDPOINT - MUST BE BEFORE StaticFiles mount
+@app.get("/api/debug")
+def debug():
+    return {
+        "admin_user_env": os.getenv("ADMIN_USER"),
+        "admin_password_set": bool(os.getenv("ADMIN_PASSWORD")),
+        "api_token_set": bool(os.getenv("API_TOKEN")),
+        "openai_key_set": bool(os.getenv("OPENAI_API_KEY")),
+        "database_url": os.getenv("DATABASE_URL", "NOT SET"),
+        "env_file_exists": os.path.exists("/app/backend/.env"),
+    }
+
     os.path.join(os.path.dirname(__file__), "frontend"),  # Docker: backend/frontend
     os.path.join(os.path.dirname(__file__), "..", "frontend"),  # Local: ../frontend
     "/app/frontend",  # Docker absolute path
