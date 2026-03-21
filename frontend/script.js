@@ -662,3 +662,143 @@ async function markEmailSent(leadId) {
         addLog('❌ 標記失敗: ' + error.message, 'error');
     }
 }
+
+// --- Email Engagement Tracking ---
+async function fetchEngagements() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/engagements`, { headers: getAuthHeaders() });
+        if (!response.ok) throw new Error('Failed');
+        const data = await response.json();
+        renderEngagementStats(data);
+    } catch (error) {
+        console.error('Fetch engagements error:', error);
+    }
+}
+
+function renderEngagementStats(data) {
+    // Render tag-level stats
+    const container = document.getElementById('engagement-tag-stats');
+    const tbody = document.getElementById('engagements-table-body');
+    const tagStats = data.tag_stats || {};
+    const records = data.records || [];
+
+    // Tag stats summary
+    if (Object.keys(tagStats).length === 0) {
+        container.innerHTML = '<p style="color:var(--text-muted);">尚無追蹤資料，請先寄送信件</p>';
+    } else {
+        let html = `<table class="data-table"><thead><tr><th>行業界別</th><th>總數</th><th>開信</th><th>點擊</th><th>回覆</th><th>開信率</th><th>點擊率</th></tr></thead><tbody>`;
+        const tagLabels = { 'NA-CABLE': 'Cable', 'NA-NAMEPLATE': 'Nameplate', 'NA-PLASTIC': 'Plastic', 'UNKNOWN': '未知' };
+        Object.keys(tagStats).forEach(tag => {
+            const s = tagStats[tag];
+            const openRate = s.total > 0 ? ((s.opened / s.total) * 100).toFixed(1) + '%' : '0%';
+            const clickRate = s.total > 0 ? ((s.clicked / s.total) * 100).toFixed(1) + '%' : '0%';
+            let tagClass = 'tag-unknown';
+            if (tag === 'NA-CABLE') tagClass = 'tag-cable';
+            else if (tag === 'NA-NAMEPLATE') tagClass = 'tag-nameplate';
+            else if (tag === 'NA-PLASTIC') tagClass = 'tag-plastic';
+            html += `<tr>
+                <td><span class="tag-badge ${tagClass}">${tagLabels[tag] || tag}</span></td>
+                <td>${s.total}</td>
+                <td><span class="level-success">${s.opened}</span></td>
+                <td><span class="level-info">${s.clicked}</span></td>
+                <td><span style="color:#a78bfa;">${s.replied}</span></td>
+                <td><strong>${openRate}</strong></td>
+                <td><strong>${clickRate}</strong></td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        html += `<div style="margin-top:12px; font-size:13px; color:var(--text-muted);">
+            總客戶數: <strong style="color:white;">${data.total_leads}</strong> |
+            總寄送次數: <strong style="color:white;">${data.total_campaigns}</strong>
+        </div>`;
+        container.innerHTML = html;
+    }
+
+    // Individual records table
+    if (records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">尚無追蹤資料</td></tr>';
+    } else {
+        tbody.innerHTML = '';
+        records.forEach(r => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${r.company_name}</td>
+                <td>${r.ai_tag}</td>
+                <td>${r.opened ? '<span style="color:#10b981;">✓</span>' : '<span style="color:#555;">✗</span>'}</td>
+                <td>${r.clicked ? '<span style="color:#3b82f6;">✓</span>' : '<span style="color:#555;">✗</span>'}</td>
+                <td>${r.replied ? '<span style="color:#a78bfa;">✓</span>' : '<span style="color:#555;">✗</span>'}</td>
+                <td>${r.tracked_at}</td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+}
+
+// --- Pricing Config ---
+async function loadPricing() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/pricing`, { headers: getAuthHeaders() });
+        if (!response.ok) return;
+        const config = await response.json();
+        document.getElementById('pricing-base-fee').value = config.base_fee || 1000;
+        document.getElementById('pricing-per-lead').value = config.per_lead || 50;
+        document.getElementById('pricing-email-open-track').value = config.email_open_track || 10;
+        document.getElementById('pricing-email-click-track').value = config.email_click_track || 15;
+        document.getElementById('pricing-per-lead-usd').value = config.per_lead_usd || 1.5;
+    } catch (error) {
+        console.error('Load pricing error:', error);
+    }
+}
+
+async function savePricing(e) {
+    e.preventDefault();
+    const status = document.getElementById('pricing-status');
+    try {
+        const response = await fetch(`${API_BASE_URL}/pricing`, {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                base_fee: parseInt(document.getElementById('pricing-base-fee').value),
+                per_lead: parseInt(document.getElementById('pricing-per-lead').value),
+                email_open_track: parseInt(document.getElementById('pricing-email-open-track').value),
+                email_click_track: parseInt(document.getElementById('pricing-email-click-track').value),
+                per_lead_usd: parseFloat(document.getElementById('pricing-per-lead-usd').value)
+            })
+        });
+        if (response.ok) {
+            status.classList.remove('hidden');
+            status.className = 'status-msg success';
+            status.innerText = '✅ 收費標準已儲存';
+            addLog('💰 收費標準已更新', 'success');
+            setTimeout(() => status.classList.add('hidden'), 4000);
+        }
+    } catch (error) {
+        status.classList.remove('hidden');
+        status.className = 'status-msg error';
+        status.innerText = '❌ 儲存失敗';
+    }
+}
+
+function calcQuote() {
+    const count = parseInt(document.getElementById('quote-lead-count').value) || 0;
+    const base = parseInt(document.getElementById('pricing-base-fee').value) || 1000;
+    const perLead = parseInt(document.getElementById('pricing-per-lead').value) || 50;
+    const openTrack = parseInt(document.getElementById('pricing-email-open-track').value) || 10;
+    const clickTrack = parseInt(document.getElementById('pricing-email-click-track').value) || 15;
+    const perLeadUsd = parseFloat(document.getElementById('pricing-per-lead-usd').value) || 1.5;
+
+    const totalNtd = base + (count * perLead) + (count * openTrack) + (count * clickTrack);
+    const totalUsd = (count * perLeadUsd).toFixed(2);
+
+    document.getElementById('quote-result').innerHTML = `
+        <div style="padding:12px; background:rgba(255,255,255,0.05); border-radius:8px;">
+            <div>基礎費用：<strong>NT$ ${base.toLocaleString()}</strong></div>
+            <div>客戶費用：<strong>NT$ ${(count * perLead).toLocaleString()}</strong> (${count} 筆 × NT$ ${perLead})</div>
+            <div>開信追蹤：<strong>NT$ ${(count * openTrack).toLocaleString()}</strong> (${count} 筆 × NT$ ${openTrack})</div>
+            <div>點擊追蹤：<strong>NT$ ${(count * clickTrack).toLocaleString()}</strong> (${count} 筆 × NT$ ${clickTrack})</div>
+            <hr style="border-color:rgba(255,255,255,0.1); margin:8px 0;">
+            <div style="font-size:16px; color:#10b981;">💵 總費用：NT$ <strong>${totalNtd.toLocaleString()}</strong></div>
+            <div style="font-size:16px; color:#60a5fa;">💵 美元報價：US$ <strong>${totalUsd.toLocaleString()}</strong></div>
+        </div>
+    `;
+}
