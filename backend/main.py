@@ -293,7 +293,12 @@ def mark_email_sent(lead_id: int, db: Session = Depends(get_db), current_user: s
 # --- Health Check ---
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    return {
+        "status": "healthy",
+        "admin_user": os.getenv("ADMIN_USER", "none"),
+        "admin_password_set": bool(os.getenv("ADMIN_PASSWORD")),
+        "database_url": os.getenv("DATABASE_URL", "NOT SET"),
+    }
 
 # --- Static Files Hosting ---
 possible_paths = [
