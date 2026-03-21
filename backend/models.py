@@ -47,5 +47,6 @@ class EmailTemplate(Base):
     subject = Column(String, nullable=False)
     body = Column(Text, nullable=False)
     is_default = Column(Boolean, default=False)
+    attachment_url = Column(String, nullable=True)  # Optional attachment URL
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -21,8 +21,8 @@ Base.metadata.create_all(bind=engine)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup Events
-    email_sender_job.start_scheduler()
+    # Startup Events — scheduler auto-start is disabled by default (EMAIL_SCHEDULER_ENABLED=false)
+    # Use POST /api/scheduler/start to manually enable it
     yield
 
 app = FastAPI(title="Corelink B2B Engine API (Optimized)", lifespan=lifespan)
@@ -88,6 +88,7 @@ class EmailTemplateCreate(BaseModel):
     subject: str
     body: str
     is_default: bool = False
+    attachment_url: Optional[str] = None
 
 class EmailTemplateResponse(BaseModel):
     id: int
@@ -96,6 +97,7 @@ class EmailTemplateResponse(BaseModel):
     subject: str
     body: str
     is_default: bool
+    attachment_url: Optional[str] = None
     created_at: str
     model_config = {"from_attributes": True}
 
@@ -222,11 +224,141 @@ def test_email_dispatch(current_user: str = Depends(verify_token)):
     add_log(f"Manual Test Email triggered by {current_user}")
     return {"message": "Test event logged. Check system logs."}
 
+# --- Scheduler Control Endpoints ---
+@app.post("/api/scheduler/start")
+def start_scheduler(current_user: str = Depends(verify_token)):
+    email_sender_job.start_scheduler()
+    status = email_sender_job.get_scheduler_status()
+    return {"message": "Scheduler started", "status": status}
+
+@app.post("/api/scheduler/stop")
+def stop_scheduler(current_user: str = Depends(verify_token)):
+    stopped = email_sender_job.stop_scheduler()
+    status = email_sender_job.get_scheduler_status()
+    return {"message": "Scheduler stopped" if stopped else "Scheduler was not running", "status": status}
+
+@app.get("/api/scheduler/status")
+def get_scheduler_status(current_user: str = Depends(verify_token)):
+    return email_sender_job.get_scheduler_status()
+
 @app.post("/api/scrape")
 def trigger_scraper(req: ScrapeRequest, background_tasks: BackgroundTasks, current_user: str = Depends(verify_token)):
     import scraper
     background_tasks.add_task(scraper.scrape_and_process_task, req.market, req.keyword)
     return {"message": f"Scraping task for {req.market} {req.keyword} started."}
+
+class ScrapeSimpleRequest(BaseModel):
+    market: str = "US"
+    pages: int = 3
+
+@app.post("/api/scrape-simple")
+def scrape_simple(req: ScrapeSimpleRequest, background_tasks: BackgroundTasks, current_user: str = Depends(verify_token)):
+    """
+    Simplified scraper — no keyword needed, no AI classification, no email drafts.
+    Directly fetches company names from YellowPages/SuperPages and saves to DB.
+    """
+    background_tasks.add_task(scrape_simple_task, req.market, req.pages)
+    return {"message": f"Simple scrape started for market={req.market}, pages={req.pages}"}
+
+def scrape_simple_task(market: str = "US", pages: int = 3):
+    """
+    Background task: scrape companies from YellowPages/SuperPages.
+    Only extracts company_name + email_candidates. Saves directly to DB.
+    No AI classification, no email draft generation.
+    """
+    import requests
+    from bs4 import BeautifulSoup
+    import time as _time
+
+    db = SessionLocal()
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/111.0",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+    }
+
+    sources = {
+        "YellowPages": f"https://www.yellowpages.com/search?search_terms=manufacturing&geo_location_terms={market}",
+        "SuperPages": f"https://www.superpages.com/search?search_terms=manufacturing&geo_location_terms={market}",
+    }
+
+    stats = {"found": 0, "new": 0, "skipped": 0}
+
+    for source_name, base_url in sources.items():
+        add_log(f"🔍 [簡化爬蟲] 來源: {source_name}")
+
+        for page in range(1, pages + 1):
+            url = f"{base_url}&page={page}" if page > 1 else base_url
+            try:
+                resp = requests.get(url, headers=headers, timeout=15)
+                if resp.status_code != 200:
+                    add_log(f"⚠️ [{source_name}] Page {page} failed: {resp.status_code}")
+                    _time.sleep(3)
+                    continue
+            except Exception as e:
+                add_log(f"⚠️ [{source_name}] Page {page} error: {e}")
+                _time.sleep(3)
+                continue
+
+            soup = BeautifulSoup(resp.text, 'html.parser')
+
+            # YellowPages pattern
+            listings = soup.select('.info-sector .company-snippet')
+            if not listings:
+                listings = soup.select('.search-results .result')
+
+            if not listings:
+                add_log(f"📭 [{source_name}] Page {page}: no listings found")
+                _time.sleep(3)
+                continue
+
+            add_log(f"🎯 [{source_name}] Page {page}: found {len(listings)} listings")
+
+            for listing in listings:
+                # Extract company name
+                name_elem = listing.find('a', class_='business-name') or listing.find('h2') or listing.find('h3')
+                company_name = name_elem.text.strip() if name_elem else None
+
+                if not company_name or len(company_name) < 2:
+                    continue
+
+                stats["found"] += 1
+
+                # Check if already in DB
+                existing = db.query(models.Lead).filter(
+                    models.Lead.company_name == company_name
+                ).first()
+                if existing:
+                    stats["skipped"] += 1
+                    continue
+
+                # Try to find emails (basic)
+                import asyncio
+                import email_finder
+                email_info = asyncio.run(email_finder.find_emails_for_company(company_name))
+                email_candidates = ", ".join(email_info.get("emails", [])) if email_info.get("emails") else None
+                domain = email_info.get("domain")
+                mx_valid = email_info.get("mx_valid", False)
+
+                # Save lead directly
+                db_lead = models.Lead(
+                    company_name=company_name,
+                    domain=domain,
+                    email_candidates=email_candidates,
+                    mx_valid=1 if mx_valid else 0,
+                    status="Scraped"
+                )
+                db.add(db_lead)
+                db.commit()
+                db.refresh(db_lead)
+                stats["new"] += 1
+                add_log(f"✅ [簡化爬蟲] {company_name[:30]} -> saved (id={db_lead.id})")
+
+                _time.sleep(2)
+
+            _time.sleep(5)
+
+    db.close()
+    add_log(f"🏁 [簡化爬蟲] 完成！發現:{stats['found']} 新增:{stats['new']} 跳過:{stats['skipped']}")
 
 # --- Email Template Management ---
 @app.get("/api/templates", response_model=List[EmailTemplateResponse])
@@ -241,7 +373,8 @@ def create_template(template: EmailTemplateCreate, db: Session = Depends(get_db)
         tag=template.tag,
         subject=template.subject,
         body=template.body,
-        is_default=template.is_default
+        is_default=template.is_default,
+        attachment_url=template.attachment_url
     )
     db.add(db_template)
     db.commit()
@@ -260,6 +393,7 @@ def update_template(template_id: int, template: EmailTemplateCreate, db: Session
     db_template.subject = template.subject
     db_template.body = template.body
     db_template.is_default = template.is_default
+    db_template.attachment_url = template.attachment_url
     db_template.updated_at = datetime.utcnow()
     
     db.commit()
