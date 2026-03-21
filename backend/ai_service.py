@@ -31,6 +31,17 @@ def analyze_company_and_tag(company_name: str, description: str, use_gpt: bool =
     1. 若需要客製化線束或電纜組件（wire, harness, cable assembly），請標籤為 NA-CABLE, BD 填 Johnny。
     2. 若生產設備需要銘牌或識別標籤（label, tag, metal marker, identification），請標籤為 NA-NAMEPLATE, BD 填 Richard。
     3. 若開發新產品需要塑膠射出成型或外殼零件（molding, parts, prototyping），請標籤為 NA-PLASTIC, BD 填 Jason。
+    
+    汽車零組件行業分類（BD 皆為 General）：
+    4. 引擎相關零件（engine, piston, crankshaft, camshaft, valve, timing belt）→ AUTO-ENGINE
+    5. 煞車系統（brake, rotor, caliper, pad, abs）→ AUTO-BRAKE
+    6. 懸吊系統（suspension, shock, strut, spring, control arm）→ AUTO-SUSPENSION
+    7. 汽車電系（alternator, starter, battery, ignition, spark plug, sensor, ecu）→ AUTO-ELECTRICAL
+    8. 車身鈑金（bumper, fender, door, hood, grille, headlight, windshield）→ AUTO-BODY
+    9. 內裝零件（seat, steering wheel, dashboard, carpet, trim, console）→ AUTO-INTERIOR
+    10. 變速箱系統（transmission, gearbox, clutch, drive shaft, differential）→ AUTO-TRANSMISSION
+    11. 排氣系統（exhaust, muffler, catalytic converter, manifold）→ AUTO-EXHAUST
+    12. 冷卻系統（radiator, thermostat, coolant, heater, fan）→ AUTO-COOLING
 
     此外，也請從【公司簡介】中精準萃取 2 到 4 個技術或終端應用的「核心業務關鍵字」 (例如: wire harness, UL certified, plastic parts 等)，以陣列回傳。
 

@@ -5,6 +5,7 @@ Replaces Prompt 1 from ai_service.py
 
 # Classification rules: keyword matching for each product line
 CLASSIFICATION_RULES = {
+    # 原有分類：線材、銘牌、塑膠
     "NA-CABLE": {
         "rep": "Johnny",
         "keywords": [
@@ -32,6 +33,44 @@ CLASSIFICATION_RULES = {
             "plastic housing", "plastic component", "injection moulding",
             "extrusion", "plastic fabrication"
         ]
+    },
+
+    # 新增：汽車零組件行業
+    "AUTO-ENGINE": {
+        "rep": "General",
+        "keywords": ["engine", "motor", "cylinder", "piston", "crankshaft", "camshaft", "valve", "oil pump", "water pump", "timing belt", "combustion", "turbocharger", "supercharger", "engine block", "head gasket"]
+    },
+    "AUTO-BRAKE": {
+        "rep": "General",
+        "keywords": ["brake", "braking", "disc brake", "rotor", "caliper", "brake pad", "abs", "master cylinder", "brake drum", "brake line", "brake fluid"]
+    },
+    "AUTO-SUSPENSION": {
+        "rep": "General",
+        "keywords": ["suspension", "shock absorber", "strut", "spring", "control arm", "ball joint", "tie rod", "stabilizer", "coilover", "wishbone", "sway bar"]
+    },
+    "AUTO-ELECTRICAL": {
+        "rep": "General",
+        "keywords": ["alternator", "starter", "battery", "ignition", "spark plug", "ignition coil", "sensor", "ecu", "wiring harness", "connector", "fuse", "relay", "voltage regulator"]
+    },
+    "AUTO-BODY": {
+        "rep": "General",
+        "keywords": ["bumper", "fender", "door panel", "hood", "trunk", "grille", "mirror", "windshield", "headlight", "taillight", "body panel", "quarter panel", "rocker panel"]
+    },
+    "AUTO-INTERIOR": {
+        "rep": "General",
+        "keywords": ["seat", "steering wheel", "dashboard", "carpet", "trim", "console", "armrest", "upholstery", "headliner", "door panel interior"]
+    },
+    "AUTO-TRANSMISSION": {
+        "rep": "General",
+        "keywords": ["transmission", "gearbox", "clutch", "drive shaft", "differential", "axle", "cvt", "torque converter", "flywheel", "gear shift"]
+    },
+    "AUTO-EXHAUST": {
+        "rep": "General",
+        "keywords": ["exhaust", "muffler", "catalytic converter", "exhaust manifold", "exhaust pipe", "tailpipe", "downpipe", "resonator", "emissions"]
+    },
+    "AUTO-COOLING": {
+        "rep": "General",
+        "keywords": ["radiator", "thermostat", "coolant", "heater core", "cooling fan", "radiator hose", "water pump", "intercooler", "antifreeze"]
     }
 }
 
