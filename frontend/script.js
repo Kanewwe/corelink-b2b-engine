@@ -974,3 +974,303 @@ function updateStrategyDescription() {
 function getEmailStrategy() {
     return document.querySelector('input[name="email-strategy"]:checked')?.value || 'free';
 }
+
+// ══════════════════════════════════════════
+// Template v2 Functions
+// ══════════════════════════════════════════
+
+let originalHTML = '';
+let editorMode = 'split';
+
+function switchTemplateTab(tab) {
+    document.querySelectorAll('.template-tab-content').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    
+    document.getElementById(`template-${tab}-tab`)?.classList.remove('hidden');
+    document.getElementById(`tab-${tab}`)?.classList.add('active');
+    
+    if (tab === 'list') fetchTemplates();
+    if (tab === 'attachments') loadAttachments();
+}
+
+function setEditorMode(mode) {
+    editorMode = mode;
+    const container = document.getElementById('editor-container');
+    const editor = document.getElementById('html-editor-wrapper');
+    const preview = document.getElementById('preview-wrapper');
+    
+    document.querySelectorAll('[id^="mode-"]').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`mode-${mode}`)?.classList.add('active');
+    
+    if (mode === 'edit') {
+        container.style.gridTemplateColumns = '1fr';
+        editor.style.display = 'flex';
+        preview.style.display = 'none';
+    } else if (mode === 'preview') {
+        container.style.gridTemplateColumns = '1fr';
+        editor.style.display = 'none';
+        preview.style.display = 'flex';
+    } else {
+        container.style.gridTemplateColumns = '1fr 1fr';
+        editor.style.display = 'flex';
+        preview.style.display = 'flex';
+    }
+    
+    updatePreview();
+}
+
+function updatePreview() {
+    const html = document.getElementById('html-editor')?.value || '';
+    const iframe = document.getElementById('preview-iframe');
+    
+    if (iframe) {
+        // Replace variables with test data for preview
+        const previewHTML = html
+            .replace(/\{\{company_name\}\}/g, 'Test Company')
+            .replace(/\{\{bd_name\}\}/g, 'John Doe')
+            .replace(/\{\{keywords\}\}/g, 'cable, wire, harness')
+            .replace(/\{\{description\}\}/g, 'A leading manufacturer of custom cable assemblies.');
+        
+        iframe.srcdoc = previewHTML;
+    }
+}
+
+function insertVariable(varName) {
+    const editor = document.getElementById('html-editor');
+    const variable = `{{${varName}}}`;
+    
+    if (editor) {
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        const text = editor.value;
+        
+        editor.value = text.substring(0, start) + variable + text.substring(end);
+        editor.selectionStart = editor.selectionEnd = start + variable.length;
+        editor.focus();
+        updatePreview();
+    }
+}
+
+function formatHTML() {
+    // Simple HTML formatting - add proper indentation
+    const editor = document.getElementById('html-editor');
+    if (!editor) return;
+    
+    let html = editor.value;
+    
+    // Basic formatting
+    html = html.replace(/>\s+</g, '>\n<');
+    html = html.replace(/\n\s*\n/g, '\n');
+    
+    editor.value = html;
+    updatePreview();
+    addLog('📝 HTML 已格式化', 'info');
+}
+
+function restoreOriginal() {
+    if (originalHTML) {
+        document.getElementById('html-editor').value = originalHTML;
+        updatePreview();
+        addLog('↩️ 已復原到 AI 原始版本', 'info');
+    }
+}
+
+// AI Generate Template
+async function aiGenerateTemplate() {
+    const prompt = document.getElementById('ai-prompt-input')?.value;
+    const style = document.getElementById('ai-style')?.value || 'professional';
+    const language = document.getElementById('ai-language')?.value || 'english';
+    const status = document.getElementById('ai-status');
+    
+    if (!prompt) {
+        status.classList.remove('hidden');
+        status.className = 'status-msg error';
+        status.innerText = '請輸入信件需求描述';
+        return;
+    }
+    
+    status.classList.remove('hidden');
+    status.className = 'status-msg';
+    status.innerText = '⏳ AI 正在生成中...';
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/templates/ai-generate`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ prompt, style, language })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            const editor = document.getElementById('html-editor');
+            editor.value = result.html;
+            originalHTML = result.html; // Save for restore
+            updatePreview();
+            
+            status.className = 'status-msg success';
+            status.innerText = '✅ AI 已生成草稿，可在下方編輯器調整';
+            addLog('✨ AI 模板生成成功', 'success');
+        } else {
+            status.className = 'status-msg error';
+            status.innerText = `❌ ${result.message}`;
+        }
+    } catch (error) {
+        status.className = 'status-msg error';
+        status.innerText = `❌ 生成失敗: ${error.message}`;
+    }
+}
+
+// Save Template v2
+async function saveTemplateV2() {
+    const name = document.getElementById('template-name')?.value;
+    const tag = document.getElementById('template-tag')?.value;
+    const subject = document.getElementById('template-subject')?.value;
+    const body = document.getElementById('html-editor')?.value;
+    const isDefault = document.getElementById('template-default')?.checked;
+    
+    const status = document.getElementById('template-status');
+    
+    if (!name || !tag || !subject || !body) {
+        status.classList.remove('hidden');
+        status.className = 'status-msg error';
+        status.innerText = '請填寫所有必填欄位';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/templates`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                name,
+                tag,
+                subject,
+                body,
+                is_default: isDefault
+            })
+        });
+        
+        if (response.ok) {
+            status.classList.remove('hidden');
+            status.className = 'status-msg success';
+            status.innerText = '✅ 模板已儲存';
+            addLog(`💾 模板已儲存: ${name}`, 'success');
+            
+            // Clear form
+            document.getElementById('template-name').value = '';
+            document.getElementById('template-subject').value = '';
+            document.getElementById('html-editor').value = '';
+            document.getElementById('ai-prompt-input').value = '';
+            updatePreview();
+        } else {
+            const error = await response.json();
+            status.classList.remove('hidden');
+            status.className = 'status-msg error';
+            status.innerText = `❌ ${error.detail || '儲存失敗'}`;
+        }
+    } catch (error) {
+        status.classList.remove('hidden');
+        status.className = 'status-msg error';
+        status.innerText = `❌ 儲存失敗: ${error.message}`;
+    }
+}
+
+// Send Test Email
+async function sendTestEmail() {
+    const status = document.getElementById('template-status');
+    status.classList.remove('hidden');
+    status.className = 'status-msg';
+    status.innerText = '📧 正在寄送測試信...';
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/templates/test-send`, {
+            method: 'POST',
+            headers: getAuthHeaders()
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            status.className = 'status-msg success';
+            status.innerText = `✅ ${result.message}`;
+            addLog('📧 測試信已寄送', 'success');
+        } else {
+            status.className = 'status-msg error';
+            status.innerText = `❌ ${result.message}`;
+        }
+    } catch (error) {
+        status.className = 'status-msg error';
+        status.innerText = `❌ 寄送失敗: ${error.message}`;
+    }
+}
+
+// File Upload
+function handleDragOver(e) {
+    e.preventDefault();
+    document.getElementById('upload-dropzone')?.classList.add('dragover');
+}
+
+function handleDragLeave(e) {
+    e.preventDefault();
+    document.getElementById('upload-dropzone')?.classList.remove('dragover');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    document.getElementById('upload-dropzone')?.classList.remove('dragover');
+    
+    const files = e.dataTransfer.files;
+    handleFiles(files);
+}
+
+function handleFileSelect(e) {
+    const files = e.target.files;
+    handleFiles(files);
+}
+
+function handleFiles(files) {
+    // For now, just log - file upload would need backend storage
+    addLog(`📁 選擇了 ${files.length} 個檔案`, 'info');
+    
+    const list = document.getElementById('uploaded-files-list');
+    list.innerHTML = '';
+    
+    Array.from(files).forEach(file => {
+        const item = document.createElement('div');
+        item.className = 'file-item';
+        item.innerHTML = `
+            <div>
+                <span style="margin-right:8px;">📄</span>
+                <strong>${file.name}</strong>
+                <span style="color:var(--text-muted); margin-left:8px;">${(file.size / 1024).toFixed(1)}KB</span>
+            </div>
+            <div>
+                <label style="display:flex; align-items:center; gap:4px; cursor:pointer; margin-right:10px;">
+                    <input type="checkbox" checked>
+                    <span style="font-size:12px;">預設夾帶</span>
+                </label>
+                <button class="btn-secondary" style="padding:2px 8px; font-size:11px;">刪除</button>
+            </div>
+        `;
+        list.appendChild(item);
+    });
+}
+
+function loadAttachments() {
+    // Load existing attachments - placeholder
+    const list = document.getElementById('uploaded-files-list');
+    if (list && list.children.length === 0) {
+        list.innerHTML = '<p style="color:var(--text-muted); font-size:12px;">尚無上傳檔案</p>';
+    }
+}
+
+// Initialize template page
+document.getElementById('ai-generate-btn')?.addEventListener('click', aiGenerateTemplate);
+document.getElementById('ai-clear-btn')?.addEventListener('click', () => {
+    document.getElementById('ai-prompt-input').value = '';
+    document.getElementById('ai-status').classList.add('hidden');
+});
+document.getElementById('upload-dropzone')?.addEventListener('click', () => {
+    document.getElementById('file-input')?.click();
+});

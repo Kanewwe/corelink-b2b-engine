@@ -237,12 +237,208 @@
 
             <!-- View: Email Templates -->
             <div id="templates-view" class="view-content hidden">
-                <div class="content-grid">
+                <!-- Tab Navigation -->
+                <div style="margin-bottom:20px;">
+                    <div style="display:flex; gap:10px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px;">
+                        <button id="tab-create" class="tab-btn active" onclick="switchTemplateTab('create')">📝 建立/編輯模板</button>
+                        <button id="tab-list" class="tab-btn" onclick="switchTemplateTab('list')">📁 現有模板</button>
+                        <button id="tab-attachments" class="tab-btn" onclick="switchTemplateTab('attachments')">📎 附件管理</button>
+                    </div>
+                </div>
+                
+                <!-- Tab: Create/Edit Template -->
+                <div id="template-create-tab" class="template-tab-content">
+                    <div class="content-grid">
+                        <!-- Left: AI Generation + HTML Editor -->
+                        <section class="glass-panel" style="padding:1.5rem;">
+                            <!-- AI Generation Section -->
+                            <div style="margin-bottom:20px; padding:15px; background:rgba(99,102,241,0.1); border-radius:8px;">
+                                <h4 style="margin-bottom:10px;">🤖 AI 智慧生成信件排版</h4>
+                                <p style="color:var(--text-muted); font-size:12px; margin-bottom:12px;">
+                                    描述你的信件目的，AI 自動排版為專業 HTML 開發信
+                                </p>
+                                <textarea id="ai-prompt-input" rows="3" 
+                                    placeholder="例如：我要寫一封針對美國汽車零件採購商的開發信，強調我們的 Cable 產品品質與交期..."
+                                    style="width:100%; padding:10px; border-radius:6px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:#fff; resize:vertical;"></textarea>
+                                
+                                <div style="display:flex; gap:15px; margin-top:12px; align-items:center;">
+                                    <div>
+                                        <span style="font-size:12px; color:var(--text-muted);">語言風格：</span>
+                                        <select id="ai-style" style="padding:4px 8px; border-radius:4px; margin-left:5px;">
+                                            <option value="professional">正式</option>
+                                            <option value="friendly">親切</option>
+                                            <option value="technical">技術型</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <span style="font-size:12px; color:var(--text-muted);">信件語言：</span>
+                                        <select id="ai-language" style="padding:4px 8px; border-radius:4px; margin-left:5px;">
+                                            <option value="english">English</option>
+                                            <option value="chinese">中文</option>
+                                        </select>
+                                    </div>
+                                    <button id="ai-generate-btn" class="btn-primary" style="padding:6px 16px;">
+                                        ✨ 讓 AI 生成 HTML
+                                    </button>
+                                    <button id="ai-clear-btn" class="btn-secondary" style="padding:6px 16px;">
+                                        清除
+                                    </button>
+                                </div>
+                                <div id="ai-status" class="status-msg hidden" style="margin-top:10px;"></div>
+                            </div>
+                            
+                            <!-- Mode Toggle -->
+                            <div style="display:flex; gap:10px; margin-bottom:15px; align-items:center;">
+                                <span style="font-size:13px; color:var(--text-muted);">模式切換：</span>
+                                <button id="mode-edit" class="btn-secondary active" onclick="setEditorMode('edit')" style="padding:4px 12px;">📝 HTML 編輯</button>
+                                <button id="mode-preview" class="btn-secondary" onclick="setEditorMode('preview')" style="padding:4px 12px;">👁 預覽</button>
+                                <button id="mode-split" class="btn-secondary" onclick="setEditorMode('split')" style="padding:4px 12px;">↔ 分割視圖</button>
+                                
+                                <div style="margin-left:auto; display:flex; gap:5px;">
+                                    <button class="btn-secondary" onclick="formatHTML()" style="padding:4px 8px; font-size:11px;">格式化</button>
+                                    <button class="btn-secondary" onclick="restoreOriginal()" style="padding:4px 8px; font-size:11px;">復原</button>
+                                </div>
+                            </div>
+                            
+                            <!-- Variable Chips -->
+                            <div style="margin-bottom:15px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                <span style="font-size:12px; color:var(--text-muted);">變數插入：</span>
+                                <button class="var-chip" onclick="insertVariable('company_name')">`{{company_name}}`</button>
+                                <button class="var-chip" onclick="insertVariable('bd_name')">`{{bd_name}}`</button>
+                                <button class="var-chip" onclick="insertVariable('keywords')">`{{keywords}}`</button>
+                                <button class="var-chip" onclick="insertVariable('description')">`{{description}}`</button>
+                            </div>
+                            
+                            <!-- Editor + Preview Split View -->
+                            <div id="editor-container" style="display:grid; grid-template-columns:1fr 1fr; gap:15px; min-height:400px;">
+                                <!-- HTML Editor -->
+                                <div id="html-editor-wrapper" style="display:flex; flex-direction:column;">
+                                    <div style="padding:8px; background:rgba(255,255,255,0.05); border-radius:6px 6px 0 0; font-size:12px; color:var(--text-muted);">
+                                        HTML 編輯器
+                                    </div>
+                                    <textarea id="html-editor" 
+                                        style="flex:1; min-height:350px; padding:10px; font-family:'Monaco','Menlo','Ubuntu Mono',monospace; font-size:13px; line-height:1.5; border-radius:0 0 6px 6px; border:1px solid rgba(255,255,255,0.1); background:#1e1e1e; color:#d4d4d4; resize:none;"
+                                        placeholder="<!-- 在此輸入 HTML 或讓 AI 生成 -->"
+                                        oninput="updatePreview()"></textarea>
+                                </div>
+                                
+                                <!-- Preview -->
+                                <div id="preview-wrapper" style="display:flex; flex-direction:column;">
+                                    <div style="padding:8px; background:rgba(255,255,255,0.05); border-radius:6px 6px 0 0; font-size:12px; color:var(--text-muted);">
+                                        即時預覽
+                                    </div>
+                                    <iframe id="preview-iframe" 
+                                        style="flex:1; min-height:350px; border-radius:0 0 6px 6px; border:1px solid rgba(255,255,255,0.1); background:#fff;">
+                                    </iframe>
+                                </div>
+                            </div>
+                        </section>
+                        
+                        <!-- Right: Template Settings -->
+                        <section class="glass-panel" style="padding:1.5rem;">
+                            <h3 style="margin-bottom:20px;">⚙️ 模板設定</h3>
+                            
+                            <div class="input-group">
+                                <label>模板名稱 *</label>
+                                <input type="text" id="template-name" placeholder="例如: Cable 標準開發信">
+                            </div>
+                            
+                            <div class="input-group">
+                                <label>適用標籤 *</label>
+                                <select id="template-tag">
+                                    <option value="NA-CABLE">NA-CABLE (Cable)</option>
+                                    <option value="NA-NAMEPLATE">NA-NAMEPLATE (Nameplate)</option>
+                                    <option value="NA-PLASTIC">NA-PLASTIC (Plastic)</option>
+                                    <option value="AUTO-ENGINE">AUTO-ENGINE (汽車引擎)</option>
+                                    <option value="AUTO-BRAKE">AUTO-BRAKE (汽車煞車)</option>
+                                    <option value="AUTO-PARTS">AUTO-PARTS (汽車零件)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="input-group">
+                                <label>信件主旨 *</label>
+                                <input type="text" id="template-subject" placeholder="例如: Partnership Opportunity - {{company_name}}">
+                            </div>
+                            
+                            <div class="input-group">
+                                <label>夾帶附件</label>
+                                <div id="attachment-select" style="margin-top:5px;">
+                                    <p style="color:var(--text-muted); font-size:12px;">尚無附件，請先到「附件管理」上傳</p>
+                                </div>
+                            </div>
+                            
+                            <div style="display:flex; gap:10px; margin-top:20px; align-items:center;">
+                                <button id="save-template-btn" class="btn-primary" onclick="saveTemplateV2()">
+                                    💾 儲存模板
+                                </button>
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                    <input type="checkbox" id="template-default">
+                                    <span style="font-size:13px;">設為預設</span>
+                                </label>
+                            </div>
+                            
+                            <hr style="border-color:rgba(255,255,255,0.1); margin:25px 0;">
+                            
+                            <div>
+                                <button class="btn-secondary" onclick="sendTestEmail()" style="width:100%;">
+                                    📧 傳送測試信到我的信箱
+                                </button>
+                                <p style="color:var(--text-muted); font-size:11px; margin-top:8px;">
+                                    用 SMTP 設定寄一封測試信給自己，確認排版效果
+                                </p>
+                            </div>
+                            
+                            <div id="template-status" class="status-msg hidden" style="margin-top:15px;"></div>
+                        </section>
+                    </div>
+                </div>
+                
+                <!-- Tab: Existing Templates -->
+                <div id="template-list-tab" class="template-tab-content hidden">
                     <section class="glass-panel" style="padding:1.5rem;">
-                        <h3>📝 信件模板管理</h3>
-                        <p style="color:var(--text-muted); font-size:13px; margin-bottom: 20px;">
-                            為不同產品線建立專屬的開發信模板
+                        <div class="panel-header" style="margin-bottom:1rem;">
+                            <h3>現有模板</h3>
+                            <button class="btn-primary" onclick="switchTemplateTab('create')" style="padding:6px 16px;">
+                                + 新增模板
+                            </button>
+                        </div>
+                        <div id="templates-list" style="overflow-y:auto;">
+                            <p style="color:var(--text-muted);">載入中...</p>
+                        </div>
+                    </section>
+                </div>
+                
+                <!-- Tab: Attachments -->
+                <div id="template-attachments-tab" class="template-tab-content hidden">
+                    <section class="glass-panel" style="padding:1.5rem;">
+                        <h3 style="margin-bottom:15px;">📎 附件管理</h3>
+                        <p style="color:var(--text-muted); font-size:13px; margin-bottom:20px;">
+                            上傳的檔案可在模板中設定是否夾帶，支援 PDF/PPT/圖片
                         </p>
+                        
+                        <!-- Upload Area -->
+                        <div id="upload-dropzone" 
+                            style="border:2px dashed rgba(255,255,255,0.2); border-radius:8px; padding:40px; text-align:center; cursor:pointer; transition:all 0.3s;"
+                            ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+                            <div style="font-size:40px; margin-bottom:10px;">📁</div>
+                            <div style="font-size:14px; margin-bottom:5px;">拖曳檔案到此處，或點擊上傳</div>
+                            <div style="font-size:12px; color:var(--text-muted);">
+                                支援：PDF、DOCX、XLSX、PPT、PNG、JPG | 單檔限制：10MB
+                            </div>
+                            <input type="file" id="file-input" multiple accept=".pdf,.docx,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg" 
+                                style="display:none;" onchange="handleFileSelect(event)">
+                        </div>
+                        
+                        <!-- Uploaded Files List -->
+                        <div style="margin-top:25px;">
+                            <h4 style="font-size:14px; margin-bottom:12px;">已上傳檔案：</h4>
+                            <div id="uploaded-files-list">
+                                <p style="color:var(--text-muted); font-size:12px;">尚無上傳檔案</p>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
                         
                         <form id="template-form">
                             <input type="hidden" id="template-id">

@@ -550,3 +550,76 @@ select option {
     align-items: center;
     gap: 4px;
 }
+
+/* Template Tabs */
+.tab-btn {
+    padding: 8px 16px;
+    border: none;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.tab-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.tab-btn.active {
+    background: rgba(99, 102, 241, 0.2);
+    color: #fff;
+}
+
+.template-tab-content {
+    display: block;
+}
+
+.template-tab-content.hidden {
+    display: none;
+}
+
+/* Variable Chips */
+.var-chip {
+    padding: 4px 10px;
+    background: rgba(99, 102, 241, 0.15);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 4px;
+    color: #a5b4fc;
+    font-size: 11px;
+    font-family: 'Monaco', 'Menlo', monospace;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.var-chip:hover {
+    background: rgba(99, 102, 241, 0.25);
+    border-color: #6366f1;
+}
+
+/* Upload Dropzone */
+#upload-dropzone:hover {
+    border-color: #6366f1;
+    background: rgba(99, 102, 241, 0.05);
+}
+
+#upload-dropzone.dragover {
+    border-color: #6366f1;
+    background: rgba(99, 102, 241, 0.1);
+}
+
+/* File Item */
+.file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+
+.file-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+}

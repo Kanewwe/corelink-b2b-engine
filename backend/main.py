@@ -350,6 +350,138 @@ def delete_template(template_id: int, db: Session = Depends(get_db), current_use
     
     db.delete(db_template)
     db.commit()
+    add_log(f"✉️ [模板] 刪除模板 ID: {template_id}")
+    return {"message": "Template deleted"}
+
+# --- AI Template Generation ---
+
+class AITemplateRequest(BaseModel):
+    prompt: str
+    style: str = "professional"  # professional, friendly, technical
+    language: str = "english"  # english, chinese
+
+@app.post("/api/templates/ai-generate")
+def ai_generate_template(req: AITemplateRequest, current_user: str = Depends(verify_token)):
+    """Use AI to generate HTML email template."""
+    import openai
+    
+    system_prompt = """你是一個專業的 B2B 商務開發信設計師。
+請根據以下需求，產生一封完整的 HTML Email 模板。
+
+要求：
+1. 使用 inline CSS（確保 Gmail 相容）
+2. 包含 Header（可放公司名稱或 Logo placeholder）
+3. 段落清晰，重點用 bold 標示
+4. 結尾加上聯絡資訊區塊
+5. 保留以下變數佔位符，不要替換掉：
+ - {{company_name}}：目標客戶公司名
+ - {{bd_name}}：業務負責人姓名
+ - {{keywords}}：產品關鍵字
+ - {{description}}：公司描述
+6. 只輸出純 HTML，從 <!DOCTYPE html> 開始，不要 markdown，不要解釋"""
+
+    style_guide = {
+        "professional": "語氣正式、專業，適合大型企業",
+        "friendly": "語氣親切、溫暖，適合中小企業",
+        "technical": "強調技術細節與規格，適合工程師"
+    }
+    
+    user_prompt = f"""
+需求：{req.prompt}
+語言：{req.language}
+風格：{style_guide.get(req.style, style_guide['professional'])}
+"""
+    
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            max_tokens=2000
+        )
+        
+        html = response.choices[0].message.content
+        add_log(f"✨ [AI] 生成模板成功")
+        
+        return {
+            "success": True,
+            "html": html,
+            "message": "AI 生成完成"
+        }
+    except Exception as e:
+        add_log(f"❌ [AI] 生成失敗: {str(e)}")
+        return {
+            "success": False,
+            "html": "",
+            "message": str(e)
+        }
+
+# --- Send Test Email ---
+
+@app.post("/api/templates/test-send")
+def send_test_email(current_user: str = Depends(verify_token)):
+    """Send a test email to the configured SMTP user."""
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    
+    smtp_user = os.getenv("SMTP_USER", "")
+    smtp_password = os.getenv("SMTP_PASSWORD", "")
+    smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    
+    if not smtp_user or not smtp_password:
+        return {"success": False, "message": "SMTP 尚未設定"}
+    
+    # Create test email with dummy data
+    html_content = """
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: Arial, sans-serif; padding: 20px;">
+        <h2>測試信件 - Corelink B2B Engine</h2>
+        <p>這是一封測試信件，用於確認模板排版效果。</p>
+        <hr>
+        <p><strong>公司名稱：</strong>Test Company</p>
+        <p><strong>業務代表：</strong>John Doe</p>
+        <p><strong>關鍵字：</strong>cable, wire, harness</p>
+        <hr>
+        <p style="color: #666; font-size: 12px;">
+            Corelink - From Concept to Connect
+        </p>
+    </body>
+    </html>
+    """
+    
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = "[測試] Corelink B2B Engine - 模板測試信"
+        msg['From'] = smtp_user
+        msg['To'] = smtp_user
+        
+        html_part = MIMEText(html_content, 'html')
+        msg.attach(html_part)
+        
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_password)
+            server.send_message(msg)
+        
+        add_log(f"📧 [測試信] 已寄送至 {smtp_user}")
+        return {
+            "success": True,
+            "message": f"測試信已寄送至 {smtp_user}"
+        }
+    except Exception as e:
+        add_log(f"❌ [測試信] 寄送失敗: {str(e)}")
+        return {
+            "success": False,
+            "message": str(e)
+        }
+    
+    db.delete(db_template)
+    db.commit()
     return {"message": "Template deleted"}
 
 # --- Email Sent Tracking ---
