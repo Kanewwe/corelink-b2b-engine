@@ -1,16 +1,13 @@
 services:
   - type: web
     name: corelink-b2b-engine
-    env: python
+    env: docker
     region: oregon
     plan: free
     branch: v2.0-optimized
     rootDir: corelink-b2b-engine/backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    dockerfilePath: ./Dockerfile
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.6
       - key: OPENAI_API_KEY
         sync: false
       - key: ADMIN_USER
