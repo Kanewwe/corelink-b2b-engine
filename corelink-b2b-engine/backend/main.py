@@ -40,7 +40,7 @@ app.add_middleware(
 # --- Pydantic Schemas ---
 class LeadCreateReq(BaseModel):
     company_name: str
-    website_url: Optional[str] = None
+    website_url: str = None
     description: str
 
 class ScrapeRequest(BaseModel):
