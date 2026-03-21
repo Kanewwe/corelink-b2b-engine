@@ -24,11 +24,10 @@ async def lifespan(app: FastAPI):
     # Startup Events
     email_sender_job.start_scheduler()
     yield
-    # Shutdown logic...
 
 app = FastAPI(title="Corelink B2B Engine API (Optimized)", lifespan=lifespan)
 
-# Setup CORS to allow the frontend to access the API
+# Setup CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -83,7 +82,6 @@ class EmailCampaignResponse(BaseModel):
     status: str
     model_config = {"from_attributes": True}
 
-# NEW: Email Template Schemas
 class EmailTemplateCreate(BaseModel):
     name: str
     tag: str
@@ -101,10 +99,9 @@ class EmailTemplateResponse(BaseModel):
     created_at: str
     model_config = {"from_attributes": True}
 
-# --- Authentication Logic ---
+# --- Authentication ---
 security = HTTPBearer()
 
-# SECURITY FIX: Load credentials from environment
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "changeme")
 API_TOKEN = os.getenv("API_TOKEN", "secure-token-change-me")
@@ -117,7 +114,6 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
 
 @app.post("/api/login")
 def login(req: LoginReq):
-    """Authenticate user and return API token."""
     expected_user = os.getenv("ADMIN_USER", "admin")
     expected_pass = os.getenv("ADMIN_PASSWORD", "changeme")
     
@@ -125,19 +121,24 @@ def login(req: LoginReq):
         return {"token": API_TOKEN, "username": req.username}
     raise HTTPException(status_code=401, detail="Invalid username or password")
 
-# --- API Endpoints ---
+# --- Debug Endpoint ---
+@app.get("/api/debug")
+def debug():
+    return {
+        "admin_user": os.getenv("ADMIN_USER"),
+        "password_set": bool(os.getenv("ADMIN_PASSWORD")),
+        "token_set": bool(os.getenv("API_TOKEN")),
+        "openai_set": bool(os.getenv("OPENAI_API_KEY")),
+        "database_url": os.getenv("DATABASE_URL", "NOT SET"),
+    }
 
+# --- API Endpoints ---
 @app.post("/api/leads", response_model=LeadResponse)
 def create_and_tag_lead(lead: LeadCreateReq, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    """Create a new lead with rule-based classification."""
-    # 1. Rule-based classification (no GPT)
     tag_result = ai_service.analyze_company_and_tag(lead.company_name, lead.description, use_gpt=False)
-    
-    # 2. Extract Keywords
     keywords_list = tag_result.get("Keywords", [])
     keywords_str = ", ".join(keywords_list) if isinstance(keywords_list, list) else str(keywords_list)
 
-    # 3. Auto-discover email
     import email_finder
     import asyncio
     email_info = asyncio.run(email_finder.find_emails_for_company(lead.company_name))
@@ -161,17 +162,14 @@ def create_and_tag_lead(lead: LeadCreateReq, db: Session = Depends(get_db), curr
 
 @app.get("/api/leads", response_model=List[LeadResponse])
 def get_leads(db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    """Get all leads."""
     return db.query(models.Lead).order_by(models.Lead.id.desc()).all()
 
 @app.post("/api/leads/{lead_id}/generate-email", response_model=EmailCampaignResponse)
 def generate_email_for_lead(lead_id: int, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    """Generate personalized email for a lead."""
     lead = db.query(models.Lead).filter(models.Lead.id == lead_id).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
         
-    # Generate email using GPT (creative writing needed)
     k_list = [k.strip() for k in lead.extracted_keywords.split(',')] if lead.extracted_keywords else []
     email_result = ai_service.generate_outreach_email(
         lead.company_name, lead.description, lead.ai_tag, lead.assigned_bd, k_list
@@ -194,12 +192,10 @@ def generate_email_for_lead(lead_id: int, db: Session = Depends(get_db), current
 
 @app.get("/api/leads/{lead_id}/emails", response_model=List[EmailCampaignResponse])
 def get_emails_for_lead(lead_id: int, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    """Get all emails for a lead."""
     return db.query(models.EmailCampaign).filter(models.EmailCampaign.lead_id == lead_id).all()
 
 @app.get("/api/campaigns", response_model=List[CampaignLogResponse])
 def get_all_campaign_logs(db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    """Get all email campaign logs."""
     campaigns = db.query(models.EmailCampaign).order_by(models.EmailCampaign.id.desc()).all()
     result = []
     for c in campaigns:
@@ -219,39 +215,27 @@ def get_all_campaign_logs(db: Session = Depends(get_db), current_user: str = Dep
 
 @app.get("/api/system-logs")
 def get_system_logs(current_user: str = Depends(verify_token)):
-    """Get system logs."""
     return {"logs": SYSTEM_LOGS}
 
 @app.post("/api/test-email")
 def test_email_dispatch(current_user: str = Depends(verify_token)):
-    """Test email dispatch."""
     add_log(f"Manual Test Email triggered by {current_user}")
     return {"message": "Test event logged. Check system logs."}
 
 @app.post("/api/scrape")
 def trigger_scraper(req: ScrapeRequest, background_tasks: BackgroundTasks, current_user: str = Depends(verify_token)):
-    """Trigger background scraping task."""
     import scraper
     background_tasks.add_task(scraper.scrape_and_process_task, req.market, req.keyword)
-    return {"message": f"Scraping task for {req.market} {req.keyword} started in the background."}
+    return {"message": f"Scraping task for {req.market} {req.keyword} started."}
 
 # --- Email Template Management ---
-
 @app.get("/api/templates", response_model=List[EmailTemplateResponse])
 def get_templates(db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    """Get all email templates."""
     templates = db.query(models.EmailTemplate).order_by(models.EmailTemplate.tag, models.EmailTemplate.name).all()
-    return templates
-
-@app.get("/api/templates/{tag}", response_model=List[EmailTemplateResponse])
-def get_templates_by_tag(tag: str, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    """Get templates for specific tag (NA-CABLE, NA-NAMEPLATE, NA-PLASTIC)."""
-    templates = db.query(models.EmailTemplate).filter(models.EmailTemplate.tag == tag).all()
     return templates
 
 @app.post("/api/templates", response_model=EmailTemplateResponse)
 def create_template(template: EmailTemplateCreate, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    """Create new email template."""
     db_template = models.EmailTemplate(
         name=template.name,
         tag=template.tag,
@@ -267,7 +251,6 @@ def create_template(template: EmailTemplateCreate, db: Session = Depends(get_db)
 
 @app.put("/api/templates/{template_id}", response_model=EmailTemplateResponse)
 def update_template(template_id: int, template: EmailTemplateCreate, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    """Update email template."""
     db_template = db.query(models.EmailTemplate).filter(models.EmailTemplate.id == template_id).first()
     if not db_template:
         raise HTTPException(status_code=404, detail="Template not found")
@@ -281,26 +264,21 @@ def update_template(template_id: int, template: EmailTemplateCreate, db: Session
     
     db.commit()
     db.refresh(db_template)
-    add_log(f"✉️ [模板] 更新模板: {template.name}")
     return db_template
 
 @app.delete("/api/templates/{template_id}")
 def delete_template(template_id: int, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    """Delete email template."""
     db_template = db.query(models.EmailTemplate).filter(models.EmailTemplate.id == template_id).first()
     if not db_template:
         raise HTTPException(status_code=404, detail="Template not found")
     
     db.delete(db_template)
     db.commit()
-    add_log(f"✉️ [模板] 刪除模板 ID: {template_id}")
     return {"message": "Template deleted"}
 
 # --- Email Sent Tracking ---
-
 @app.post("/api/leads/{lead_id}/mark-sent")
 def mark_email_sent(lead_id: int, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    """Mark lead as email sent."""
     lead = db.query(models.Lead).filter(models.Lead.id == lead_id).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
@@ -310,30 +288,18 @@ def mark_email_sent(lead_id: int, db: Session = Depends(get_db), current_user: s
     db.commit()
     
     add_log(f"📧 [寄信] 標記已寄信: {lead.company_name}")
-    return {"message": "Email marked as sent", "sent_at": lead.email_sent_at}
+    return {"message": "Email marked as sent"}
 
 # --- Health Check ---
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
 
-# --- Static Files Hosting (Serve Frontend) ---
-
-# DEBUG ENDPOINT - MUST BE BEFORE StaticFiles mount
-@app.get("/api/debug")
-def debug():
-    return {
-        "admin_user_env": os.getenv("ADMIN_USER"),
-        "admin_password_set": bool(os.getenv("ADMIN_PASSWORD")),
-        "api_token_set": bool(os.getenv("API_TOKEN")),
-        "openai_key_set": bool(os.getenv("OPENAI_API_KEY")),
-        "database_url": os.getenv("DATABASE_URL", "NOT SET"),
-        "env_file_exists": os.path.exists("/app/backend/.env"),
-    }
-
-    os.path.join(os.path.dirname(__file__), "frontend"),  # Docker: backend/frontend
-    os.path.join(os.path.dirname(__file__), "..", "frontend"),  # Local: ../frontend
-    "/app/frontend",  # Docker absolute path
+# --- Static Files Hosting ---
+possible_paths = [
+    os.path.join(os.path.dirname(__file__), "frontend"),
+    os.path.join(os.path.dirname(__file__), "..", "frontend"),
+    "/app/frontend",
 ]
 
 frontend_path = None
@@ -342,7 +308,7 @@ for path in possible_paths:
         frontend_path = path
         break
 
-if os.path.exists(frontend_path):
+if frontend_path and os.path.exists(frontend_path):
     app.mount("/static", StaticFiles(directory=frontend_path), name="static")
 
     @app.api_route("/", methods=["GET", "HEAD"])
@@ -359,15 +325,3 @@ else:
     @app.get("/")
     async def root():
         return {"message": "Corelink API is running. Frontend folder not found."}
-
-# DEBUG ENDPOINT - REMOVE IN PRODUCTION
-@app.get("/debug")
-def debug():
-    return {
-        "admin_user_env": os.getenv("ADMIN_USER"),
-        "admin_password_set": bool(os.getenv("ADMIN_PASSWORD")),
-        "api_token_set": bool(os.getenv("API_TOKEN")),
-        "openai_key_set": bool(os.getenv("OPENAI_API_KEY")),
-        "database_url": os.getenv("DATABASE_URL", "NOT SET"),
-        "env_file_exists": os.path.exists("/app/backend/.env"),
-    }
