@@ -495,3 +495,12 @@ def init_db(current_user: str = Depends(verify_token)):
         return {"message": "Database tables created successfully"}
     except Exception as e:
         return {"error": str(e)}
+
+# DEBUG: Count leads
+@app.get("/api/debug-leads")
+def debug_leads(db: Session = Depends(get_db)):
+    try:
+        count = db.query(models.Lead).count()
+        return {"count": count, "message": "Query successful"}
+    except Exception as e:
+        return {"error": str(e)}
