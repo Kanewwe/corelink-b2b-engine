@@ -518,3 +518,35 @@ select option {
 .btn-secondary:hover {
     background: rgba(255, 255, 255, 0.15);
 }
+
+/* Auto Parts Tag */
+.tag-auto {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
+
+/* Source Badge */
+.source-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+}
+
+/* Contact Info Highlight */
+.contact-highlight {
+    background: rgba(16, 185, 129, 0.1);
+    border-left: 3px solid #10b981;
+    padding: 8px;
+    margin: 8px 0;
+    border-radius: 4px;
+}
+
+/* Generic Email Warning */
+.generic-warning {
+    color: #f59e0b;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}

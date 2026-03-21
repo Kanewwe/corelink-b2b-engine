@@ -49,24 +49,50 @@
                     <section class="lead-input-section glass-panel">
                         <h3>🕷️ 全自動化探勘引擎 (Auto-Miner)</h3>
                         <p style="color:var(--text-muted); font-size:13px; margin-bottom: 20px;">
-                            輸入產業關鍵字，AI 自動掃描歐美黃頁庫撈取潛在客戶
+                            直接爬取黃頁網站，自動發現採購/負責人 Email
                         </p>
                         <form id="scrape-form">
                             <div class="input-group">
                                 <label>目標市場 (Target Market)</label>
                                 <select id="scrape-market" required>
-                                    <option value="US">美國 (US) - Yelp, Yellowpages...</option>
-                                    <option value="EU">歐洲 (EU) - Europages, Yell...</option>
+                                    <option value="US">美國 (US) - Yellowpages, Yelp</option>
+                                    <option value="EU">歐洲 (EU) - Yell, Europages</option>
                                 </select>
+                            </div>
+                            <div class="input-group">
+                                <label>目標地區 (Location)</label>
+                                <input type="text" id="scrape-location" placeholder="例如: California, New York, Texas">
+                                <small style="color:var(--text-muted);">選填，預設為整個市場</small>
                             </div>
                             <div class="input-group">
                                 <label>產業關鍵字 (Industry Keyword)</label>
                                 <input type="text" id="scrape-keyword" required
-                                    placeholder="例如: Cable Manufacturer, Plastic Injection">
+                                    placeholder="例如: Cable Manufacturer, Plastic Injection Molding">
+                            </div>
+                            <div class="input-group">
+                                <label>爬取頁數</label>
+                                <select id="scrape-pages">
+                                    <option value="1">1 頁 (約 10 筆)</option>
+                                    <option value="2">2 頁 (約 20 筆)</option>
+                                    <option value="3" selected>3 頁 (約 30 筆)</option>
+                                    <option value="5">5 頁 (約 50 筆)</option>
+                                </select>
                             </div>
                             <button type="submit" class="btn-primary" id="start-scrape-btn"
                                 style="background: linear-gradient(135deg, #f59e0b, #d97706);">🚀 開始自動探勘</button>
                         </form>
+                        
+                        <!-- Hunter.io Status -->
+                        <div style="margin-top:15px; padding:10px; background:rgba(255,255,255,0.05); border-radius:6px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span style="font-size:12px;">📧 Hunter.io API</span>
+                                <span id="hunter-status" style="font-size:11px; color:var(--text-muted);">檢測中...</span>
+                            </div>
+                            <small style="color:var(--text-muted); font-size:11px;">
+                                用於角色定向 Email 發現（採購 > 負責人 > 主管）
+                            </small>
+                        </div>
+                        
                         <div id="scrape-status" class="status-msg hidden">
                             探勘任務已啟動！請查看下方系統日誌。
                         </div>

@@ -187,27 +187,65 @@ async function startScrape(e) {
     e.preventDefault();
     const btn = document.getElementById('start-scrape-btn');
     const status = document.getElementById('scrape-status');
+    const progress = document.getElementById('miner-progress');
+    
+    const market = document.getElementById('scrape-market').value;
+    const keyword = document.getElementById('scrape-keyword').value;
+    const location = document.getElementById('scrape-location')?.value || '';
+    const pages = document.getElementById('scrape-pages')?.value || 3;
 
     btn.disabled = true;
     btn.innerHTML = '🚀 探勘中...';
+    
+    // Show progress
+    if (progress) {
+        progress.classList.remove('hidden');
+        document.getElementById('miner-status').textContent = '執行中...';
+        document.getElementById('miner-progress-bar').style.width = '10%';
+    }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/scrape`, {
+        const response = await fetch(`${API_BASE_URL}/scrape-simple`, {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({
-                market: document.getElementById('scrape-market').value,
-                keyword: document.getElementById('scrape-keyword').value
+                market: market,
+                pages: parseInt(pages),
+                keyword: keyword,
+                location: location
             })
         });
 
         if (response.ok) {
             status.classList.remove('hidden');
-            addLog(`🔍 開始探勘: ${document.getElementById('scrape-keyword').value}`, 'info');
-            setTimeout(() => status.classList.add('hidden'), 5000);
+            status.className = 'status-msg success';
+            status.innerText = '✅ 探勘任務已啟動！請查看下方系統日誌。';
+            addLog(`🔍 開始探勘: ${keyword} (${market})`, 'info');
+            
+            // Update progress
+            if (progress) {
+                document.getElementById('miner-progress-bar').style.width = '30%';
+            }
+            
+            setTimeout(() => {
+                status.classList.add('hidden');
+                if (progress) {
+                    document.getElementById('miner-progress-bar').style.width = '100%';
+                    document.getElementById('miner-status').textContent = '完成';
+                }
+                fetchLeads();
+            }, 10000);
+        } else {
+            const error = await response.json();
+            status.classList.remove('hidden');
+            status.className = 'status-msg error';
+            status.innerText = `❌ ${error.detail || '啟動失敗'}`;
         }
     } catch (error) {
         addLog('❌ 探勘啟動失敗: ' + error.message, 'error');
+        status.classList.remove('hidden');
+        status.className = 'status-msg error';
+        status.innerText = '❌ 探勘啟動失敗';
     } finally {
         btn.disabled = false;
         btn.innerHTML = '🚀 開始自動探勘';
