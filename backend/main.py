@@ -223,7 +223,18 @@ async def health_check():
     return {"status": "healthy"}
 
 # --- Static Files Hosting (Serve Frontend) ---
-frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
+# Try multiple paths for different deployment scenarios
+possible_paths = [
+    os.path.join(os.path.dirname(__file__), "frontend"),  # Docker: backend/frontend
+    os.path.join(os.path.dirname(__file__), "..", "frontend"),  # Local: ../frontend
+    "/app/frontend",  # Docker absolute path
+]
+
+frontend_path = None
+for path in possible_paths:
+    if os.path.exists(path):
+        frontend_path = path
+        break
 
 if os.path.exists(frontend_path):
     app.mount("/static", StaticFiles(directory=frontend_path), name="static")
