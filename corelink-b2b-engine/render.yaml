@@ -4,29 +4,18 @@ services:
     env: python
     region: oregon
     plan: free
-    buildCommand: pip install -r backend/requirements.txt
-    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+    branch: v2.0-optimized
+    rootDir: corelink-b2b-engine/backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.0
+        value: 3.11.6
       - key: OPENAI_API_KEY
         sync: false
-      - key: DATABASE_URL
-        fromDatabase:
-          name: corelink-db
-          property: connectionString
       - key: ADMIN_USER
         value: admin
       - key: ADMIN_PASSWORD
         generateValue: true
       - key: API_TOKEN
         generateValue: true
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASSWORD
-        sync: false
-
-databases:
-  - name: corelink-db
-    region: oregon
-    plan: free
