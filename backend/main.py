@@ -68,8 +68,8 @@ class LeadResponse(BaseModel):
     domain: Optional[str] = None
     email_candidates: Optional[str] = None
     mx_valid: int = 0
-    ai_tag: str
-    assigned_bd: str
+    ai_tag: Optional[str] = None
+    assigned_bd: Optional[str] = None
     extracted_keywords: Optional[str] = None
     status: str
     model_config = {"from_attributes": True}
