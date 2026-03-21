@@ -647,7 +647,7 @@ function renderTemplates(templates) {
     container.innerHTML = '';
 
     if (!templates || templates.length === 0) {
-        container.innerHTML = '<p style="color:var(--text-muted);">尚無模板</p>';
+        container.innerHTML = '<p style="color:var(--text-muted);">尚無模板，請先新增</p>';
         return;
     }
 
@@ -666,21 +666,38 @@ function renderTemplates(templates) {
         if (tag === 'NA-CABLE') tagClass = 'tag-cable';
         else if (tag === 'NA-NAMEPLATE') tagClass = 'tag-nameplate';
         else if (tag === 'NA-PLASTIC') tagClass = 'tag-plastic';
+        else if (tag.startsWith('AUTO')) tagClass = 'tag-auto';
         
         tagSection.innerHTML = `<h4 style="margin-bottom:10px;"><span class="tag-badge ${tagClass}">${tag}</span></h4>`;
         
         grouped[tag].forEach(t => {
             const item = document.createElement('div');
-            item.style.cssText = 'padding:10px; background:rgba(255,255,255,0.05); border-radius:6px; margin-bottom:8px;';
+            item.style.cssText = 'padding:12px; background:rgba(255,255,255,0.05); border-radius:6px; margin-bottom:8px;';
+            
+            const defaultToggle = `
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer; margin-top:8px;">
+                    <input type="checkbox" 
+                        ${t.is_default ? 'checked' : ''} 
+                        onchange="toggleDefault(${t.id}, this.checked)"
+                        style="accent-color:#10b981;">
+                    <span style="font-size:12px; color:var(--text-muted);">預設模板</span>
+                </label>
+            `;
+            
             item.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                        <strong>${t.name}</strong> ${t.is_default ? '<span style="color:#10b981;">(預設)</span>' : ''}
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div style="flex:1;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <strong>${t.name}</strong>
+                            ${t.is_default ? '<span style="background:#10b981; color:white; padding:2px 8px; border-radius:4px; font-size:10px;">預設</span>' : ''}
+                        </div>
                         <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">${t.subject}</div>
+                        ${defaultToggle}
                     </div>
-                    <div style="display:flex; gap:5px;">
-                        <button class="btn-secondary" onclick="editTemplate(${t.id})" style="padding:4px 8px; font-size:12px;">編輯</button>
-                        <button class="btn-secondary" onclick="deleteTemplate(${t.id})" style="padding:4px 8px; font-size:12px; color:#ef4444;">刪除</button>
+                    <div style="display:flex; gap:5px; margin-left:10px;">
+                        <button class="btn-secondary" onclick="editTemplate(${t.id})" style="padding:4px 8px; font-size:11px;">編輯</button>
+                        <button class="btn-secondary" onclick="duplicateTemplate(${t.id})" style="padding:4px 8px; font-size:11px;">複製</button>
+                        <button class="btn-secondary" onclick="deleteTemplate(${t.id})" style="padding:4px 8px; font-size:11px; color:#ef4444;">刪除</button>
                     </div>
                 </div>
             `;
@@ -689,6 +706,59 @@ function renderTemplates(templates) {
         
         container.appendChild(tagSection);
     });
+}
+
+async function toggleDefault(templateId, isDefault) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/templates/${templateId}`, {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ 
+                name: '', 
+                tag: '', 
+                subject: '', 
+                body: '',
+                is_default: isDefault 
+            })
+        });
+        
+        if (response.ok) {
+            fetchTemplates();
+            addLog(`✅ 預設模板已${isDefault ? '設為' : '取消'}: ID ${templateId}`, 'success');
+        }
+    } catch (error) {
+        addLog('❌ 更新預設失敗: ' + error.message, 'error');
+    }
+}
+
+async function duplicateTemplate(id) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/templates`, { headers: getAuthHeaders() });
+        const templates = await response.json();
+        const template = templates.find(t => t.id === id);
+        
+        if (template) {
+            // Create duplicate
+            const createResponse = await fetch(`${API_BASE_URL}/templates`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    name: template.name + ' (複製)',
+                    tag: template.tag,
+                    subject: template.subject,
+                    body: template.body,
+                    is_default: false
+                })
+            });
+            
+            if (createResponse.ok) {
+                fetchTemplates();
+                addLog('✅ 模板已複製', 'success');
+            }
+        }
+    } catch (error) {
+        addLog('❌ 複製失敗: ' + error.message, 'error');
+    }
 }
 
 async function saveTemplate(e) {
@@ -981,6 +1051,72 @@ function getEmailStrategy() {
 
 let originalHTML = '';
 let editorMode = 'split';
+let monacoEditor = null;
+
+// Initialize Monaco Editor
+async function initMonacoEditor() {
+    const container = document.getElementById('monaco-container');
+    if (!container || monacoEditor) return;
+    
+    // Load Monaco
+    if (!window.monaco) {
+        await loadMonaco();
+    }
+    
+    monacoEditor = window.monaco.editor.create(container, {
+        value: originalHTML || '<!-- 在此輸入 HTML 或讓 AI 生成 -->',
+        language: 'html',
+        theme: 'vs-dark',
+        automaticLayout: true,
+        minimap: { enabled: false },
+        fontSize: 13,
+        lineNumbers: 'on',
+        wordWrap: 'on',
+        tabSize: 2,
+        scrollBeyondLastLine: false,
+        renderWhitespace: 'selection',
+        bracketPairColorization: { enabled: true }
+    });
+    
+    // Update preview on change
+    monacoEditor.onDidChangeModelContent(() => {
+        updatePreview();
+    });
+}
+
+async function loadMonaco() {
+    return new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js';
+        script.onload = () => {
+            require.config({ 
+                paths: { 
+                    vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' 
+                }
+            });
+            require(['vs/editor/editor.main'], () => {
+                resolve();
+            });
+        };
+        document.body.appendChild(script);
+    });
+}
+
+function getEditorContent() {
+    if (monacoEditor) {
+        return monacoEditor.getValue();
+    }
+    return document.getElementById('html-editor')?.value || '';
+}
+
+function setEditorContent(content) {
+    if (monacoEditor) {
+        monacoEditor.setValue(content);
+    } else {
+        const editor = document.getElementById('html-editor');
+        if (editor) editor.value = content;
+    }
+}
 
 function switchTemplateTab(tab) {
     document.querySelectorAll('.template-tab-content').forEach(el => el.classList.add('hidden'));
@@ -1020,7 +1156,7 @@ function setEditorMode(mode) {
 }
 
 function updatePreview() {
-    const html = document.getElementById('html-editor')?.value || '';
+    const html = getEditorContent();
     const iframe = document.getElementById('preview-iframe');
     
     if (iframe) {
@@ -1036,40 +1172,61 @@ function updatePreview() {
 }
 
 function insertVariable(varName) {
-    const editor = document.getElementById('html-editor');
     const variable = `{{${varName}}}`;
     
-    if (editor) {
-        const start = editor.selectionStart;
-        const end = editor.selectionEnd;
-        const text = editor.value;
-        
-        editor.value = text.substring(0, start) + variable + text.substring(end);
-        editor.selectionStart = editor.selectionEnd = start + variable.length;
-        editor.focus();
-        updatePreview();
+    if (monacoEditor) {
+        const position = monacoEditor.getPosition();
+        monacoEditor.executeEdits('', [{
+            range: new window.monaco.Range(
+                position.lineNumber, 
+                position.column, 
+                position.lineNumber, 
+                position.column
+            ),
+            text: variable
+        }]);
+        monacoEditor.focus();
+    } else {
+        const editor = document.getElementById('html-editor');
+        if (editor) {
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            const text = editor.value;
+            
+            editor.value = text.substring(0, start) + variable + text.substring(end);
+            editor.selectionStart = editor.selectionEnd = start + variable.length;
+            editor.focus();
+        }
     }
+    updatePreview();
 }
 
 function formatHTML() {
-    // Simple HTML formatting - add proper indentation
-    const editor = document.getElementById('html-editor');
-    if (!editor) return;
+    let html = getEditorContent();
     
-    let html = editor.value;
-    
-    // Basic formatting
+    // Basic HTML formatting - add proper indentation
     html = html.replace(/>\s+</g, '>\n<');
     html = html.replace(/\n\s*\n/g, '\n');
     
-    editor.value = html;
+    // Indent tags
+    const lines = html.split('\n');
+    let indent = 0;
+    const formatted = lines.map(line => {
+        const trimmed = line.trim();
+        if (trimmed.match(/^<\//)) indent = Math.max(0, indent - 1);
+        const result = '  '.repeat(indent) + trimmed;
+        if (trimmed.match(/^<[^\/!][^>]*[^\/]>$/)) indent++;
+        return result;
+    }).join('\n');
+    
+    setEditorContent(formatted);
     updatePreview();
     addLog('📝 HTML 已格式化', 'info');
 }
 
 function restoreOriginal() {
     if (originalHTML) {
-        document.getElementById('html-editor').value = originalHTML;
+        setEditorContent(originalHTML);
         updatePreview();
         addLog('↩️ 已復原到 AI 原始版本', 'info');
     }
@@ -1103,8 +1260,7 @@ async function aiGenerateTemplate() {
         const result = await response.json();
         
         if (result.success) {
-            const editor = document.getElementById('html-editor');
-            editor.value = result.html;
+            setEditorContent(result.html);
             originalHTML = result.html; // Save for restore
             updatePreview();
             
@@ -1126,7 +1282,7 @@ async function saveTemplateV2() {
     const name = document.getElementById('template-name')?.value;
     const tag = document.getElementById('template-tag')?.value;
     const subject = document.getElementById('template-subject')?.value;
-    const body = document.getElementById('html-editor')?.value;
+    const body = getEditorContent();
     const isDefault = document.getElementById('template-default')?.checked;
     
     const status = document.getElementById('template-status');
@@ -1273,4 +1429,9 @@ document.getElementById('ai-clear-btn')?.addEventListener('click', () => {
 });
 document.getElementById('upload-dropzone')?.addEventListener('click', () => {
     document.getElementById('file-input')?.click();
+});
+
+// Init Monaco on templates view
+document.getElementById('nav-templates')?.addEventListener('click', () => {
+    setTimeout(initMonacoEditor, 100);
 });

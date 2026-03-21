@@ -7,6 +7,8 @@
     <title>Corelink B2B Sourcing Engine</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <!-- Monaco Editor -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/editor/editor.main.css">
 </head>
 
 <body>
@@ -316,10 +318,9 @@
                                     <div style="padding:8px; background:rgba(255,255,255,0.05); border-radius:6px 6px 0 0; font-size:12px; color:var(--text-muted);">
                                         HTML 編輯器
                                     </div>
-                                    <textarea id="html-editor" 
-                                        style="flex:1; min-height:350px; padding:10px; font-family:'Monaco','Menlo','Ubuntu Mono',monospace; font-size:13px; line-height:1.5; border-radius:0 0 6px 6px; border:1px solid rgba(255,255,255,0.1); background:#1e1e1e; color:#d4d4d4; resize:none;"
-                                        placeholder="<!-- 在此輸入 HTML 或讓 AI 生成 -->"
-                                        oninput="updatePreview()"></textarea>
+                                    <div id="monaco-container" 
+                                        style="flex:1; min-height:350px; border-radius:0 0 6px 6px; border:1px solid rgba(255,255,255,0.1); overflow:hidden;">
+                                    </div>
                                 </div>
                                 
                                 <!-- Preview -->
