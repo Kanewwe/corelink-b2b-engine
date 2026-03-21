@@ -5,8 +5,7 @@ services:
     region: oregon
     plan: free
     branch: v2.0-optimized
-    rootDir: corelink-b2b-engine/backend
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: Dockerfile
     envVars:
       - key: OPENAI_API_KEY
         sync: false
