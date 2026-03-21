@@ -49,6 +49,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('filter-tag')?.addEventListener('change', fetchLeads);
     document.getElementById('clear-logs-btn')?.addEventListener('click', clearLogs);
     document.getElementById('toggle-password')?.addEventListener('click', togglePasswordVisibility);
+    
+    // Email strategy toggle
+    document.querySelectorAll('input[name="email-strategy"]').forEach(radio => {
+        radio.addEventListener('change', updateStrategyDescription);
+    });
 
     // Navigation
     Object.keys(views).forEach(navId => {
@@ -942,4 +947,30 @@ function togglePasswordVisibility() {
         input.type = 'password';
         btn.textContent = '👁';
     }
+}
+
+function updateStrategyDescription() {
+    const strategy = document.querySelector('input[name="email-strategy"]:checked')?.value || 'free';
+    const desc = document.getElementById('strategy-desc');
+    
+    if (strategy === 'free') {
+        desc.innerHTML = `
+            <strong>免費模式：</strong>三層策略（官網爬取 → SMTP驗活 → Google Dork）<br>
+            <span style="color:#10b981;">✓ 完全免費</span> · 
+            <span style="color:#f59e0b;">~60% 準確率</span> · 
+            <span style="color:#60a5fa;">5-20秒/筆</span>
+        `;
+    } else {
+        desc.innerHTML = `
+            <strong>Hunter.io：</strong>專業 Email 發現 API<br>
+            <span style="color:#ef4444;">$49/月起</span> · 
+            <span style="color:#10b981;">~90% 準確率</span> · 
+            <span style="color:#60a5fa;">&lt;1秒/筆</span> · 
+            <span style="color:var(--text-muted);">含聯絡人姓名</span>
+        `;
+    }
+}
+
+function getEmailStrategy() {
+    return document.querySelector('input[name="email-strategy"]:checked')?.value || 'free';
 }

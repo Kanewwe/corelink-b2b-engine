@@ -292,6 +292,9 @@ def trigger_scraper(req: ScrapeRequest, background_tasks: BackgroundTasks, curre
 class ScrapeSimpleRequest(BaseModel):
     market: str = "US"
     pages: int = 3
+    keyword: Optional[str] = None
+    location: Optional[str] = None
+    email_strategy: str = "free"  # "free" or "hunter"
 
 @app.post("/api/scrape-simple")
 def trigger_scrape_simple(req: ScrapeSimpleRequest, background_tasks: BackgroundTasks, current_user: str = Depends(verify_token)):
