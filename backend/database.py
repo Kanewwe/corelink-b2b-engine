@@ -1,9 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
 
 # DATABASE_URL from env (Render auto-injects for managed PostgreSQL)
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./corelink.db")
