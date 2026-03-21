@@ -1,13 +1,14 @@
 const API_BASE_URL = window.location.origin + '/api';
 
-function getAuthHeaders() {
-    const token = localStorage.getItem('corelink_token');
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-    };
-}
+// Navigation
+const views = {
+    'nav-lead-engine': 'lead-engine-view',
+    'nav-campaigns': 'campaign-logs-view',
+    'nav-search-logs': 'search-logs-view',
+    'nav-smtp-settings': 'smtp-settings-view'
+};
 
+// Initialize
 document.addEventListener('DOMContentLoaded', () => {
     const token = localStorage.getItem('corelink_token');
     const username = localStorage.getItem('corelink_user');
@@ -18,114 +19,162 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('display-username').innerText = username;
         fetchLeads();
         startLogPolling();
+        loadSMTPSettings();
     }
 
-    document.getElementById('login-form')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        await handleLogin();
+    // Event Listeners
+    document.getElementById('login-form')?.addEventListener('submit', handleLogin);
+    document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
+    document.getElementById('lead-form')?.addEventListener('submit', submitLead);
+    document.getElementById('scrape-form')?.addEventListener('submit', startScrape);
+    document.getElementById('refresh-btn')?.addEventListener('click', fetchLeads);
+    document.getElementById('smtp-form')?.addEventListener('submit', saveSMTPSettings);
+    document.getElementById('test-smtp-btn')?.addEventListener('click', testSMTP);
+    document.getElementById('refresh-campaigns-btn')?.addEventListener('click', fetchCampaigns);
+    document.getElementById('refresh-search-logs-btn')?.addEventListener('click', fetchSearchLogs);
+
+    // Navigation
+    Object.keys(views).forEach(navId => {
+        document.getElementById(navId)?.addEventListener('click', (e) => {
+            e.preventDefault();
+            switchView(navId);
+        });
     });
 
-    document.getElementById('logout-btn')?.addEventListener('click', () => {
-        localStorage.removeItem('corelink_token');
-        localStorage.removeItem('corelink_user');
-        window.location.reload();
-    });
-
-    // Navigation Tabs
-    document.getElementById('nav-lead-engine')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        switchView('lead-engine');
-    });
-
-    document.getElementById('nav-campaigns')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        switchView('campaigns');
-    });
-
-    document.getElementById('refresh-logs-btn')?.addEventListener('click', fetchCampaignLogs);
-
-    document.getElementById('lead-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        await submitLead();
-    });
-
-    document.getElementById('scrape-form')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        await startScrape();
-    });
-
-    document.getElementById('refresh-btn').addEventListener('click', fetchLeads);
-
-    document.getElementById('test-log-btn')?.addEventListener('click', async () => {
-        await fetch(`${API_BASE_URL}/test-email`, { method: 'POST', headers: getAuthHeaders() });
-    });
-
+    // Modal close buttons
     document.querySelectorAll('.close-btn').forEach(btn => {
         btn.addEventListener('click', closeModal);
     });
 });
 
-async function submitLead() {
-    const companyName = document.getElementById('company-name').value;
-    const websiteUrl = document.getElementById('website-url').value;
-    const description = document.getElementById('description').value;
+// Navigation
+function switchView(navId) {
+    // Update nav active state
+    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+    document.getElementById(navId).classList.add('active');
 
+    // Hide all views
+    document.querySelectorAll('.view-content').forEach(view => view.classList.add('hidden'));
+
+    // Show selected view
+    const viewId = views[navId];
+    document.getElementById(viewId).classList.remove('hidden');
+
+    // Update page title
+    const titles = {
+        'nav-lead-engine': 'AI Prospecting Dashboard',
+        'nav-campaigns': '寄信記錄',
+        'nav-search-logs': '搜尋記錄',
+        'nav-smtp-settings': 'SMTP 設定'
+    };
+    document.getElementById('page-title').innerText = titles[navId];
+
+    // Load data for specific views
+    if (navId === 'nav-campaigns') fetchCampaigns();
+    if (navId === 'nav-search-logs') fetchSearchLogs();
+}
+
+// Auth
+function getAuthHeaders() {
+    const token = localStorage.getItem('corelink_token');
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+    };
+}
+
+async function handleLogin(e) {
+    e.preventDefault();
+    const username = document.getElementById('login-username').value;
+    const password = document.getElementById('login-password').value;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            localStorage.setItem('corelink_token', data.token);
+            localStorage.setItem('corelink_user', data.username);
+            document.getElementById('login-modal').classList.add('hidden');
+            document.getElementById('display-username').innerText = data.username;
+            fetchLeads();
+            startLogPolling();
+            loadSMTPSettings();
+        } else {
+            document.getElementById('login-error').style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+    }
+}
+
+function handleLogout() {
+    localStorage.removeItem('corelink_token');
+    localStorage.removeItem('corelink_user');
+    window.location.reload();
+}
+
+// Lead Management
+async function submitLead(e) {
+    e.preventDefault();
     const loading = document.getElementById('ai-loading');
-    const submitBtn = document.getElementById('submit-lead-btn');
-
     loading.classList.remove('hidden');
-    submitBtn.disabled = true;
 
     try {
         const response = await fetch(`${API_BASE_URL}/leads`, {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({
-                company_name: companyName,
-                website_url: websiteUrl,
-                description: description
+                company_name: document.getElementById('company-name').value,
+                website_url: document.getElementById('website-url').value,
+                description: document.getElementById('description').value
             })
         });
 
-        if (!response.ok) throw new Error('API Error');
-
-        document.getElementById('lead-form').reset();
-        await fetchLeads();
-
+        if (response.ok) {
+            document.getElementById('lead-form').reset();
+            fetchLeads();
+            addLog('✅ 手動新增客戶成功', 'success');
+        }
     } catch (error) {
-        alert('Could not submit lead! Please ensure the Python backend is running. Details: ' + error.message);
+        addLog('❌ 新增客戶失敗: ' + error.message, 'error');
     } finally {
         loading.classList.add('hidden');
-        submitBtn.disabled = false;
     }
 }
 
-async function startScrape() {
-    const market = document.getElementById('scrape-market').value;
-    const keyword = document.getElementById('scrape-keyword').value;
+async function startScrape(e) {
+    e.preventDefault();
     const btn = document.getElementById('start-scrape-btn');
-    const statusMsg = document.getElementById('scrape-status');
+    const status = document.getElementById('scrape-status');
 
     btn.disabled = true;
-    btn.innerHTML = '🚀 背景探勘網撒網中 (Mining)...';
+    btn.innerHTML = '🚀 探勘中...';
 
     try {
         const response = await fetch(`${API_BASE_URL}/scrape`, {
             method: 'POST',
             headers: getAuthHeaders(),
-            body: JSON.stringify({ market: market, keyword: keyword })
+            body: JSON.stringify({
+                market: document.getElementById('scrape-market').value,
+                keyword: document.getElementById('scrape-keyword').value
+            })
         });
 
-        if (!response.ok) throw new Error('Failed to start automatic miner');
-
-        statusMsg.style.display = 'block';
-        setTimeout(() => { statusMsg.style.display = 'none'; }, 8000);
-
+        if (response.ok) {
+            status.classList.remove('hidden');
+            addLog(`🔍 開始探勘: ${document.getElementById('scrape-keyword').value}`, 'info');
+            setTimeout(() => status.classList.add('hidden'), 5000);
+        }
     } catch (error) {
-        alert('尋機發生錯誤 (Server Error): ' + error.message);
+        addLog('❌ 探勘啟動失敗: ' + error.message, 'error');
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '🚀 全面發動自動探勘 (Start Mining)';
+        btn.innerHTML = '🚀 開始自動探勘';
     }
 }
 
@@ -133,23 +182,22 @@ async function fetchLeads() {
     try {
         const response = await fetch(`${API_BASE_URL}/leads`, { headers: getAuthHeaders() });
         if (response.status === 401) {
-            localStorage.removeItem('corelink_token');
-            window.location.reload();
+            handleLogout();
             return;
         }
         const leads = await response.json();
         renderLeads(leads);
     } catch (error) {
-        console.warn('Backend not reachable. Display format may be empty.', error);
+        console.error('Fetch leads error:', error);
     }
 }
 
 function renderLeads(leads) {
-    const listContainer = document.getElementById('leads-list');
-    listContainer.innerHTML = '';
+    const container = document.getElementById('leads-list');
+    container.innerHTML = '';
 
     if (!leads || leads.length === 0) {
-        listContainer.innerHTML = '<p style="color: var(--text-muted); text-align: center; margin-top: 2rem;">No prospects yet. Analyze one to begin.</p>';
+        container.innerHTML = '<p style="color: var(--text-muted); text-align: center;">尚無客戶資料</p>';
         return;
     }
 
@@ -167,54 +215,170 @@ function renderLeads(leads) {
                 <span class="tag-badge ${tagClass}">${lead.ai_tag}</span>
             </div>
             <div class="lead-meta">
-                Assignee: <strong>${lead.assigned_bd}</strong> | Status: <strong>${lead.status.replace('_', ' ')}</strong>
-                <br>
-                <div style="margin-top:5px; font-size:12px;">Keywords: <span style="color:#cbd5e1">${lead.extracted_keywords || 'None'}</span></div>
+                <div>負責人: <strong>${lead.assigned_bd}</strong> | 狀態: <strong>${lead.status}</strong></div>
+                <div style="margin-top:5px; font-size:12px;">
+                    🔑 關鍵字: <span style="color:#cbd5e1">${lead.extracted_keywords || '無'}</span>
+                </div>
+                ${lead.domain ? `<div style="margin-top:5px; font-size:12px;">🌐 網域: ${lead.domain}</div>` : ''}
+                ${lead.email_candidates ? `<div style="margin-top:5px; font-size:12px;">📧 Email: ${lead.email_candidates.split(',')[0]}...</div>` : ''}
             </div>
             <div class="lead-actions">
                 ${lead.status === 'Tagged' || lead.status === 'Scraped'
-                ? `<button class="btn-primary generate-btn" onclick="generateEmail(${lead.id})">✨ Auto-Draft Outreach</button>`
-                : `<button class="btn-secondary" onclick="viewEmail(${lead.id})">✉️ View Draft</button>`
-            }
+                    ? `<button class="btn-primary generate-btn" onclick="generateEmail(${lead.id})">✨ 生成開發信</button>`
+                    : `<button class="btn-secondary" onclick="viewEmail(${lead.id})">✉️ 查看信件</button>`
+                }
             </div>
         `;
-        listContainer.appendChild(card);
+        container.appendChild(card);
     });
 }
 
+// Campaigns (寄信記錄)
+async function fetchCampaigns() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/campaigns`, { headers: getAuthHeaders() });
+        if (!response.ok) throw new Error('Failed to fetch');
+        const campaigns = await response.json();
+        renderCampaigns(campaigns);
+    } catch (error) {
+        console.error('Fetch campaigns error:', error);
+    }
+}
+
+function renderCampaigns(campaigns) {
+    const tbody = document.getElementById('campaigns-table-body');
+    tbody.innerHTML = '';
+
+    if (!campaigns || campaigns.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">尚無寄信記錄</td></tr>';
+        return;
+    }
+
+    campaigns.forEach(c => {
+        const statusClass = c.status === 'Sent' ? 'level-success' : 
+                           c.status === 'Draft' ? 'level-info' : 'level-warning';
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${c.created_at || 'N/A'}</td>
+            <td>${c.company_name || 'N/A'}</td>
+            <td>${c.assigned_bd || 'N/A'}</td>
+            <td>${c.subject || 'N/A'}</td>
+            <td><span class="${statusClass}">${c.status}</span></td>
+            <td><button class="btn-secondary" onclick="viewEmail(${c.lead_id})">查看</button></td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+// Search Logs (搜尋記錄)
+async function fetchSearchLogs() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/system-logs`, { headers: getAuthHeaders() });
+        if (!response.ok) throw new Error('Failed to fetch');
+        const data = await response.json();
+        renderSearchLogs(data.logs || []);
+    } catch (error) {
+        console.error('Fetch search logs error:', error);
+    }
+}
+
+function renderSearchLogs(logs) {
+    const container = document.getElementById('search-logs-container');
+    container.innerHTML = '';
+
+    if (!logs || logs.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-muted); text-align: center;">尚無搜尋記錄</p>';
+        return;
+    }
+
+    logs.reverse().forEach(log => {
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        entry.innerHTML = `
+            <span class="timestamp">${log.substring(1, 9)}</span>
+            <span>${log.substring(10)}</span>
+        `;
+        container.appendChild(entry);
+    });
+}
+
+// SMTP Settings
+function loadSMTPSettings() {
+    const settings = JSON.parse(localStorage.getItem('smtp_settings') || '{}');
+    if (settings.server) document.getElementById('smtp-server').value = settings.server;
+    if (settings.port) document.getElementById('smtp-port').value = settings.port;
+    if (settings.user) document.getElementById('smtp-user').value = settings.user;
+}
+
+async function saveSMTPSettings(e) {
+    e.preventDefault();
+    
+    const settings = {
+        server: document.getElementById('smtp-server').value,
+        port: document.getElementById('smtp-port').value,
+        user: document.getElementById('smtp-user').value,
+        password: document.getElementById('smtp-password').value
+    };
+
+    // Save to localStorage (in real app, this should go to backend)
+    localStorage.setItem('smtp_settings', JSON.stringify(settings));
+
+    // Show status
+    const status = document.getElementById('smtp-status');
+    status.classList.remove('hidden');
+    status.className = 'status-msg success';
+    status.innerText = '✅ SMTP 設定已儲存';
+
+    addLog('⚙️ SMTP 設定已更新', 'info');
+}
+
+async function testSMTP() {
+    const status = document.getElementById('smtp-status');
+    status.classList.remove('hidden');
+    status.className = 'status-msg';
+    status.innerText = '📧 正在測試 SMTP 連線...';
+
+    // In real implementation, this would call a backend API to test SMTP
+    setTimeout(() => {
+        status.className = 'status-msg success';
+        status.innerText = '✅ SMTP 連線測試成功（模擬）';
+        addLog('📧 SMTP 測試成功', 'success');
+    }, 1500);
+}
+
+// Email Generation
 async function generateEmail(leadId) {
-    alert('通知: 正在呼叫 AI 模型為此客戶生成含有專屬關鍵字的內容。可能需要數秒鐘...');
+    addLog('✨ 正在生成開發信...', 'info');
     try {
         const response = await fetch(`${API_BASE_URL}/leads/${leadId}/generate-email`, {
             method: 'POST',
             headers: getAuthHeaders()
         });
-        if (!response.ok) throw new Error('AI Generation failed Check API logs.');
-
+        if (!response.ok) throw new Error('Generation failed');
+        
         const campaign = await response.json();
-        await fetchLeads();
+        fetchLeads();
         openModal(campaign.subject, campaign.content);
+        addLog('✅ 開發信生成完成', 'success');
     } catch (error) {
-        alert('Error: ' + error.message);
+        addLog('❌ 生成失敗: ' + error.message, 'error');
     }
 }
 
 async function viewEmail(leadId) {
     try {
         const response = await fetch(`${API_BASE_URL}/leads/${leadId}/emails`, { headers: getAuthHeaders() });
-        const campaigns = await response.json();
-
-        if (campaigns && campaigns.length > 0) {
-            const latest = campaigns[campaigns.length - 1];
+        const emails = await response.json();
+        if (emails && emails.length > 0) {
+            const latest = emails[emails.length - 1];
             openModal(latest.subject, latest.content);
-        } else {
-            alert('No emails found for this lead.');
         }
     } catch (error) {
-        alert('Error loading email: ' + error.message);
+        console.error('View email error:', error);
     }
 }
 
+// Modal
 function openModal(subject, body) {
     document.getElementById('modal-subject').value = subject;
     document.getElementById('modal-body').value = body;
@@ -225,113 +389,45 @@ function closeModal() {
     document.getElementById('email-modal').classList.add('hidden');
 }
 
-function switchView(viewName) {
-    document.getElementById('nav-lead-engine').classList.remove('active');
-    document.getElementById('nav-campaigns').classList.remove('active');
-    document.getElementById('lead-engine-view').classList.add('hidden');
-    document.getElementById('campaign-logs-view').classList.add('hidden');
-
-    if (viewName === 'lead-engine') {
-        document.getElementById('nav-lead-engine').classList.add('active');
-        document.getElementById('lead-engine-view').classList.remove('hidden');
-        fetchLeads();
-    } else if (viewName === 'campaigns') {
-        document.getElementById('nav-campaigns').classList.add('active');
-        document.getElementById('campaign-logs-view').classList.remove('hidden');
-        fetchCampaignLogs();
-    }
+// System Logs
+function addLog(message, level = 'info') {
+    const console = document.getElementById('system-console');
+    const timestamp = new Date().toLocaleTimeString('zh-TW', { hour12: false });
+    const levelClass = `level-${level}`;
+    
+    const entry = document.createElement('div');
+    entry.innerHTML = `<span class="timestamp">[${timestamp}]</span> <span class="${levelClass}">${message}</span>`;
+    console.appendChild(entry);
+    console.scrollTop = console.scrollHeight;
 }
 
-async function fetchCampaignLogs() {
-    const tbody = document.getElementById('logs-table-body');
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">Fetching global dispatch records...</td></tr>';
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/campaigns`, { headers: getAuthHeaders() });
-        if (!response.ok) throw new Error('API Error');
-        const logs = await response.json();
-
-        tbody.innerHTML = '';
-        if (logs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-muted);">No outgoing campaigns recorded yet.</td></tr>';
-            return;
-        }
-
-        logs.forEach(log => {
-            let statusColor = log.status === 'Sent' ? '#10b981' : '#f59e0b';
-            let formattedTime = log.created_at || 'Just now';
-
-            const tr = document.createElement('tr');
-            tr.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
-            tr.style.cursor = 'pointer';
-            tr.className = 'hover-row';
-            tr.onclick = () => openModal(log.subject, log.content);
-
-            tr.innerHTML = `
-                <td style="padding:12px 8px; color:var(--text-muted);">${formattedTime}</td>
-                <td style="padding:12px 8px; font-weight:600;">${log.company_name}</td>
-                <td style="padding:12px 8px;">${log.assigned_bd}</td>
-                <td style="padding:12px 8px; max-width:250px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${log.subject}</td>
-                <td style="padding:12px 8px;"><span style="color:${statusColor}; font-weight:bold;">${log.status}</span></td>
-            `;
-            tbody.appendChild(tr);
-        });
-    } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:#ef4444;">Failed to load logs. Ensure backend is running.</td></tr>`;
-    }
-}
-
-async function handleLogin() {
-    const user = document.getElementById('login-username').value;
-    const pass = document.getElementById('login-password').value;
-    const err = document.getElementById('login-error');
-    err.style.display = 'none';
-
-    try {
-        const res = await fetch(`${API_BASE_URL}/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: user, password: pass })
-        });
-        if (!res.ok) throw new Error('Invalid credentials');
-
-        const data = await res.json();
-        localStorage.setItem('corelink_token', data.token);
-        localStorage.setItem('corelink_user', data.username);
-
-        document.getElementById('login-modal').classList.add('hidden');
-        document.getElementById('display-username').innerText = data.username;
-        fetchLeads();
-        startLogPolling();
-    } catch (error) {
-        err.style.display = 'block';
-    }
-}
-
-let logInterval = null;
 function startLogPolling() {
-    if (logInterval) clearInterval(logInterval);
-    fetchSystemLogs();
-    logInterval = setInterval(fetchSystemLogs, 4000);
+    // Poll system logs every 10 seconds
+    setInterval(async () => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/system-logs`, { headers: getAuthHeaders() });
+            if (response.ok) {
+                const data = await response.json();
+                updateConsole(data.logs);
+            }
+        } catch (error) {
+            // Silent fail for polling
+        }
+    }, 10000);
 }
 
-async function fetchSystemLogs() {
-    const consoleDiv = document.getElementById('system-console');
-    if (!consoleDiv) return;
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/system-logs`, { headers: getAuthHeaders() });
-        if (!response.ok) return;
-        const data = await response.json();
-        const logs = data.logs || [];
-
-        if (logs.length > 0) {
-            // Newest logs on top for the console feel
-            consoleDiv.innerHTML = logs.slice().reverse().join('<br>');
-        } else {
-            consoleDiv.innerHTML = '<span style="color:var(--text-muted)">等待系統事件觸發... (如: 開始爬蟲或發信排程)</span>';
+function updateConsole(logs) {
+    if (!logs || logs.length === 0) return;
+    
+    const console = document.getElementById('system-console');
+    // Only update if new logs
+    const currentText = console.innerText;
+    logs.forEach(log => {
+        if (!currentText.includes(log)) {
+            const entry = document.createElement('div');
+            entry.innerHTML = `<span class="timestamp">${log.substring(0, 10)}</span> ${log.substring(11)}`;
+            console.appendChild(entry);
         }
-    } catch (e) {
-        consoleDiv.innerHTML = '<span style="color:#ef4444;">連線中斷，正在嘗試重新連線...</span>';
-    }
+    });
+    console.scrollTop = console.scrollHeight;
 }

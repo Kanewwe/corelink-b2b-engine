@@ -406,3 +406,115 @@ button {
 .hidden {
     display: none !important;
 }
+/* Additional Styles for v2.0 */
+
+/* View Content */
+.view-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.view-content.hidden {
+    display: none;
+}
+
+/* Status Messages */
+.status-msg {
+    font-size: 13px;
+    padding: 10px;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.status-msg.success {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.status-msg.error {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+}
+
+/* Console Log */
+.console-log {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    padding: 10px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 12px;
+    color: #cbd5e1;
+    overflow-y: auto;
+    max-height: 200px;
+    line-height: 1.5;
+}
+
+/* Data Table */
+.data-table {
+    width: 100%;
+    text-align: left;
+    border-collapse: collapse;
+}
+
+.data-table th {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+    font-size: 14px;
+    padding: 12px 8px;
+}
+
+.data-table td {
+    padding: 12px 8px;
+    font-size: 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Form Select */
+select {
+    width: 100%;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-radius: 6px;
+    font-family: 'Inter', sans-serif;
+}
+
+select option {
+    color: #000;
+}
+
+/* Log Entry */
+.log-entry {
+    padding: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 13px;
+}
+
+.log-entry .timestamp {
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.log-entry .level-info { color: #3b82f6; }
+.log-entry .level-success { color: #10b981; }
+.log-entry .level-error { color: #ef4444; }
+.log-entry .level-warning { color: #f59e0b; }
+
+/* Button Secondary */
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-main);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
