@@ -420,6 +420,11 @@ button {
     display: none;
 }
 
+/* Template View - ensure hidden works */
+#templates-view.hidden {
+    display: none !important;
+}
+
 /* Status Messages */
 .status-msg {
     font-size: 13px;
