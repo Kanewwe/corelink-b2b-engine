@@ -5,6 +5,7 @@ const views = {
     'nav-lead-engine': 'lead-engine-view',
     'nav-campaigns': 'campaign-logs-view',
     'nav-search-logs': 'search-logs-view',
+    'nav-templates': 'templates-view',
     'nav-smtp-settings': 'smtp-settings-view'
 };
 
@@ -28,6 +29,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('lead-form')?.addEventListener('submit', submitLead);
     document.getElementById('scrape-form')?.addEventListener('submit', startScrape);
     document.getElementById('refresh-btn')?.addEventListener('click', fetchLeads);
+    document.getElementById('smtp-form')?.addEventListener('submit', saveSMTPSettings);
+    document.getElementById('test-smtp-btn')?.addEventListener('click', testSMTP);
+    document.getElementById('refresh-campaigns-btn')?.addEventListener('click', fetchCampaigns);
+    document.getElementById('refresh-search-logs-btn')?.addEventListener('click', fetchSearchLogs);
+    document.getElementById('template-form')?.addEventListener('submit', saveTemplate);
+    document.getElementById('refresh-templates-btn')?.addEventListener('click', fetchTemplates);
     document.getElementById('smtp-form')?.addEventListener('submit', saveSMTPSettings);
     document.getElementById('test-smtp-btn')?.addEventListener('click', testSMTP);
     document.getElementById('refresh-campaigns-btn')?.addEventListener('click', fetchCampaigns);
@@ -65,6 +72,7 @@ function switchView(navId) {
         'nav-lead-engine': 'AI Prospecting Dashboard',
         'nav-campaigns': '寄信記錄',
         'nav-search-logs': '搜尋記錄',
+        'nav-templates': '信件模板管理',
         'nav-smtp-settings': 'SMTP 設定'
     };
     document.getElementById('page-title').innerText = titles[navId];
@@ -72,6 +80,7 @@ function switchView(navId) {
     // Load data for specific views
     if (navId === 'nav-campaigns') fetchCampaigns();
     if (navId === 'nav-search-logs') fetchSearchLogs();
+    if (navId === 'nav-templates') fetchTemplates();
 }
 
 // Auth
@@ -209,9 +218,12 @@ function renderLeads(leads) {
 
         const card = document.createElement('div');
         card.className = 'lead-card';
+        
+        const emailSentBadge = lead.email_sent ? '<span style="background:#10b981; color:white; padding:2px 8px; border-radius:4px; font-size:11px; margin-left:8px;">✓ 已寄信</span>' : '';
+        
         card.innerHTML = `
             <div class="lead-card-header">
-                <span class="lead-name">${lead.company_name}</span>
+                <span class="lead-name">${lead.company_name}${emailSentBadge}</span>
                 <span class="tag-badge ${tagClass}">${lead.ai_tag}</span>
             </div>
             <div class="lead-meta">
@@ -227,6 +239,7 @@ function renderLeads(leads) {
                     ? `<button class="btn-primary generate-btn" onclick="generateEmail(${lead.id})">✨ 生成開發信</button>`
                     : `<button class="btn-secondary" onclick="viewEmail(${lead.id})">✉️ 查看信件</button>`
                 }
+                ${!lead.email_sent ? `<button class="btn-secondary" onclick="markEmailSent(${lead.id})" style="margin-left:8px;">✓ 標記已寄</button>` : ''}
             </div>
         `;
         container.appendChild(card);
@@ -430,4 +443,152 @@ function updateConsole(logs) {
         }
     });
     console.scrollTop = console.scrollHeight;
+}
+
+// Email Templates Management
+async function fetchTemplates() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/templates`, { headers: getAuthHeaders() });
+        if (!response.ok) throw new Error('Failed to fetch');
+        const templates = await response.json();
+        renderTemplates(templates);
+    } catch (error) {
+        console.error('Fetch templates error:', error);
+    }
+}
+
+function renderTemplates(templates) {
+    const container = document.getElementById('templates-list');
+    container.innerHTML = '';
+
+    if (!templates || templates.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-muted);">尚無模板</p>';
+        return;
+    }
+
+    // Group by tag
+    const grouped = {};
+    templates.forEach(t => {
+        if (!grouped[t.tag]) grouped[t.tag] = [];
+        grouped[t.tag].push(t);
+    });
+
+    Object.keys(grouped).forEach(tag => {
+        const tagSection = document.createElement('div');
+        tagSection.style.marginBottom = '20px';
+        
+        let tagClass = 'tag-unknown';
+        if (tag === 'NA-CABLE') tagClass = 'tag-cable';
+        else if (tag === 'NA-NAMEPLATE') tagClass = 'tag-nameplate';
+        else if (tag === 'NA-PLASTIC') tagClass = 'tag-plastic';
+        
+        tagSection.innerHTML = `<h4 style="margin-bottom:10px;"><span class="tag-badge ${tagClass}">${tag}</span></h4>`;
+        
+        grouped[tag].forEach(t => {
+            const item = document.createElement('div');
+            item.style.cssText = 'padding:10px; background:rgba(255,255,255,0.05); border-radius:6px; margin-bottom:8px;';
+            item.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <strong>${t.name}</strong> ${t.is_default ? '<span style="color:#10b981;">(預設)</span>' : ''}
+                        <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">${t.subject}</div>
+                    </div>
+                    <div style="display:flex; gap:5px;">
+                        <button class="btn-secondary" onclick="editTemplate(${t.id})" style="padding:4px 8px; font-size:12px;">編輯</button>
+                        <button class="btn-secondary" onclick="deleteTemplate(${t.id})" style="padding:4px 8px; font-size:12px; color:#ef4444;">刪除</button>
+                    </div>
+                </div>
+            `;
+            tagSection.appendChild(item);
+        });
+        
+        container.appendChild(tagSection);
+    });
+}
+
+async function saveTemplate(e) {
+    e.preventDefault();
+    
+    const templateId = document.getElementById('template-id').value;
+    const templateData = {
+        name: document.getElementById('template-name').value,
+        tag: document.getElementById('template-tag').value,
+        subject: document.getElementById('template-subject').value,
+        body: document.getElementById('template-body').value,
+        is_default: document.getElementById('template-default').checked
+    };
+
+    try {
+        const url = templateId ? `${API_BASE_URL}/templates/${templateId}` : `${API_BASE_URL}/templates`;
+        const method = templateId ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: getAuthHeaders(),
+            body: JSON.stringify(templateData)
+        });
+
+        if (response.ok) {
+            document.getElementById('template-form').reset();
+            document.getElementById('template-id').value = '';
+            fetchTemplates();
+            addLog(`✅ 模板${templateId ? '更新' : '新增'}成功`, 'success');
+        }
+    } catch (error) {
+        addLog('❌ 模板儲存失敗: ' + error.message, 'error');
+    }
+}
+
+async function editTemplate(id) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/templates`, { headers: getAuthHeaders() });
+        const templates = await response.json();
+        const template = templates.find(t => t.id === id);
+        
+        if (template) {
+            document.getElementById('template-id').value = template.id;
+            document.getElementById('template-name').value = template.name;
+            document.getElementById('template-tag').value = template.tag;
+            document.getElementById('template-subject').value = template.subject;
+            document.getElementById('template-body').value = template.body;
+            document.getElementById('template-default').checked = template.is_default;
+        }
+    } catch (error) {
+        console.error('Edit template error:', error);
+    }
+}
+
+async function deleteTemplate(id) {
+    if (!confirm('確定要刪除這個模板嗎？')) return;
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/templates/${id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+
+        if (response.ok) {
+            fetchTemplates();
+            addLog('✅ 模板已刪除', 'success');
+        }
+    } catch (error) {
+        addLog('❌ 刪除失敗: ' + error.message, 'error');
+    }
+}
+
+// Mark Email as Sent
+async function markEmailSent(leadId) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/leads/${leadId}/mark-sent`, {
+            method: 'POST',
+            headers: getAuthHeaders()
+        });
+
+        if (response.ok) {
+            fetchLeads();
+            addLog('✅ 已標記為寄信完成', 'success');
+        }
+    } catch (error) {
+        addLog('❌ 標記失敗: ' + error.message, 'error');
+    }
 }

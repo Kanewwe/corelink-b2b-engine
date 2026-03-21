@@ -83,6 +83,24 @@ class EmailCampaignResponse(BaseModel):
     status: str
     model_config = {"from_attributes": True}
 
+# NEW: Email Template Schemas
+class EmailTemplateCreate(BaseModel):
+    name: str
+    tag: str
+    subject: str
+    body: str
+    is_default: bool = False
+
+class EmailTemplateResponse(BaseModel):
+    id: int
+    name: str
+    tag: str
+    subject: str
+    body: str
+    is_default: bool
+    created_at: str
+    model_config = {"from_attributes": True}
+
 # --- Authentication Logic ---
 security = HTTPBearer()
 
@@ -216,6 +234,83 @@ def trigger_scraper(req: ScrapeRequest, background_tasks: BackgroundTasks, curre
     import scraper
     background_tasks.add_task(scraper.scrape_and_process_task, req.market, req.keyword)
     return {"message": f"Scraping task for {req.market} {req.keyword} started in the background."}
+
+# --- Email Template Management ---
+
+@app.get("/api/templates", response_model=List[EmailTemplateResponse])
+def get_templates(db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
+    """Get all email templates."""
+    templates = db.query(models.EmailTemplate).order_by(models.EmailTemplate.tag, models.EmailTemplate.name).all()
+    return templates
+
+@app.get("/api/templates/{tag}", response_model=List[EmailTemplateResponse])
+def get_templates_by_tag(tag: str, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
+    """Get templates for specific tag (NA-CABLE, NA-NAMEPLATE, NA-PLASTIC)."""
+    templates = db.query(models.EmailTemplate).filter(models.EmailTemplate.tag == tag).all()
+    return templates
+
+@app.post("/api/templates", response_model=EmailTemplateResponse)
+def create_template(template: EmailTemplateCreate, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
+    """Create new email template."""
+    db_template = models.EmailTemplate(
+        name=template.name,
+        tag=template.tag,
+        subject=template.subject,
+        body=template.body,
+        is_default=template.is_default
+    )
+    db.add(db_template)
+    db.commit()
+    db.refresh(db_template)
+    add_log(f"✉️ [模板] 新增模板: {template.name} ({template.tag})")
+    return db_template
+
+@app.put("/api/templates/{template_id}", response_model=EmailTemplateResponse)
+def update_template(template_id: int, template: EmailTemplateCreate, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
+    """Update email template."""
+    db_template = db.query(models.EmailTemplate).filter(models.EmailTemplate.id == template_id).first()
+    if not db_template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    
+    db_template.name = template.name
+    db_template.tag = template.tag
+    db_template.subject = template.subject
+    db_template.body = template.body
+    db_template.is_default = template.is_default
+    db_template.updated_at = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(db_template)
+    add_log(f"✉️ [模板] 更新模板: {template.name}")
+    return db_template
+
+@app.delete("/api/templates/{template_id}")
+def delete_template(template_id: int, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
+    """Delete email template."""
+    db_template = db.query(models.EmailTemplate).filter(models.EmailTemplate.id == template_id).first()
+    if not db_template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    
+    db.delete(db_template)
+    db.commit()
+    add_log(f"✉️ [模板] 刪除模板 ID: {template_id}")
+    return {"message": "Template deleted"}
+
+# --- Email Sent Tracking ---
+
+@app.post("/api/leads/{lead_id}/mark-sent")
+def mark_email_sent(lead_id: int, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
+    """Mark lead as email sent."""
+    lead = db.query(models.Lead).filter(models.Lead.id == lead_id).first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    
+    lead.email_sent = True
+    lead.email_sent_at = datetime.utcnow()
+    db.commit()
+    
+    add_log(f"📧 [寄信] 標記已寄信: {lead.company_name}")
+    return {"message": "Email marked as sent", "sent_at": lead.email_sent_at}
 
 # --- Health Check ---
 @app.get("/health")
