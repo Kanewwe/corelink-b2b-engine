@@ -42,6 +42,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-scheduler-start')?.addEventListener('click', startScheduler);
     document.getElementById('btn-scheduler-stop')?.addEventListener('click', stopScheduler);
     document.getElementById('btn-scheduler-refresh')?.addEventListener('click', fetchSchedulerStatus);
+    
+    // New: Filters and utilities
+    document.getElementById('search-leads')?.addEventListener('input', debounce(fetchLeads, 300));
+    document.getElementById('filter-status')?.addEventListener('change', fetchLeads);
+    document.getElementById('filter-tag')?.addEventListener('change', fetchLeads);
+    document.getElementById('clear-logs-btn')?.addEventListener('click', clearLogs);
+    document.getElementById('toggle-password')?.addEventListener('click', togglePasswordVisibility);
 
     // Navigation
     Object.keys(views).forEach(navId => {
@@ -209,12 +216,33 @@ async function startScrape(e) {
 
 async function fetchLeads() {
     try {
+        // Get filter values
+        const search = document.getElementById('search-leads')?.value || '';
+        const statusFilter = document.getElementById('filter-status')?.value || '';
+        const tagFilter = document.getElementById('filter-tag')?.value || '';
+        
         const response = await fetch(`${API_BASE_URL}/leads`, { headers: getAuthHeaders() });
         if (response.status === 401) {
             handleLogout();
             return;
         }
-        const leads = await response.json();
+        let leads = await response.json();
+        
+        // Apply filters
+        if (search) {
+            leads = leads.filter(l => l.company_name.toLowerCase().includes(search.toLowerCase()));
+        }
+        if (statusFilter) {
+            leads = leads.filter(l => l.status === statusFilter);
+        }
+        if (tagFilter) {
+            if (tagFilter === 'AUTO') {
+                leads = leads.filter(l => l.ai_tag && l.ai_tag.startsWith('AUTO'));
+            } else {
+                leads = leads.filter(l => l.ai_tag === tagFilter);
+            }
+        }
+        
         renderLeads(leads);
     } catch (error) {
         console.error('Fetch leads error:', error);
@@ -831,4 +859,35 @@ function calcQuote() {
             <div style="font-size:16px; color:#60a5fa;">💵 美元報價：US$ <strong>${totalUsd.toLocaleString()}</strong></div>
         </div>
     `;
+}
+
+// Utility Functions
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+function clearLogs() {
+    const console = document.getElementById('system-console');
+    console.innerHTML = '<span style="color:var(--text-muted);">日誌已清除</span>';
+    addLog('🗑️ 日誌已清除', 'info');
+}
+
+function togglePasswordVisibility() {
+    const input = document.getElementById('smtp-password');
+    const btn = document.getElementById('toggle-password');
+    if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = '🙈';
+    } else {
+        input.type = 'password';
+        btn.textContent = '👁';
+    }
 }
