@@ -174,9 +174,23 @@ def create_and_tag_lead(lead: LeadCreateReq, db: Session = Depends(get_db), curr
     db.refresh(db_lead)
     return db_lead
 
-@app.get("/api/leads", response_model=List[LeadResponse])
+@app.get("/api/leads")
 def get_leads(db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    return db.query(models.Lead).order_by(models.Lead.id.desc()).all()
+    leads = db.query(models.Lead).order_by(models.Lead.id.desc()).all()
+    return [
+        {
+            "id": l.id,
+            "company_name": l.company_name,
+            "website_url": l.website_url,
+            "domain": l.domain,
+            "email_candidates": l.email_candidates,
+            "mx_valid": l.mx_valid,
+            "ai_tag": l.ai_tag,
+            "assigned_bd": l.assigned_bd,
+            "status": l.status
+        }
+        for l in leads
+    ]
 
 @app.post("/api/leads/{lead_id}/generate-email", response_model=EmailCampaignResponse)
 def generate_email_for_lead(lead_id: int, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
