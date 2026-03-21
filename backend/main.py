@@ -472,3 +472,14 @@ else:
     @app.get("/")
     async def root():
         return {"message": "Corelink API is running. Frontend folder not found."}
+
+# DEBUG: Test scrape directly
+@app.post("/api/debug-scrape")
+def debug_scrape(db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
+    import scrape_simple
+    try:
+        scrape_simple.scrape_simple("US", 1)
+        return {"message": "Scrape completed"}
+    except Exception as e:
+        import traceback
+        return {"error": str(e), "trace": traceback.format_exc()}
