@@ -360,9 +360,23 @@ def debug():
         "database_url": os.getenv("DATABASE_URL", "NOT SET"),
     }
 
-# --- API Endpoints ---
+# --- API Endpoints (Session Auth) ---
+def get_current_user_id(session_id: str = Cookie(None), db: Session = Depends(get_db)) -> models.User:
+    """取得當前用戶（Session 驗證）"""
+    if not session_id:
+        raise HTTPException(status_code=401, detail="請先登入")
+    session = auth_module.get_session(db, session_id)
+    if not session:
+        raise HTTPException(status_code=401, detail="Session 已過期，請重新登入")
+    return session.user
+
 @app.post("/api/leads", response_model=LeadResponse)
-def create_and_tag_lead(lead: LeadCreateReq, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
+def create_and_tag_lead(lead: LeadCreateReq, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
+    # 檢查用量限制
+    plan = auth_module.get_user_plan(db, current_user.id)
+    usage = auth_module.get_user_usage(db, current_user.id)
+    if plan.max_customers != -1 and usage.customers_count >= plan.max_customers:
+        raise HTTPException(status_code=429, detail={"error": "usage_limit_exceeded", "message": f"客戶數已達上限（{usage.customers_count}/{plan.max_customers}），請升級方案", "type": "customers", "upgrade_required": True})
     tag_result = ai_service.analyze_company_and_tag(lead.company_name, lead.description, use_gpt=False)
     keywords_list = tag_result.get("Keywords", [])
     keywords_str = ", ".join(keywords_list) if isinstance(keywords_list, list) else str(keywords_list)
@@ -393,8 +407,9 @@ def create_and_tag_lead(lead: LeadCreateReq, db: Session = Depends(get_db), curr
     return db_lead
 
 @app.get("/api/leads")
-def get_leads(db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    leads = db.query(models.Lead).order_by(models.Lead.id.desc()).all()
+def get_leads(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
+    query = db.query(models.Lead).filter(models.Lead.user_id == current_user.id)
+    leads = query.order_by(models.Lead.id.desc()).all()
     return [
         {
             "id": l.id,
@@ -411,10 +426,13 @@ def get_leads(db: Session = Depends(get_db), current_user: str = Depends(verify_
     ]
 
 @app.post("/api/leads/{lead_id}/generate-email", response_model=EmailCampaignResponse)
-def generate_email_for_lead(lead_id: int, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    lead = db.query(models.Lead).filter(models.Lead.id == lead_id).first()
+def generate_email_for_lead(lead_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
+    lead = db.query(models.Lead).filter(
+        models.Lead.id == lead_id,
+        models.Lead.user_id == current_user.id
+    ).first()
     if not lead:
-        raise HTTPException(status_code=404, detail="Lead not found")
+        raise HTTPException(status_code=404, detail="Lead not found or access denied")
         
     k_list = [k.strip() for k in lead.extracted_keywords.split(',')] if lead.extracted_keywords else []
     email_result = ai_service.generate_outreach_email(
@@ -437,12 +455,17 @@ def generate_email_for_lead(lead_id: int, db: Session = Depends(get_db), current
     return campaign
 
 @app.get("/api/leads/{lead_id}/emails", response_model=List[EmailCampaignResponse])
-def get_emails_for_lead(lead_id: int, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    return db.query(models.EmailCampaign).filter(models.EmailCampaign.lead_id == lead_id).all()
+def get_emails_for_lead(lead_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
+    return db.query(models.EmailCampaign).filter(
+        models.EmailCampaign.lead_id == lead_id,
+        models.EmailCampaign.user_id == current_user.id
+    ).all()
 
 @app.get("/api/campaigns", response_model=List[CampaignLogResponse])
-def get_all_campaign_logs(db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    campaigns = db.query(models.EmailCampaign).order_by(models.EmailCampaign.id.desc()).all()
+def get_all_campaign_logs(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
+    campaigns = db.query(models.EmailCampaign).filter(
+        models.EmailCampaign.user_id == current_user.id
+    ).order_by(models.EmailCampaign.id.desc()).all()
     result = []
     for c in campaigns:
         lead = c.lead
@@ -460,33 +483,33 @@ def get_all_campaign_logs(db: Session = Depends(get_db), current_user: str = Dep
     return result
 
 @app.get("/api/system-logs")
-def get_system_logs(current_user: str = Depends(verify_token)):
+def get_system_logs(current_user: models.User = Depends(get_current_user_id)):
     return {"logs": SYSTEM_LOGS}
 
 @app.post("/api/test-email")
-def test_email_dispatch(current_user: str = Depends(verify_token)):
+def test_email_dispatch(current_user: models.User = Depends(get_current_user_id)):
     add_log(f"Manual Test Email triggered by {current_user}")
     return {"message": "Test event logged. Check system logs."}
 
 # --- Scheduler Control Endpoints ---
 @app.post("/api/scheduler/start")
-def start_scheduler(current_user: str = Depends(verify_token)):
+def start_scheduler(current_user: models.User = Depends(get_current_user_id)):
     email_sender_job.start_scheduler()
     status = email_sender_job.get_scheduler_status()
     return {"message": "Scheduler started", "status": status}
 
 @app.post("/api/scheduler/stop")
-def stop_scheduler(current_user: str = Depends(verify_token)):
+def stop_scheduler(current_user: models.User = Depends(get_current_user_id)):
     stopped = email_sender_job.stop_scheduler()
     status = email_sender_job.get_scheduler_status()
     return {"message": "Scheduler stopped" if stopped else "Scheduler was not running", "status": status}
 
 @app.get("/api/scheduler/status")
-def get_scheduler_status(current_user: str = Depends(verify_token)):
+def get_scheduler_status(current_user: models.User = Depends(get_current_user_id)):
     return email_sender_job.get_scheduler_status()
 
 @app.post("/api/scrape")
-def trigger_scraper(req: ScrapeRequest, background_tasks: BackgroundTasks, current_user: str = Depends(verify_token)):
+def trigger_scraper(req: ScrapeRequest, background_tasks: BackgroundTasks, current_user: models.User = Depends(get_current_user_id)):
     import scraper
     background_tasks.add_task(scraper.scrape_and_process_task, req.market, req.keyword)
     return {"message": f"Scraping task for {req.market} {req.keyword} started."}
@@ -500,7 +523,7 @@ class ScrapeSimpleRequest(BaseModel):
     email_strategy: str = "free"  # "free" or "hunter"
 
 @app.post("/api/scrape-simple")
-def trigger_scrape_simple(req: ScrapeSimpleRequest, background_tasks: BackgroundTasks, current_user: str = Depends(verify_token)):
+def trigger_scrape_simple(req: ScrapeSimpleRequest, background_tasks: BackgroundTasks, current_user: models.User = Depends(get_current_user_id)):
     """Simplified scraper using Yahoo search dorking + email finder."""
     import scrape_simple as scrape_mod
     
@@ -519,7 +542,7 @@ class KeywordGenerateRequest(BaseModel):
     count: int = 5
 
 @app.post("/api/keywords/generate")
-def generate_keywords(req: KeywordGenerateRequest, current_user: str = Depends(verify_token)):
+def generate_keywords(req: KeywordGenerateRequest, current_user: models.User = Depends(get_current_user_id)):
     """Generate related keywords using AI"""
     try:
         keywords = ai_service.generate_related_keywords(req.keyword, req.count)
@@ -529,13 +552,16 @@ def generate_keywords(req: KeywordGenerateRequest, current_user: str = Depends(v
         return {"success": False, "message": str(e)}
 
 @app.get("/api/templates")
-def get_templates(db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    templates = db.query(models.EmailTemplate).order_by(models.EmailTemplate.tag, models.EmailTemplate.name).all()
+def get_templates(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
+    templates = db.query(models.EmailTemplate).filter(
+        models.EmailTemplate.user_id == current_user.id
+    ).order_by(models.EmailTemplate.tag, models.EmailTemplate.name).all()
     return templates
 
 @app.post("/api/templates", response_model=EmailTemplateResponse)
-def create_template(template: EmailTemplateCreate, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
+def create_template(template: EmailTemplateCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
     db_template = models.EmailTemplate(
+        user_id=current_user.id,
         name=template.name,
         tag=template.tag,
         subject=template.subject,
@@ -550,8 +576,11 @@ def create_template(template: EmailTemplateCreate, db: Session = Depends(get_db)
     return db_template
 
 @app.put("/api/templates/{template_id}", response_model=EmailTemplateResponse)
-def update_template(template_id: int, template: EmailTemplateCreate, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    db_template = db.query(models.EmailTemplate).filter(models.EmailTemplate.id == template_id).first()
+def update_template(template_id: int, template: EmailTemplateCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
+    db_template = db.query(models.EmailTemplate).filter(
+        models.EmailTemplate.id == template_id,
+        models.EmailTemplate.user_id == current_user.id
+    ).first()
     if not db_template:
         raise HTTPException(status_code=404, detail="Template not found")
     
@@ -568,8 +597,11 @@ def update_template(template_id: int, template: EmailTemplateCreate, db: Session
     return db_template
 
 @app.delete("/api/templates/{template_id}")
-def delete_template(template_id: int, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    db_template = db.query(models.EmailTemplate).filter(models.EmailTemplate.id == template_id).first()
+def delete_template(template_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
+    db_template = db.query(models.EmailTemplate).filter(
+        models.EmailTemplate.id == template_id,
+        models.EmailTemplate.user_id == current_user.id
+    ).first()
     if not db_template:
         raise HTTPException(status_code=404, detail="Template not found")
     
@@ -586,7 +618,7 @@ class AITemplateRequest(BaseModel):
     language: str = "english"  # english, chinese
 
 @app.post("/api/templates/ai-generate")
-def ai_generate_template(req: AITemplateRequest, current_user: str = Depends(verify_token)):
+def ai_generate_template(req: AITemplateRequest, current_user: models.User = Depends(get_current_user_id)):
     """Use AI to generate HTML email template."""
     import openai
     
@@ -646,7 +678,7 @@ def ai_generate_template(req: AITemplateRequest, current_user: str = Depends(ver
 # --- Send Test Email ---
 
 @app.post("/api/templates/test-send")
-def send_test_email(current_user: str = Depends(verify_token)):
+def send_test_email(current_user: models.User = Depends(get_current_user_id)):
     """Send a test email to the configured SMTP user."""
     import smtplib
     from email.mime.text import MIMEText
@@ -711,10 +743,13 @@ def send_test_email(current_user: str = Depends(verify_token)):
 
 # --- Email Sent Tracking ---
 @app.post("/api/leads/{lead_id}/mark-sent")
-def mark_email_sent(lead_id: int, db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
-    lead = db.query(models.Lead).filter(models.Lead.id == lead_id).first()
+def mark_email_sent(lead_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
+    lead = db.query(models.Lead).filter(
+        models.Lead.id == lead_id,
+        models.Lead.user_id == current_user.id
+    ).first()
     if not lead:
-        raise HTTPException(status_code=404, detail="Lead not found")
+        raise HTTPException(status_code=404, detail="Lead not found or access denied")
     
     lead.email_sent = True
     lead.email_sent_at = datetime.utcnow()
@@ -746,12 +781,16 @@ async def track_email_click(id: str, url: str):
 # ══════════════════════════════════════════
 
 @app.get("/api/engagements")
-def get_engagements(db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
+def get_engagements(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
     """取得所有追蹤資料，含標籤維度的統計"""
     
     # Get all email logs with related data
-    email_logs = db.query(models.EmailLog).all()
-    leads = db.query(models.Lead).all()
+    email_logs = db.query(models.EmailLog).filter(
+        models.EmailLog.user_id == current_user.id
+    ).all()
+    leads = db.query(models.Lead).filter(
+        models.Lead.user_id == current_user.id
+    ).all()
     lead_map = {l.id: l for l in leads}
     
     # Build tag stats
@@ -799,18 +838,18 @@ def get_engagements(db: Session = Depends(get_db), current_user: str = Depends(v
     }
 
 @app.post("/api/engagements/{log_uuid}/reply")
-def mark_email_replied(log_uuid: str, current_user: str = Depends(verify_token)):
+def mark_email_replied(log_uuid: str, current_user: models.User = Depends(get_current_user_id)):
     """手動標記回覆"""
     email_tracker.mark_email_replied(log_uuid, source="manual")
     return {"message": "Email marked as replied"}
 
 # --- Pricing Config ---
 @app.get("/api/pricing")
-def get_pricing(current_user: str = Depends(verify_token)):
+def get_pricing(current_user: models.User = Depends(get_current_user_id)):
     return models.pricing_config
 
 @app.put("/api/pricing")
-def update_pricing(config: PricingConfigUpdate, current_user: str = Depends(verify_token)):
+def update_pricing(config: PricingConfigUpdate, current_user: models.User = Depends(get_current_user_id)):
     models.pricing_config.update(config.model_dump())
     add_log(f"💰 收費標準已更新: {config.model_dump()}")
     return {"message": "Pricing updated", "config": models.pricing_config}
@@ -822,7 +861,7 @@ def test_smtp_connection(
     port: int,
     user: str,
     password: str,
-    current_user: str = Depends(verify_token)
+    current_user: models.User = Depends(get_current_user_id)
 ):
     """Test SMTP connection with provided credentials."""
     import smtplib
@@ -904,7 +943,7 @@ else:
 
 # DEBUG: Test scrape directly
 @app.post("/api/debug-scrape")
-def debug_scrape(db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
+def debug_scrape(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
     import scrape_simple
     try:
         scrape_simple.scrape_simple("US", 1)
@@ -915,7 +954,7 @@ def debug_scrape(db: Session = Depends(get_db), current_user: str = Depends(veri
 
 # INIT: Create database tables
 @app.post("/api/init-db")
-def init_db(current_user: str = Depends(verify_token)):
+def init_db(current_user: models.User = Depends(get_current_user_id)):
     """Initialize database tables."""
     from database import engine, Base
     import models
