@@ -39,6 +39,7 @@ body {
     height: 100vh;
     padding: 1rem;
     gap: 1.5rem;
+    overflow: hidden;
 }
 
 /* Sidebar */
@@ -47,6 +48,7 @@ body {
     padding: 2rem 1.5rem;
     display: flex;
     flex-direction: column;
+    flex-shrink: 0;
 }
 
 .logo {
@@ -106,7 +108,9 @@ nav {
     flex: 1;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0 10px 20px;
 }
 
 .header {
@@ -129,7 +133,8 @@ nav {
     grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
     flex: 1;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .lead-input-section {
@@ -413,7 +418,8 @@ button {
     flex: 1;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .view-content.hidden {
