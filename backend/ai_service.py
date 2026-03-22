@@ -116,38 +116,45 @@ def generate_outreach_email(company_name: str, description: str, tag: str, bd_na
 
 def generate_related_keywords(seed_keyword: str, count: int = 5) -> list:
     """
-    Generate related B2B industry keywords based on a seed keyword.
-    Used for auto-mining with multiple keyword variations.
+    Generate related B2B industry keywords with actual parts/components focus.
+    Used for auto-mining with specific part variations.
     """
-    prompt = f"""Given the B2B industry keyword "{seed_keyword}", generate {count} related search keywords that:
-1. Are commonly used in B2B sourcing for manufacturing/supply chain
-2. Cover different aspects (materials, processes, applications, related products)
-3. Are suitable for Yellowpages/Yelp type business searches
+    prompt = f"""Given the B2B industry/product keyword "{seed_keyword}", generate {count} related keywords that are SPECIFIC PARTS or COMPONENTS related to this industry.
 
-Return ONLY a JSON array of strings, nothing else. Example: ["keyword1", "keyword2", "keyword3"]"""
+Requirements:
+1. Focus on actual parts, components, or assemblies - NOT generic variations
+2. Each keyword should describe a specific type of part or component
+3. Suitable for Yellowpages/B2B business searches
+4. Include part names, component types, or assembly variations
+
+Examples:
+- "cable" → ["cable assembly", "wire harness", "cable connector", "cable gland", "heat shrink cable"]
+- "plastic injection" → ["plastic molding", "injection mold", "plastic housing", "molded parts", "plastic component"]
+- "brake" → ["brake pad", "brake rotor", "brake caliper", "brake line", "brake assembly"]
+
+Return ONLY a JSON array of {count} strings, nothing else."""
 
     try:
         response = openai.ChatCompletion.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are a helpful B2B sourcing assistant. Output ONLY JSON arrays."},
+                {"role": "system", "content": "You are a helpful B2B sourcing assistant specializing in parts and components. Output ONLY JSON arrays."},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.7
         )
         result = response.choices[0].message.content.strip()
-        # Try to parse as JSON array
         keywords = json.loads(result)
         if isinstance(keywords, list):
             return keywords[:count]
         return [seed_keyword]
     except Exception as e:
         print(f"Error generating keywords: {e}")
-        # Fallback to common variations
+        # Fallback to part-focused variations
         return [
-            seed_keyword,
-            f"{seed_keyword} manufacturer",
-            f"{seed_keyword} supplier",
-            f"{seed_keyword} factory",
-            f"{seed_keyword} wholesale"
+            seed_keyword + " parts",
+            seed_keyword + " components",
+            seed_keyword + " assembly",
+            seed_keyword + " supplier",
+            seed_keyword + " manufacturer"
         ][:count]
