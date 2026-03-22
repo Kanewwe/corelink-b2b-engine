@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Corelink B2B Sourcing Engine</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>Linkora | B2B Outreach Platform</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <!-- Monaco Editor -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/editor/editor.main.css">
@@ -16,36 +16,103 @@
         <!-- Sidebar -->
         <aside class="sidebar glass-panel">
             <div class="logo">
-                <div class="logo-icon"></div>
-                <h1>Corelink</h1>
+                <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+                    <circle cx="10" cy="16" r="5" stroke="#4F8EF7" stroke-width="2"/>
+                    <circle cx="22" cy="16" r="5" stroke="#6EE7B7" stroke-width="2"/>
+                    <path d="M15 16 L17 16" stroke="#4F8EF7" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <h1>Linkora</h1>
             </div>
             <nav>
-                <a href="#" id="nav-lead-engine" class="nav-item active">🎯 Lead Engine</a>
-                <a href="#" id="nav-add-lead" class="nav-item">➕ 新增客戶</a>
-                <a href="#" id="nav-campaigns" class="nav-item">✉️ 寄信記錄</a>
-                <a href="#" id="nav-engagements" class="nav-item">📊 觸及率</a>
-                <a href="#" id="nav-search-logs" class="nav-item">🔍 搜尋記錄</a>
-                <a href="#" id="nav-templates" class="nav-item">📝 信件模板</a>
-                <a href="#" id="nav-smtp-settings" class="nav-item">⚙️ SMTP 設定</a>
+                <a href="#" id="nav-lead-engine" class="nav-item active">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                    Lead Engine
+                </a>
+                <a href="#" id="nav-add-lead" class="nav-item">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                    新增客戶
+                </a>
+                <a href="#" id="nav-campaigns" class="nav-item">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                    寄信記錄
+                </a>
+                <a href="#" id="nav-engagements" class="nav-item">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+                    觸及率
+                </a>
+                <a href="#" id="nav-search-logs" class="nav-item">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                    搜尋記錄
+                </a>
+                <a href="#" id="nav-templates" class="nav-item">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+                    信件模板
+                </a>
+                <a href="#" id="nav-smtp-settings" class="nav-item">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    SMTP 設定
+                </a>
             </nav>
-            <div style="margin-top:auto">
-                <p style="color:var(--text-muted); font-size:12px">Corelink v2.0</p>
+            <div style="margin-top:auto; padding-top:20px; border-top:1px solid var(--glass-border);">
+                <div style="display:flex; align-items:center; gap:10px; padding:10px; background:rgba(79,142,247,0.1); border-radius:8px;">
+                    <div style="width:32px; height:32px; background:linear-gradient(135deg,var(--primary),var(--accent)); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:600;">A</div>
+                    <div style="flex:1;">
+                        <div id="display-username" style="font-weight:600; font-size:13px;">Admin</div>
+                        <div style="font-size:11px; color:var(--text-muted);">Administrator</div>
+                    </div>
+                </div>
+                <p style="color:var(--text-muted); font-size:12px; text-align:center; margin-top:15px;">Linkora v1.0</p>
             </div>
         </aside>
 
         <!-- Main Content -->
         <main class="main-content">
             <header class="header">
-                <h2 id="page-title">AI Prospecting Dashboard</h2>
-                <div class="user-profile" style="display:flex; align-items:center;">
-                    👤 <span id="display-username" style="margin-right:8px; font-weight:600;">Login...</span>
-                    <button id="logout-btn"
-                        style="background:transparent; color:#ef4444; border:none; border-left:1px solid rgba(255,255,255,0.2); padding-left:8px; cursor:pointer;">Exit</button>
-                </div>
+                <h2 id="page-title">Linkora — AI Prospecting</h2>
             </header>
 
             <!-- View: Lead Engine -->
             <div id="lead-engine-view" class="view-content">
+                <!-- Summary KPI Cards -->
+                <div class="kpi-bar">
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background:rgba(79,142,247,0.15); color:var(--primary);">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        </div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="kpi-total-leads">0</div>
+                            <div class="kpi-label">總客戶數</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background:rgba(110,231,183,0.15); color:var(--accent);">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                        </div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="kpi-sent-today">0</div>
+                            <div class="kpi-label">本月寄信</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background:rgba(245,158,11,0.15); color:var(--warning);">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        </div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="kpi-open-rate">0%</div>
+                            <div class="kpi-label">開信率</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background:rgba(239,68,68,0.15); color:var(--error);">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                        </div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="kpi-bounce-rate">0%</div>
+                            <div class="kpi-label">退信率</div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="content-grid">
                     <!-- Left Column: Input Form -->
                     <section class="lead-input-section glass-panel">
@@ -73,7 +140,7 @@
                                         placeholder="例如: Cable Manufacturer, Plastic Injection"
                                         style="flex:1;">
                                     <button type="button" id="ai-keyword-btn" onclick="generateAIKeywords()"
-                                        style="padding:8px 12px; background:linear-gradient(135deg, #8b5cf6, #7c3aed); border:none; border-radius:6px; color:white; cursor:pointer; white-space:nowrap;">
+                                        style="padding:8px 12px; background:linear-gradient(135deg, var(--primary), var(--primary-hover)); border:none; border-radius:6px; color:white; cursor:pointer; white-space:nowrap;">
                                         ✨ AI 關鍵字
                                     </button>
                                 </div>
@@ -92,7 +159,7 @@
                                 </select>
                             </div>
                             <button type="submit" class="btn-primary" id="start-scrape-btn"
-                                style="background: linear-gradient(135deg, #f59e0b, #d97706);">🚀 開始自動探勘</button>
+                                style="background: linear-gradient(135deg, var(--primary), var(--primary-hover));">🚀 開始自動探勘</button>
                         </form>
                         
                         <!-- Hunter.io Status -->

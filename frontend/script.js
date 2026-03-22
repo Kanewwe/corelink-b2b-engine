@@ -84,7 +84,7 @@ function switchView(navId) {
 
     // Update page title
     const titles = {
-        'nav-lead-engine': 'AI Prospecting Dashboard',
+        'nav-lead-engine': 'Linkora — AI Prospecting',
         'nav-add-lead': '新增客戶',
         'nav-campaigns': '寄信記錄',
         'nav-engagements': '觸及率分析',
@@ -99,6 +99,31 @@ function switchView(navId) {
     if (navId === 'nav-search-logs') fetchSearchLogs();
     if (navId === 'nav-templates') fetchTemplates();
     if (navId === 'nav-engagements') { fetchEngagements(); loadPricing(); }
+    if (navId === 'nav-lead-engine') updateKPIs();
+}
+
+// ══════════════════════════════════════════
+// KPI Updates
+// ══════════════════════════════════════════
+
+async function updateKPIs() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/leads`, { headers: getAuthHeaders() });
+        if (!response.ok) return;
+        const leads = await response.json();
+        
+        // Total leads
+        document.getElementById('kpi-total-leads').textContent = leads.length;
+        
+        // Sent this month
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const sentThisMonth = leads.filter(l => l.email_sent && new Date(l.email_sent_at) >= monthStart).length;
+        document.getElementById('kpi-sent-today').textContent = sentThisMonth;
+        
+    } catch (error) {
+        console.error('KPI update error:', error);
+    }
 }
 
 // Auth
@@ -432,10 +457,10 @@ function renderLeads(leads) {
             </div>
             <div class="lead-actions">
                 ${lead.status === 'Tagged' || lead.status === 'Scraped'
-                    ? `<button class="btn-primary generate-btn" onclick="generateEmail(${lead.id})">✨ 生成開發信</button>`
-                    : `<button class="btn-secondary" onclick="viewEmail(${lead.id})">✉️ 查看信件</button>`
+                    ? `<button class="btn-primary" onclick="generateEmail(${lead.id})" style="padding:8px 16px; font-size:13px; border-radius:6px;">✨ 生成開發信</button>`
+                    : `<button class="btn-secondary" onclick="viewEmail(${lead.id})" style="padding:8px 16px; font-size:13px; border-radius:6px;">✉️ 查看信件</button>`
                 }
-                ${!lead.email_sent ? `<button class="btn-secondary" onclick="markEmailSent(${lead.id})" style="margin-left:8px;">✓ 標記已寄</button>` : ''}
+                ${!lead.email_sent ? `<button onclick="markEmailSent(${lead.id})" style="padding:8px 16px; font-size:13px; border-radius:6px; background:transparent; border:1px solid var(--glass-border); color:var(--text-muted); margin-left:8px; cursor:pointer;">✓ 標記已寄</button>` : ''}
             </div>
         `;
         container.appendChild(card);
