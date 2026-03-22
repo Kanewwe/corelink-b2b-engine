@@ -158,9 +158,17 @@ function getAuthHeaders() {
 
 async function handleLogin(e) {
     e.preventDefault();
-    const email = document.getElementById('login-email')?.value;
-    const password = document.getElementById('login-password')?.value;
+    const emailInput = document.getElementById('login-email');
+    const passwordInput = document.getElementById('login-password');
     const errorEl = document.getElementById('login-error');
+
+    if (!emailInput || !passwordInput) {
+        console.error('Login form elements not found');
+        return;
+    }
+
+    const email = emailInput.value;
+    const password = passwordInput.value;
 
     try {
         const response = await fetch(`${API_BASE_URL}/auth/login`, {
