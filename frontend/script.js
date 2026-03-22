@@ -188,6 +188,91 @@ async function submitQuickLead(e) {
     }
 }
 
+// ══════════════════════════════════════════
+// AI Keyword Generator
+// ══════════════════════════════════════════
+
+async function generateAIKeywords() {
+    const keyword = document.getElementById('scrape-keyword')?.value.trim();
+    const resultDiv = document.getElementById('ai-keywords-result');
+    const chipsDiv = document.getElementById('keyword-chips');
+    const btn = document.getElementById('ai-keyword-btn');
+    
+    if (!keyword) {
+        alert('請先輸入一個產業關鍵字');
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.innerHTML = '⏳ 生成中...';
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/keywords/generate`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ keyword })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.keywords) {
+            chipsDiv.innerHTML = '';
+            result.keywords.forEach(kw => {
+                const chip = document.createElement('label');
+                chip.style.cssText = 'display:inline-flex; align-items:center; gap:4px; padding:6px 12px; background:rgba(139,92,246,0.2); border:1px solid rgba(139,92,246,0.4); border-radius:16px; cursor:pointer; font-size:12px;';
+                chip.innerHTML = `
+                    <input type="checkbox" value="${kw}" checked style="accent-color:#8b5cf6;">
+                    <span>${kw}</span>
+                `;
+                chipsDiv.appendChild(chip);
+            });
+            
+            const customInput = document.createElement('div');
+            customInput.style.cssText = 'display:flex; gap:4px;';
+            customInput.innerHTML = `
+                <input type="text" id="custom-keyword" placeholder="+ 自訂關鍵字" 
+                    style="padding:4px 8px; font-size:12px; border-radius:12px; border:1px dashed rgba(139,92,246,0.4); background:transparent; color:#fff; width:120px;">
+                <button type="button" onclick="addCustomKeyword()" style="padding:4px 8px; font-size:11px; background:rgba(139,92,246,0.3); border:1px solid rgba(139,92,246,0.4); border-radius:12px; color:#fff; cursor:pointer;">新增</button>
+            `;
+            chipsDiv.appendChild(customInput);
+            
+            resultDiv.classList.remove('hidden');
+            addLog('✨ 已生成 5 組關鍵字，請選擇要使用的', 'success');
+        } else {
+            alert('生成失敗：' + (result.message || '未知錯誤'));
+        }
+    } catch (error) {
+        alert('生成失敗：' + error.message);
+    }
+    
+    btn.disabled = false;
+    btn.innerHTML = '✨ AI 關鍵字';
+}
+
+function addCustomKeyword() {
+    const input = document.getElementById('custom-keyword');
+    const value = input?.value.trim();
+    if (!value) return;
+    
+    const chipsDiv = document.getElementById('keyword-chips');
+    const chip = document.createElement('label');
+    chip.style.cssText = 'display:inline-flex; align-items:center; gap:4px; padding:6px 12px; background:rgba(139,92,246,0.2); border:1px solid rgba(139,92,246,0.4); border-radius:16px; cursor:pointer; font-size:12px;';
+    chip.innerHTML = `<input type="checkbox" value="${value}" checked style="accent-color:#8b5cf6;"><span>${value}</span>`;
+    
+    const customInput = chipsDiv.querySelector('div:last-child');
+    chipsDiv.insertBefore(chip, customInput);
+    input.value = '';
+}
+
+function getSelectedKeywords() {
+    const checkboxes = document.querySelectorAll('#keyword-chips input[type="checkbox"]:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+// ══════════════════════════════════════════
+// Scrape Functions
+// ══════════════════════════════════════════
+
 async function startScrape(e) {
     e.preventDefault();
     const btn = document.getElementById('start-scrape-btn');
@@ -195,9 +280,13 @@ async function startScrape(e) {
     const progress = document.getElementById('miner-progress');
     
     const market = document.getElementById('scrape-market').value;
-    const keyword = document.getElementById('scrape-keyword').value;
+    const baseKeyword = document.getElementById('scrape-keyword').value;
     const location = document.getElementById('scrape-location')?.value || '';
     const pages = document.getElementById('scrape-pages')?.value || 3;
+
+    // Get selected keywords or use base keyword
+    const selectedKeywords = getSelectedKeywords();
+    const keywords = selectedKeywords.length > 0 ? selectedKeywords : [baseKeyword];
 
     btn.disabled = true;
     btn.innerHTML = '🚀 探勘中...';
@@ -216,7 +305,7 @@ async function startScrape(e) {
             body: JSON.stringify({
                 market: market,
                 pages: parseInt(pages),
-                keyword: keyword,
+                keywords: keywords,
                 location: location
             })
         });
@@ -224,8 +313,8 @@ async function startScrape(e) {
         if (response.ok) {
             status.classList.remove('hidden');
             status.className = 'status-msg success';
-            status.innerText = '✅ 探勘任務已啟動！請查看下方系統日誌。';
-            addLog(`🔍 開始探勘: ${keyword} (${market})`, 'info');
+            status.innerText = `✅ 探勘任務已啟動！使用 ${keywords.length} 組關鍵字`;
+            addLog(`🔍 開始探勘: ${keywords.join(', ')} (${market})`, 'info');
             
             // Update progress
             if (progress) {

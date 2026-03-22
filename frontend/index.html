@@ -68,8 +68,19 @@
                             </div>
                             <div class="input-group">
                                 <label>產業關鍵字 (Industry Keyword)</label>
-                                <input type="text" id="scrape-keyword" required
-                                    placeholder="例如: Cable Manufacturer, Plastic Injection Molding">
+                                <div style="display:flex; gap:8px;">
+                                    <input type="text" id="scrape-keyword" required
+                                        placeholder="例如: Cable Manufacturer, Plastic Injection"
+                                        style="flex:1;">
+                                    <button type="button" id="ai-keyword-btn" onclick="generateAIKeywords()"
+                                        style="padding:8px 12px; background:linear-gradient(135deg, #8b5cf6, #7c3aed); border:none; border-radius:6px; color:white; cursor:pointer; white-space:nowrap;">
+                                        ✨ AI 關鍵字
+                                    </button>
+                                </div>
+                                <div id="ai-keywords-result" class="hidden" style="margin-top:10px;">
+                                    <p style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">選擇或新增關鍵字：</p>
+                                    <div id="keyword-chips" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+                                </div>
                             </div>
                             <div class="input-group">
                                 <label>爬取頁數</label>

@@ -292,7 +292,8 @@ def trigger_scraper(req: ScrapeRequest, background_tasks: BackgroundTasks, curre
 class ScrapeSimpleRequest(BaseModel):
     market: str = "US"
     pages: int = 3
-    keyword: Optional[str] = None
+    keywords: Optional[List[str]] = None  # 多組關鍵字
+    keyword: Optional[str] = None  # 相容舊版
     location: Optional[str] = None
     email_strategy: str = "free"  # "free" or "hunter"
 
@@ -300,8 +301,30 @@ class ScrapeSimpleRequest(BaseModel):
 def trigger_scrape_simple(req: ScrapeSimpleRequest, background_tasks: BackgroundTasks, current_user: str = Depends(verify_token)):
     """Simplified scraper using Yahoo search dorking + email finder."""
     import scrape_simple as scrape_mod
-    background_tasks.add_task(scrape_mod.scrape_simple, req.market, req.pages)
-    return {"message": f"Simple scrape started for market={req.market}"}
+    
+    # 支援多組關鍵字
+    keywords = req.keywords if req.keywords else ([req.keyword] if req.keyword else ["manufacturer"])
+    
+    background_tasks.add_task(scrape_mod.scrape_simple, req.market, req.pages, keywords)
+    return {"message": f"Scraping started for {req.market} with {len(keywords)} keywords"}
+
+# ══════════════════════════════════════════
+# AI Keyword Generator
+# ══════════════════════════════════════════
+
+class KeywordGenerateRequest(BaseModel):
+    keyword: str
+    count: int = 5
+
+@app.post("/api/keywords/generate")
+def generate_keywords(req: KeywordGenerateRequest, current_user: str = Depends(verify_token)):
+    """Generate related keywords using AI"""
+    try:
+        keywords = ai_service.generate_related_keywords(req.keyword, req.count)
+        return {"success": True, "keywords": keywords}
+    except Exception as e:
+        add_log(f"Keyword generation error: {e}", level="error")
+        return {"success": False, "message": str(e)}
 
 @app.get("/api/templates")
 def get_templates(db: Session = Depends(get_db), current_user: str = Depends(verify_token)):

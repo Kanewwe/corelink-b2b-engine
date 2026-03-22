@@ -112,3 +112,42 @@ def generate_outreach_email(company_name: str, description: str, tag: str, bd_na
     except Exception as e:
         print(f"Error calling OpenAI API (Email): {e}")
         return {"Subject": "Error generating email", "Body": str(e)}
+
+
+def generate_related_keywords(seed_keyword: str, count: int = 5) -> list:
+    """
+    Generate related B2B industry keywords based on a seed keyword.
+    Used for auto-mining with multiple keyword variations.
+    """
+    prompt = f"""Given the B2B industry keyword "{seed_keyword}", generate {count} related search keywords that:
+1. Are commonly used in B2B sourcing for manufacturing/supply chain
+2. Cover different aspects (materials, processes, applications, related products)
+3. Are suitable for Yellowpages/Yelp type business searches
+
+Return ONLY a JSON array of strings, nothing else. Example: ["keyword1", "keyword2", "keyword3"]"""
+
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a helpful B2B sourcing assistant. Output ONLY JSON arrays."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7
+        )
+        result = response.choices[0].message.content.strip()
+        # Try to parse as JSON array
+        keywords = json.loads(result)
+        if isinstance(keywords, list):
+            return keywords[:count]
+        return [seed_keyword]
+    except Exception as e:
+        print(f"Error generating keywords: {e}")
+        # Fallback to common variations
+        return [
+            seed_keyword,
+            f"{seed_keyword} manufacturer",
+            f"{seed_keyword} supplier",
+            f"{seed_keyword} factory",
+            f"{seed_keyword} wholesale"
+        ][:count]
