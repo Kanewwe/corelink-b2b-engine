@@ -13,6 +13,7 @@ from database import engine, Base, get_db
 import models
 import ai_service
 import email_tracker
+import auth as auth_module
 from contextlib import asynccontextmanager
 import email_sender_job
 from logger import add_log, SYSTEM_LOGS
@@ -20,15 +21,89 @@ from logger import add_log, SYSTEM_LOGS
 # Create database tables automatically
 Base.metadata.create_all(bind=engine)
 
+# Initialize default plans on startup
+def init_default_plans():
+    """Initialize default plans if they don't exist"""
+    db = next(get_db())
+    try:
+        existing = db.query(models.Plan).first()
+        if not existing:
+            # Free plan
+            free_plan = models.Plan(
+                name="free",
+                display_name="免費方案",
+                price_monthly=0,
+                price_yearly=0,
+                max_customers=50,
+                max_emails_month=10,
+                max_templates=1,
+                max_autominer_runs=3,
+                feature_ai_email=False,
+                feature_attachments=False,
+                feature_click_track=False,
+                feature_open_track=True,
+                feature_hunter_io=False,
+                feature_api_access=False,
+                feature_csv_import=False
+            )
+            db.add(free_plan)
+            
+            # Pro plan
+            pro_plan = models.Plan(
+                name="pro",
+                display_name="專業方案",
+                price_monthly=29,
+                price_yearly=290,
+                max_customers=500,
+                max_emails_month=500,
+                max_templates=10,
+                max_autominer_runs=30,
+                feature_ai_email=True,
+                feature_attachments=True,
+                feature_click_track=True,
+                feature_open_track=True,
+                feature_hunter_io=True,
+                feature_api_access=False,
+                feature_csv_import=True
+            )
+            db.add(pro_plan)
+            
+            # Enterprise plan
+            enterprise_plan = models.Plan(
+                name="enterprise",
+                display_name="企業方案",
+                price_monthly=99,
+                price_yearly=990,
+                max_customers=-1,
+                max_emails_month=-1,
+                max_templates=-1,
+                max_autominer_runs=-1,
+                feature_ai_email=True,
+                feature_attachments=True,
+                feature_click_track=True,
+                feature_open_track=True,
+                feature_hunter_io=True,
+                feature_api_access=True,
+                feature_csv_import=True
+            )
+            db.add(enterprise_plan)
+            
+            db.commit()
+            add_log("✅ 預設方案初始化完成")
+    except Exception as e:
+        add_log(f"⚠️ 方案初始化失敗: {e}")
+    finally:
+        db.close()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Set tracking base URL
-    import os
     base_url = os.getenv("APP_BASE_URL", "https://linkoratw.com")
     email_tracker.set_track_base_url(base_url)
     
-    # Startup Events — scheduler auto-start is disabled by default (EMAIL_SCHEDULER_ENABLED=false)
-    # Use POST /api/scheduler/start to manually enable it
+    # Initialize default plans
+    init_default_plans()
+    
     yield
 
 app = FastAPI(title="Corelink B2B Engine API (Optimized)", lifespan=lifespan)
@@ -152,6 +227,127 @@ def login(req: LoginReq):
     if req.username == expected_user and req.password == expected_pass:
         return {"token": API_TOKEN, "username": req.username}
     raise HTTPException(status_code=401, detail="Invalid username or password")
+
+# ══════════════════════════════════════════
+# New User Auth Endpoints (Session-based)
+# ══════════════════════════════════════════
+
+class RegisterReq(BaseModel):
+    email: str
+    password: str
+    name: Optional[str] = None
+    company_name: Optional[str] = None
+
+class AuthLoginReq(BaseModel):
+    email: str
+    password: str
+
+@app.post("/api/auth/register")
+def register(req: RegisterReq, request: Request, db: Session = Depends(get_db)):
+    """用戶註冊"""
+    existing = db.query(models.User).filter(models.User.email == req.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="此 Email 已被註冊")
+    
+    user = models.User(
+        email=req.email,
+        name=req.name,
+        company_name=req.company_name
+    )
+    user.set_password(req.password)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    
+    # Auto-assign Free plan
+    free_plan = db.query(models.Plan).filter(models.Plan.name == "free").first()
+    if free_plan:
+        from datetime import timedelta
+        subscription = models.Subscription(
+            user_id=user.id,
+            plan_id=free_plan.id,
+            status="active",
+            current_period_start=datetime.utcnow(),
+            current_period_end=datetime.utcnow() + timedelta(days=365 * 100)
+        )
+        db.add(subscription)
+        db.commit()
+    
+    session = auth_module.create_session(
+        db, user,
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent")
+    )
+    
+    add_log(f"✅ 新用戶註冊: {user.email}")
+    
+    return {
+        "message": "註冊成功",
+        "session_id": session.id,
+        "user": auth_module.get_user_full_info(db, user)
+    }
+
+@app.post("/api/auth/login")
+def auth_login(req: AuthLoginReq, request: Request, db: Session = Depends(get_db)):
+    """用戶登入"""
+    user = db.query(models.User).filter(models.User.email == req.email).first()
+    
+    if not user or not user.check_password(req.password):
+        raise HTTPException(status_code=401, detail="Email 或密碼錯誤")
+    
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="帳號已被停用")
+    
+    session = auth_module.create_session(
+        db, user,
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent")
+    )
+    
+    add_log(f"✅ 用戶登入: {user.email}")
+    
+    return {
+        "message": "登入成功",
+        "session_id": session.id,
+        "user": auth_module.get_user_full_info(db, user)
+    }
+
+@app.post("/api/auth/logout")
+def auth_logout(session_id: str = Cookie(None), db: Session = Depends(get_db)):
+    """用戶登出"""
+    if session_id:
+        auth_module.delete_session(db, session_id)
+    return {"message": "已登出"}
+
+@app.get("/api/auth/me")
+def get_me(session_id: str = Cookie(None), db: Session = Depends(get_db)):
+    """取得當前用戶資訊"""
+    if not session_id:
+        raise HTTPException(status_code=401, detail="請先登入")
+    
+    session = auth_module.get_session(db, session_id)
+    if not session:
+        raise HTTPException(status_code=401, detail="Session 已過期")
+    
+    return auth_module.get_user_full_info(db, session.user)
+
+@app.get("/api/plans")
+def get_plans(db: Session = Depends(get_db)):
+    """取得所有方案列表"""
+    plans = db.query(models.Plan).filter(models.Plan.is_active == True).all()
+    return [p.to_dict() for p in plans]
+
+@app.get("/api/subscription")
+def get_subscription(session_id: str = Cookie(None), db: Session = Depends(get_db)):
+    """取得當前用戶訂閱資訊"""
+    if not session_id:
+        raise HTTPException(status_code=401, detail="請先登入")
+    
+    session = auth_module.get_session(db, session_id)
+    if not session:
+        raise HTTPException(status_code=401, detail="Session 已過期")
+    
+    return auth_module.get_user_full_info(db, session.user)
 
 # --- Debug Endpoint ---
 @app.get("/api/debug")
