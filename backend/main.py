@@ -12,6 +12,7 @@ from datetime import datetime
 from database import engine, Base, get_db
 import models
 import ai_service
+import email_tracker
 from contextlib import asynccontextmanager
 import email_sender_job
 from logger import add_log, SYSTEM_LOGS
@@ -21,6 +22,11 @@ Base.metadata.create_all(bind=engine)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Set tracking base URL
+    import os
+    base_url = os.getenv("APP_BASE_URL", "https://linkoratw.com")
+    email_tracker.set_track_base_url(base_url)
+    
     # Startup Events — scheduler auto-start is disabled by default (EMAIL_SCHEDULER_ENABLED=false)
     # Use POST /api/scheduler/start to manually enable it
     yield
@@ -521,92 +527,86 @@ def mark_email_sent(lead_id: int, db: Session = Depends(get_db), current_user: s
     add_log(f"📧 [寄信] 標記已寄信: {lead.company_name}")
     return {"message": "Email marked as sent"}
 
-# --- Email Engagement Tracking ---
+# ══════════════════════════════════════════
+# Email Tracking Endpoints (No Auth Required)
+# ══════════════════════════════════════════
+
+@app.get("/track/open")
+async def track_email_open(id: str):
+    """Tracking pixel endpoint - no auth required"""
+    png_data, content_type, status = email_tracker.handle_open_tracking(id)
+    from fastapi.responses import Response
+    return Response(content=png_data, media_type=content_type, status_code=status)
+
+@app.get("/track/click")
+async def track_email_click(id: str, url: str):
+    """Click tracking redirect endpoint - no auth required"""
+    redirect_url, status_code = email_tracker.handle_click_tracking(id, url)
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url=redirect_url, status_code=status_code)
+
+# ══════════════════════════════════════════
+# Email Engagement API (New EmailLog based)
+# ══════════════════════════════════════════
+
 @app.get("/api/engagements")
 def get_engagements(db: Session = Depends(get_db), current_user: str = Depends(verify_token)):
     """取得所有追蹤資料，含標籤維度的統計"""
-    engagements = db.query(models.EmailEngagement).all()
-    campaigns = db.query(models.EmailCampaign).all()
+    
+    # Get all email logs with related data
+    email_logs = db.query(models.EmailLog).all()
     leads = db.query(models.Lead).all()
-
-    # Build lookup maps
-    campaign_map = {c.id: c for c in campaigns}
     lead_map = {l.id: l for l in leads}
-
-    # Group by tag (industry)
+    
+    # Build tag stats
     tag_stats = {}
-    for e in engagements:
-        campaign = campaign_map.get(e.campaign_id)
-        if not campaign:
-            continue
-        lead = lead_map.get(campaign.lead_id)
+    for log in email_logs:
+        lead = lead_map.get(log.lead_id)
         tag = lead.ai_tag if lead and lead.ai_tag else "UNKNOWN"
-
+        
         if tag not in tag_stats:
-            tag_stats[tag] = {"total": 0, "opened": 0, "clicked": 0, "replied": 0}
-
+            tag_stats[tag] = {"total": 0, "delivered": 0, "opened": 0, "clicked": 0, "replied": 0}
+        
         tag_stats[tag]["total"] += 1
-        if e.opened:
+        if log.status == "delivered":
+            tag_stats[tag]["delivered"] += 1
+        if log.opened:
             tag_stats[tag]["opened"] += 1
-        if e.clicked:
+        if log.clicked:
             tag_stats[tag]["clicked"] += 1
-        if e.replied:
+        if log.replied:
             tag_stats[tag]["replied"] += 1
-
-    # Individual records
+    
+    # Build records
     records = []
-    for e in engagements:
-        campaign = campaign_map.get(e.campaign_id)
-        if not campaign:
-            continue
-        lead = lead_map.get(campaign.lead_id)
+    for log in email_logs:
+        lead = lead_map.get(log.lead_id)
         records.append({
-            "id": e.id,
-            "campaign_id": e.campaign_id,
+            "id": log.id,
+            "log_uuid": log.log_uuid,
             "company_name": lead.company_name if lead else "N/A",
             "ai_tag": lead.ai_tag if lead else "UNKNOWN",
-            "opened": e.opened,
-            "clicked": e.clicked,
-            "replied": e.replied,
-            "tracked_at": e.tracked_at.strftime("%Y-%m-%d %H:%M:%S") if e.tracked_at else ""
+            "recipient": log.recipient,
+            "subject": log.subject,
+            "status": log.status,
+            "sent_at": log.sent_at.strftime("%Y-%m-%d %H:%M") if log.sent_at else "",
+            "opened": log.opened,
+            "clicked": log.clicked,
+            "replied": log.replied
         })
-
+    
     return {
         "records": records,
         "tag_stats": tag_stats,
-        "total_leads": db.query(models.Lead).count(),
-        "total_campaigns": len(campaigns),
+        "stats": email_tracker.get_engagement_stats(),
+        "total_leads": len(leads)
     }
 
-@app.post("/api/engagements/{campaign_id}")
-def update_engagement(campaign_id: int, update: EngagementUpdate, db: Session = Depends(get_db)):
-    """
-    更新或建立追蹤狀態（可被外部郵件追蹤像素呼叫，無需認證以支援追蹤）
-    """
-    engagement = db.query(models.EmailEngagement).filter(
-        models.EmailEngagement.campaign_id == campaign_id
-    ).first()
-
-    if not engagement:
-        engagement = models.EmailEngagement(
-            campaign_id=campaign_id,
-            opened=update.opened,
-            clicked=update.clicked,
-            replied=update.replied,
-            tracked_at=datetime.utcnow()
-        )
-        db.add(engagement)
-    else:
-        if update.opened:
-            engagement.opened = True
-        if update.clicked:
-            engagement.clicked = True
-        if update.replied:
-            engagement.replied = True
-        engagement.tracked_at = datetime.utcnow()
-
-    db.commit()
-    return {"message": "Engagement updated"}
+@app.post("/api/engagements/{log_uuid}/reply")
+def mark_email_replied(log_uuid: str, current_user: str = Depends(verify_token)):
+    """手動標記回覆"""
+    email_tracker.mark_email_replied(log_uuid, source="manual")
+    return {"message": "Email marked as replied"}
 
 # --- Pricing Config ---
 @app.get("/api/pricing")

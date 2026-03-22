@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime, Boolean, Enum as SQLEnum, JSON
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
+import uuid
 
 # Pricing configuration (can be stored/edited via API)
 pricing_config = {
@@ -32,25 +33,25 @@ class Lead(Base):
     email_sent = Column(Boolean, default=False)
     email_sent_at = Column(DateTime, nullable=True)
     
-    # NEW: Contact person info (角色定向)
-    contact_name = Column(String, nullable=True)      # 聯絡人姓名 (John Smith)
-    contact_role = Column(String, nullable=True)      # 角色 (Procurement Manager)
-    contact_email = Column(String, nullable=True)     # 聯絡人 Email
-    contact_confidence = Column(Integer, default=0)   # Hunter confidence score
+    # Contact person info (角色定向)
+    contact_name = Column(String, nullable=True)
+    contact_role = Column(String, nullable=True)
+    contact_email = Column(String, nullable=True)
+    contact_confidence = Column(Integer, default=0)
     
-    # NEW: Company details (從黃頁直接抓)
-    phone = Column(String, nullable=True)             # 公司電話
-    address = Column(String, nullable=True)           # 公司地址
-    city = Column(String, nullable=True)              # 城市
-    state = Column(String, nullable=True)             # 州/省
-    zip_code = Column(String, nullable=True)          # 郵遞區號
-    categories = Column(String, nullable=True)        # 產業類別
-    source_domain = Column(String, nullable=True)     # 來源目錄 (yellowpages.com)
-    scrape_location = Column(String, nullable=True)   # 爬取地區
+    # Company details (從黃頁直接抓)
+    phone = Column(String, nullable=True)
+    address = Column(String, nullable=True)
+    city = Column(String, nullable=True)
+    state = Column(String, nullable=True)
+    zip_code = Column(String, nullable=True)
+    categories = Column(String, nullable=True)
+    source_domain = Column(String, nullable=True)
+    scrape_location = Column(String, nullable=True)
     
-    # NEW: Company size indicators
-    employee_count = Column(String, nullable=True)    # 員工數
-    revenue_range = Column(String, nullable=True)     # 營收範圍
+    # Company size indicators
+    employee_count = Column(String, nullable=True)
+    revenue_range = Column(String, nullable=True)
 
     email_campaigns = relationship("EmailCampaign", back_populates="lead")
 
@@ -80,15 +81,43 @@ class EmailTemplate(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-# Engagement tracking model
-class EmailEngagement(Base):
-    __tablename__ = "email_engagements"
+# NEW: Email Log Model - Full engagement tracking
+class EmailLog(Base):
+    __tablename__ = "email_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    campaign_id = Column(Integer, ForeignKey("email_campaigns.id"))
+    log_uuid = Column(String(36), unique=True, default=lambda: str(uuid.uuid4()), index=True)
+    
+    # Basic info
+    lead_id = Column(Integer, ForeignKey("leads.id"), nullable=False)
+    template_id = Column(Integer, ForeignKey("email_templates.id"), nullable=True)
+    recipient = Column(String(255), nullable=False)
+    subject = Column(String(500), nullable=False)
+    
+    # Timing
+    sent_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Delivery status
+    status = Column(String(50), default="pending")  # pending, delivered, soft_bounce, hard_bounce, failed
+    
+    # Engagement tracking
     opened = Column(Boolean, default=False)
+    opened_at = Column(DateTime, nullable=True)
+    open_count = Column(Integer, default=0)
+    
     clicked = Column(Boolean, default=False)
+    clicked_at = Column(DateTime, nullable=True)
+    click_count = Column(Integer, default=0)
+    clicked_urls = Column(JSON, nullable=True)  # [{"url": "...", "count": 1}]
+    
     replied = Column(Boolean, default=False)
-    tracked_at = Column(DateTime, default=datetime.utcnow)
-
-    campaign = relationship("EmailCampaign", backref="engagements")
+    replied_at = Column(DateTime, nullable=True)
+    reply_source = Column(String(50), nullable=True)  # manual, imap, webhook
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    lead = relationship("Lead")
+    template = relationship("EmailTemplate")

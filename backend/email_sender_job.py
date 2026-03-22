@@ -6,6 +6,7 @@ from email.mime.application import MIMEApplication
 from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
 import models
+import email_tracker
 from database import SessionLocal
 from logger import add_log
 
@@ -23,7 +24,7 @@ scheduler = BackgroundScheduler()
 
 def send_email_job():
     """
-    Background job: scan Draft emails and send via SMTP.
+    Background job: scan Draft emails and send via SMTP with tracking.
     Runs every 2 minutes.
     """
     db = SessionLocal()
@@ -53,18 +54,38 @@ def send_email_job():
             # Get first email candidate
             to_email = lead.email_candidates.split(",")[0].strip()
             
+            # Get default template for attachment
+            template = db.query(models.EmailTemplate).filter(
+                models.EmailTemplate.is_default == True
+            ).first()
+            
+            # Create email log for tracking BEFORE sending
+            email_log = email_tracker.create_email_log(
+                lead_id=lead.id,
+                recipient=to_email,
+                subject=campaign.subject,
+                template_id=template.id if template else None
+            )
+            
             try:
                 if SMTP_USER and SMTP_PASSWORD:
                     msg = MIMEMultipart()
                     msg['From'] = SMTP_USER
                     msg['To'] = to_email
                     msg['Subject'] = campaign.subject
-                    msg.attach(MIMEText(campaign.content, 'plain'))
+                    
+                    # Process HTML content with tracking
+                    html_content = campaign.content
+                    if html_content:
+                        # Inject tracking pixel and click redirects
+                        processed_html, _ = email_tracker.process_email_content(
+                            html_content, email_log.log_uuid
+                        )
+                        msg.attach(MIMEText(processed_html, 'html'))
+                    else:
+                        msg.attach(MIMEText(campaign.content, 'plain'))
 
                     # Attach file if template has attachment_url
-                    template = db.query(models.EmailTemplate).filter(
-                        models.EmailTemplate.is_default == True
-                    ).first()
                     attachment_url = template.attachment_url if template and template.attachment_url else None
                     if attachment_url:
                         import requests as _requests
@@ -84,8 +105,16 @@ def send_email_job():
                         server.login(SMTP_USER, SMTP_PASSWORD)
                         server.send_message(msg)
                     
+                    # Update status
                     campaign.status = "Sent"
                     lead.status = "Email_Sent"
+                    lead.email_sent = True
+                    from datetime import datetime
+                    lead.email_sent_at = datetime.utcnow()
+                    
+                    # Update email log
+                    email_tracker.update_email_log_status(email_log.log_uuid, "delivered")
+                    
                     add_log(f"✅ [發信] 成功寄送至 {to_email} ({lead.company_name})")
                 else:
                     # No SMTP configured, mark as ready
@@ -94,9 +123,16 @@ def send_email_job():
                 
                 db.commit()
                 
+            except smtplib.SMTPSenderRefused as e:
+                add_log(f"❌ [發信] 發送失敗 - 地址被拒絕: {str(e)}")
+                campaign.status = "Hard_Bounce"
+                email_tracker.update_email_log_status(email_log.log_uuid, "hard_bounce")
+                db.commit()
+                
             except Exception as e:
                 add_log(f"❌ [發信] 發送失敗 ({lead.company_name}): {str(e)}")
                 campaign.status = "Send_Failed"
+                email_tracker.update_email_log_status(email_log.log_uuid, "failed")
                 db.commit()
                 
     except Exception as e:
