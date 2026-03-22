@@ -11,22 +11,39 @@ const views = {
     'nav-smtp-settings': 'smtp-settings-view'
 };
 
-// Initialize
-document.addEventListener('DOMContentLoaded', () => {
-    const token = localStorage.getItem('corelink_token');
-    const username = localStorage.getItem('corelink_user');
+// Get Auth Headers
+function getAuthHeaders() {
+    return {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    };
+}
 
-    if (!token) {
-        document.getElementById('login-modal').classList.remove('hidden');
-    } else {
-        document.getElementById('display-username').innerText = username;
-        fetchLeads();
-        startLogPolling();
-        loadSMTPSettings();
+// Initialize
+document.addEventListener('DOMContentLoaded', async () => {
+    // Check auth status
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/me`, {
+            credentials: 'include'
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            updateUIWithUser(data);
+            fetchLeads();
+            startLogPolling();
+            loadSMTPSettings();
+        } else {
+            showLoginModal();
+        }
+    } catch (error) {
+        console.error('Auth check failed:', error);
+        showLoginModal();
     }
 
     // Event Listeners
     document.getElementById('login-form')?.addEventListener('submit', handleLogin);
+    document.getElementById('register-form')?.addEventListener('submit', handleRegister);
     document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
     document.getElementById('scrape-form')?.addEventListener('submit', startScrape);
     document.getElementById('refresh-btn')?.addEventListener('click', fetchLeads);
@@ -43,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-scheduler-stop')?.addEventListener('click', stopScheduler);
     document.getElementById('btn-scheduler-refresh')?.addEventListener('click', fetchSchedulerStatus);
     
-    // New: Filters and utilities
+    // Filters
     document.getElementById('search-leads')?.addEventListener('input', debounce(fetchLeads, 300));
     document.getElementById('filter-status')?.addEventListener('change', fetchLeads);
     document.getElementById('filter-tag')?.addEventListener('change', fetchLeads);
@@ -135,42 +152,193 @@ function getAuthHeaders() {
     };
 }
 
+// ══════════════════════════════════════════
+// Auth Functions
+// ══════════════════════════════════════════
+
 async function handleLogin(e) {
     e.preventDefault();
-    const username = document.getElementById('login-username').value;
-    const password = document.getElementById('login-password').value;
+    const email = document.getElementById('login-email')?.value;
+    const password = document.getElementById('login-password')?.value;
+    const errorEl = document.getElementById('login-error');
 
     try {
-        const response = await fetch(`${API_BASE_URL}/login`, {
+        const response = await fetch(`${API_BASE_URL}/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
+            credentials: 'include',
+            body: JSON.stringify({ email, password })
         });
 
         if (response.ok) {
             const data = await response.json();
-            localStorage.setItem('corelink_token', data.token);
-            localStorage.setItem('corelink_user', data.username);
+            updateUIWithUser(data);
             document.getElementById('login-modal').classList.add('hidden');
-            document.getElementById('display-username').innerText = data.username;
             fetchLeads();
             startLogPolling();
             loadSMTPSettings();
+            addLog('✅ 登入成功', 'success');
         } else {
-            document.getElementById('login-error').style.display = 'block';
+            const error = await response.json();
+            if (errorEl) {
+                errorEl.textContent = error.detail || '登入失敗';
+                errorEl.style.display = 'block';
+            }
         }
     } catch (error) {
         console.error('Login error:', error);
+        if (errorEl) {
+            errorEl.textContent = '網路錯誤，請稍後再試';
+            errorEl.style.display = 'block';
+        }
     }
 }
 
-function handleLogout() {
-    localStorage.removeItem('corelink_token');
-    localStorage.removeItem('corelink_user');
-    window.location.reload();
+async function handleRegister(e) {
+    e.preventDefault();
+    const email = document.getElementById('register-email')?.value;
+    const password = document.getElementById('register-password')?.value;
+    const name = document.getElementById('register-name')?.value;
+    const company = document.getElementById('register-company')?.value;
+    const errorEl = document.getElementById('register-error');
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ email, password, name, company_name: company })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            updateUIWithUser(data);
+            document.getElementById('login-modal').classList.add('hidden');
+            addLog('✅ 註冊成功', 'success');
+        } else {
+            const error = await response.json();
+            if (errorEl) {
+                errorEl.textContent = error.detail || '註冊失敗';
+                errorEl.style.display = 'block';
+            }
+        }
+    } catch (error) {
+        console.error('Register error:', error);
+        if (errorEl) {
+            errorEl.textContent = '網路錯誤，請稍後再試';
+            errorEl.style.display = 'block';
+        }
+    }
 }
 
+async function handleLogout() {
+    try {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+    } catch (error) {
+        console.error('Logout error:', error);
+    }
+    localStorage.removeItem('corelink_token');
+    localStorage.removeItem('corelink_user');
+    showLoginModal();
+}
+
+function showLoginModal() {
+    document.getElementById('login-modal').classList.remove('hidden');
+    document.getElementById('login-error')?.classList.add('hidden');
+    document.getElementById('register-error')?.classList.add('hidden');
+}
+
+function updateUIWithUser(data) {
+    const { user, plan, usage, subscription } = data;
+    
+    // Update username display
+    document.getElementById('display-username').textContent = user?.name || user?.email || 'User';
+    
+    // Store user info
+    localStorage.setItem('corelink_user', user?.name || user?.email);
+    
+    // Update KPI cards with usage
+    updateUsageDisplay(usage, plan);
+    
+    // Show plan badge
+    showPlanBadge(plan);
+    
+    // Apply feature restrictions
+    applyFeatureRestrictions(plan);
+}
+
+function updateUsageDisplay(usage, plan) {
+    if (!usage) return;
+    
+    // Update KPI values
+    document.getElementById('kpi-total-leads').textContent = usage.customers?.used ?? 0;
+    document.getElementById('kpi-sent-today').textContent = usage.emails_month?.used ?? 0;
+    
+    // Update limits display
+    const customersLimit = usage.customers?.limit;
+    const emailsLimit = usage.emails_month?.limit;
+    
+    if (customersLimit !== undefined && customersLimit !== -1) {
+        const customersEl = document.getElementById('kpi-customers-limit');
+        if (customersEl) {
+            const pct = Math.round((usage.customers.used / customersLimit) * 100);
+            customersEl.textContent = `${usage.customers.used}/${customersLimit} (${pct}%)`;
+            customersEl.style.color = pct >= 80 ? 'var(--warning)' : 'var(--text-muted)';
+        }
+    } else if (customersLimit === -1) {
+        const customersEl = document.getElementById('kpi-customers-limit');
+        if (customersEl) customersEl.textContent = '無上限';
+    }
+    
+    if (emailsLimit !== undefined && emailsLimit !== -1) {
+        const emailsEl = document.getElementById('kpi-emails-limit');
+        if (emailsEl) {
+            const pct = Math.round((usage.emails_month.used / emailsLimit) * 100);
+            emailsEl.textContent = `${usage.emails_month.used}/${emailsLimit} (${pct}%)`;
+            emailsEl.style.color = pct >= 80 ? 'var(--warning)' : 'var(--text-muted)';
+        }
+    } else if (emailsLimit === -1) {
+        const emailsEl = document.getElementById('kpi-emails-limit');
+        if (emailsEl) emailsEl.textContent = '無上限';
+    }
+}
+
+function showPlanBadge(plan) {
+    const container = document.querySelector('.user-profile') || document.querySelector('#display-username')?.parentElement;
+    if (!container) return;
+    
+    // Remove existing badge
+    document.querySelector('.plan-badge')?.remove();
+    
+    // Add plan badge
+    const badge = document.createElement('span');
+    badge.className = 'plan-badge';
+    badge.style.cssText = 'background:linear-gradient(135deg,var(--primary),var(--accent)); padding:2px 8px; border-radius:10px; font-size:10px; font-weight:600; margin-left:8px;';
+    badge.textContent = plan?.display_name || 'Free';
+    container.appendChild(badge);
+}
+
+function applyFeatureRestrictions(plan) {
+    // AI Email button
+    const aiBtn = document.getElementById('ai-generate-btn');
+    if (aiBtn && !plan?.features?.ai_email) {
+        aiBtn.disabled = true;
+        aiBtn.title = '需升級至專業方案';
+        aiBtn.style.opacity = '0.5';
+    }
+    
+    // Add upgrade prompts where needed
+    if (!plan?.features?.ai_email) {
+        addLog('💡 部分功能需要專業方案才能使用', 'info');
+    }
+}
+
+// ══════════════════════════════════════════
 // Quick Lead Management (獨立新增頁面)
+// ══════════════════════════════════════════
 async function submitQuickLead(e) {
     e.preventDefault();
     const btn = document.getElementById('quick-lead-btn');
@@ -705,6 +873,48 @@ function addLog(message, level = 'info') {
     entry.innerHTML = `<span class="timestamp">[${timestamp}]</span> <span class="${levelClass}">${message}</span>`;
     console.appendChild(entry);
     console.scrollTop = console.scrollHeight;
+}
+
+// Show upgrade prompt when limit exceeded
+function showUpgradePrompt(type, used, limit) {
+    const message = `⚠️ 已達用量上限（${used}/${limit}）`;
+    addLog(message, 'warning');
+    
+    // Create toast notification
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        color: white;
+        padding: 16px 24px;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        z-index: 10000;
+        animation: slideIn 0.3s ease;
+        max-width: 320px;
+    `;
+    toast.innerHTML = `
+        <div style="font-weight:600; margin-bottom:8px;">💡 升級方案解鎖更多功能</div>
+        <div style="font-size:13px; opacity:0.9; margin-bottom:12px;">
+            目前方案已達用量上限<br>
+            <strong>${type}</strong>: ${used}/${limit}
+        </div>
+        <a href="#" onclick="showPlansPage(); this.closest('.toast').remove(); return false;"
+           style="display:inline-block; background:rgba(255,255,255,0.2); padding:8px 16px; border-radius:6px; color:white; text-decoration:none; font-size:13px;">
+            查看方案 →
+        </a>
+    `;
+    document.body.appendChild(toast);
+    
+    // Auto remove after 10 seconds
+    setTimeout(() => toast.remove(), 10000);
+}
+
+function showPlansPage() {
+    // Switch to engagement view or show plans modal
+    switchView('nav-engagements');
 }
 
 function startLogPolling() {
