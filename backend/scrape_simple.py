@@ -106,7 +106,7 @@ def scrape_keyword_page(keyword: str, page: int, market: str = "US") -> list:
             soup = BeautifulSoup(response.text, 'html.parser')
             
             # Find company listings
-            listings = soup.select('.search-results .organic .v-card')
+            listings = soup.select('.v-card')
             
             for listing in listings:
                 try:
@@ -144,25 +144,26 @@ def scrape_keyword_page(keyword: str, page: int, market: str = "US") -> list:
                 except Exception as e:
                     continue
         
-        elif response.status_code == 403:
-            add_log(f"⚠️ Yellowpages 伺服器拒絕連線 (HTTP 403 Forbidden)。(Page {page})", level="warning")
-            add_log("💡 啟動模擬降級模式 (Mock Mode)，為您生成測試客戶資料...", level="info")
-            for i in range(1, 11):
-                results.append({
-                    "name": f"Mock {keyword.title()} Corp {page}-{i}",
-                    "domain": f"mock-{keyword.replace(' ', '')}{page}{i}.com",
-                    "url": f"https://www.mock-{keyword.replace(' ', '')}{page}{i}.com",
-                    "phone": f"+1-555-010{page}{i}",
-                    "address": f"{1000 + i} Test Ave, Tech City, CA"
-                })
-            
         elif response.status_code == 429:
             add_log("⚠️ Yellowpages 請求受限，等待 60 秒...", level="warning")
             time.sleep(60)
             
     except Exception as e:
-        add_log(f"❌ 爬取錯誤: {str(e)}", level="error")
-    
+        add_log(f"❌ API 連線失敗 (可能被公司防火牆阻擋): {str(e)[:50]}...", level="error")
+        response = None
+        
+    # 如果沒有抓到結果 (無論是 403 阻擋、還是 Exception 防火牆斷線)，啟動降級模擬模式
+    if not results:
+        add_log(f"💡 啟動模擬降級模式 (Mock Mode)，為您生成測試客戶資料...", level="info")
+        for i in range(1, 11):
+            results.append({
+                "name": f"Mock {keyword.title()} Corp {page}-{i}",
+                "domain": f"mock-{keyword.replace(' ', '')}{page}{i}.com",
+                "url": f"https://www.mock-{keyword.replace(' ', '')}{page}{i}.com",
+                "phone": f"+1-555-010{page}{i}",
+                "address": f"{1000 + i} Test Ave, Tech City, CA"
+            })
+            
     return results
 
 
