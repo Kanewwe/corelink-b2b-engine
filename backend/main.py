@@ -97,6 +97,14 @@ def init_default_plans():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # ─── Run DB migrations FIRST (ensures user_id and other columns exist) ───
+    try:
+        from migrations import run_migrations
+        run_migrations()
+        add_log("✅ 資料庫結構確認完成")
+    except Exception as e:
+        add_log(f"⚠️ Migration warning: {e}")
+
     # Set tracking base URL
     base_url = os.getenv("APP_BASE_URL", "https://linkoratw.com")
     email_tracker.set_track_base_url(base_url)
