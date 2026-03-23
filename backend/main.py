@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Request, Cookie
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Request, Cookie, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
@@ -52,8 +52,8 @@ def init_default_plans():
             pro_plan = models.Plan(
                 name="pro",
                 display_name="專業方案",
-                price_monthly=29,
-                price_yearly=290,
+                price_monthly=890,
+                price_yearly=8900,
                 max_customers=500,
                 max_emails_month=500,
                 max_templates=10,
@@ -72,8 +72,8 @@ def init_default_plans():
             enterprise_plan = models.Plan(
                 name="enterprise",
                 display_name="企業方案",
-                price_monthly=99,
-                price_yearly=990,
+                price_monthly=2990,
+                price_yearly=29900,
                 max_customers=-1,
                 max_emails_month=-1,
                 max_templates=-1,
@@ -243,7 +243,7 @@ class AuthLoginReq(BaseModel):
     password: str
 
 @app.post("/api/auth/register")
-def register(req: RegisterReq, request: Request, db: Session = Depends(get_db)):
+def register(req: RegisterReq, request: Request, response: Response, db: Session = Depends(get_db)):
     """用戶註冊"""
     existing = db.query(models.User).filter(models.User.email == req.email).first()
     if existing:
@@ -279,6 +279,8 @@ def register(req: RegisterReq, request: Request, db: Session = Depends(get_db)):
         user_agent=request.headers.get("user-agent")
     )
     
+    response.set_cookie(key="session_id", value=session.id, httponly=True, max_age=86400 * 30, samesite="lax")
+    
     add_log(f"✅ 新用戶註冊: {user.email}")
     
     return {
@@ -288,7 +290,7 @@ def register(req: RegisterReq, request: Request, db: Session = Depends(get_db)):
     }
 
 @app.post("/api/auth/login")
-def auth_login(req: AuthLoginReq, request: Request, db: Session = Depends(get_db)):
+def auth_login(req: AuthLoginReq, request: Request, response: Response, db: Session = Depends(get_db)):
     """用戶登入"""
     user = db.query(models.User).filter(models.User.email == req.email).first()
     
@@ -304,6 +306,8 @@ def auth_login(req: AuthLoginReq, request: Request, db: Session = Depends(get_db
         user_agent=request.headers.get("user-agent")
     )
     
+    response.set_cookie(key="session_id", value=session.id, httponly=True, max_age=86400 * 30, samesite="lax")
+    
     add_log(f"✅ 用戶登入: {user.email}")
     
     return {
@@ -313,10 +317,11 @@ def auth_login(req: AuthLoginReq, request: Request, db: Session = Depends(get_db
     }
 
 @app.post("/api/auth/logout")
-def auth_logout(session_id: str = Cookie(None), db: Session = Depends(get_db)):
+def auth_logout(response: Response, session_id: str = Cookie(None), db: Session = Depends(get_db)):
     """用戶登出"""
     if session_id:
         auth_module.delete_session(db, session_id)
+    response.delete_cookie("session_id")
     return {"message": "已登出"}
 
 @app.get("/api/auth/me")
@@ -736,10 +741,6 @@ def send_test_email(current_user: models.User = Depends(get_current_user_id)):
             "success": False,
             "message": str(e)
         }
-    
-    db.delete(db_template)
-    db.commit()
-    return {"message": "Template deleted"}
 
 # --- Email Sent Tracking ---
 @app.post("/api/leads/{lead_id}/mark-sent")
