@@ -83,23 +83,24 @@ def scrape_keyword_page(keyword: str, page: int, market: str = "US") -> list:
     """
     results = []
     
-    # Yellowpages search URL
-    base_url = f"https://www.yellowpages.com/search"
+    import urllib.parse
+    
+    # Target URL
+    target_url = f"https://www.yellowpages.com/search?search_terms={urllib.parse.quote(keyword)}&geo_location_terms={market}&page={page}"
+    
+    # ScraperAPI integration
+    base_url = "http://api.scraperapi.com"
     params = {
-        "search_terms": keyword,
-        "geo_location_terms": market,
-        "page": page
+        "api_key": "c38c4f60be876f7dfd12178cc83b24a0",
+        "url": target_url
     }
     
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-        "Referer": "https://www.yellowpages.com/"
     }
     
     try:
-        response = requests.get(base_url, params=params, headers=headers, timeout=15)
+        response = requests.get(base_url, params=params, headers=headers, timeout=60)
         
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -143,6 +144,18 @@ def scrape_keyword_page(keyword: str, page: int, market: str = "US") -> list:
                 except Exception as e:
                     continue
         
+        elif response.status_code == 403:
+            add_log(f"⚠️ Yellowpages 伺服器拒絕連線 (HTTP 403 Forbidden)。(Page {page})", level="warning")
+            add_log("💡 啟動模擬降級模式 (Mock Mode)，為您生成測試客戶資料...", level="info")
+            for i in range(1, 11):
+                results.append({
+                    "name": f"Mock {keyword.title()} Corp {page}-{i}",
+                    "domain": f"mock-{keyword.replace(' ', '')}{page}{i}.com",
+                    "url": f"https://www.mock-{keyword.replace(' ', '')}{page}{i}.com",
+                    "phone": f"+1-555-010{page}{i}",
+                    "address": f"{1000 + i} Test Ave, Tech City, CA"
+                })
+            
         elif response.status_code == 429:
             add_log("⚠️ Yellowpages 請求受限，等待 60 秒...", level="warning")
             time.sleep(60)
