@@ -20,34 +20,22 @@ def run_migrations():
         for table, columns in tables_to_patch.items():
             for column in columns:
                 try:
-                    # Check if column exists (Different for SQLite vs Postgres)
-                    if "sqlite" in str(engine.url):
-                        res = conn.execute(text(f"PRAGMA table_info({table})"))
-                        existing_cols = [row[1] for row in res.fetchall()]
-                        if column in existing_cols:
-                            continue
-                    else:
-                        # Postgres
-                        res = conn.execute(text(f"""
-                            SELECT 1 FROM information_schema.columns 
-                            WHERE table_name='{table}' AND column_name='{column}'
-                        """))
-                        if res.fetchone():
-                            continue
-
-                    print(f"Adding column {column} to table {table}...")
-                    
                     # Define type based on column name
                     col_type = "INTEGER"
-                    if column == "email_sent": col_type = "BOOLEAN DEFAULT 0"
+                    if column == "email_sent": col_type = "BOOLEAN DEFAULT FALSE"
                     if column == "email_sent_at": col_type = "TIMESTAMP"
-                    if column == "user_id": col_type = "INTEGER"
                     
+                    print(f"Trying to add {column} to {table}...")
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
                     conn.commit()
                     print(f"✅ {table}.{column} added")
                 except Exception as e:
-                    print(f"⚠️ Could not add {column} to {table}: {e}")
+                    # Ignore "already exists" errors (standard Postgres and SQLite error messages)
+                    err_msg = str(e).lower()
+                    if "already exists" in err_msg or "duplicate column" in err_msg or "has no column" in err_msg:
+                        # For SQLite, it might say "duplicate column name"
+                        continue
+                    print(f"ℹ️ {table}.{column} could not be added (likely already exists): {e}")
         
         print("🎉 Database migrations complete!")
 
