@@ -92,7 +92,9 @@ def scrape_keyword_page(keyword: str, page: int, market: str = "US") -> list:
     base_url = "http://api.scraperapi.com"
     params = {
         "api_key": "c38c4f60be876f7dfd12178cc83b24a0",
-        "url": target_url
+        "url": target_url,
+        "render": "true",
+        "premium": "true"
     }
     
     headers = {
@@ -103,6 +105,9 @@ def scrape_keyword_page(keyword: str, page: int, market: str = "US") -> list:
         response = requests.get(base_url, params=params, headers=headers, timeout=60)
         
         if response.status_code == 200:
+            if not response.text or len(response.text) < 1000:
+                add_log(f"⚠️ [ScraperAPI] 回傳內容異常短小 ({len(response.text)} bytes)，可能被攔截。", level="warning")
+            
             soup = BeautifulSoup(response.text, 'html.parser')
             
             # Find company listings
