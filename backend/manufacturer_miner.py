@@ -177,39 +177,43 @@ def extract_company_from_result(item: Dict) -> Optional[Dict]:
 # Step 2b：Thomasnet 爬取（美國 B2B 目錄）
 # ══════════════════════════════════════════
 
+# ── ScraperAPI Key ──────────────────────────
+SCRAPER_API_KEY = os.getenv("SCRAPER_API_KEY", "c38c4f60be876f7dfd12178cc83b24a0")
+
 async def search_thomasnet(keyword: str, pages: int = 1) -> List[Dict]:
     """
     Thomasnet 是美國最大的 B2B 製造商目錄
-    專門針對工業/製造業，比 Yellowpages 精準 10 倍
+    使用 ScraperAPI 避免被擋
     """
     results = []
     
-    async with httpx.AsyncClient(
-        timeout=15,
-        follow_redirects=True,
-        headers={
-            "User-Agent": random.choice(USER_AGENTS),
-            "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
-        }
-    ) as client:
+    async with httpx.AsyncClient(timeout=30) as client:
         for page in range(1, pages + 1):
             try:
-                url = f"https://www.thomasnet.com/search/?searchTerm={quote_plus(keyword)}&pg={page}"
-                resp = await client.get(url)
+                target_url = f"https://www.thomasnet.com/search/?searchTerm={quote_plus(keyword)}&pg={page}"
                 
-                if resp.status_code == 403:
-                    add_log("⚠️ Thomasnet 被擋，切換備援")
+                # 使用 ScraperAPI
+                params = {
+                    "api_key": SCRAPER_API_KEY,
+                    "url": target_url,
+                    "render": "true",    # Thomasnet 需要 JS
+                    "premium": "true"    # 住宅代理更穩
+                }
+                
+                resp = await client.get("http://api.scraperapi.com", params=params)
+                
+                if resp.status_code != 200:
+                    add_log(f"⚠️ Thomasnet ScraperAPI 回應 {resp.status_code}")
                     break
                 
                 soup = BeautifulSoup(resp.text, "lxml")
                 
-                # Thomasnet 的公司卡片 selector
-                company_cards = soup.select(".profile-card, .supplier-card, [data-testid='company-card']")
+                # Thomasnet 的公司卡片 selector (可能隨時變動，故多列幾種)
+                company_cards = soup.select(".profile-card, .supplier-card, [data-testid='company-card'], .search-result")
                 
                 for card in company_cards:
-                    name_el = card.select_one(".company-name, h2, h3")
-                    link_el = card.select_one("a[href]")
+                    name_el = card.select_one(".company-name, h2, h3, .title")
+                    link_el = card.select_one("a[href*='www.']") # 尋找外部官網連結
                     
                     if not name_el:
                         continue
@@ -220,7 +224,8 @@ async def search_thomasnet(keyword: str, pages: int = 1) -> List[Dict]:
                     
                     if link_el:
                         href = link_el.get("href", "")
-                        if href.startswith("http"):
+                        # 處理 Thomasnet 的跳轉連結或直接連結
+                        if "http" in href:
                             website = href
                             domain = extract_domain(href)
                     
@@ -232,8 +237,9 @@ async def search_thomasnet(keyword: str, pages: int = 1) -> List[Dict]:
                             "source": "thomasnet",
                         })
                 
-                add_log(f"  🏭 Thomasnet 第{page}頁：取得 {len(company_cards)} 筆")
-                await asyncio.sleep(random.uniform(2, 4))
+                add_log(f"  🏭 Thomasnet：取得 {len(results)} 筆")
+                # ScraperAPI 已經處理了控速，我們只需小休
+                await asyncio.sleep(1)
                 
             except Exception as e:
                 add_log(f"⚠️ Thomasnet 錯誤：{str(e)[:50]}")
@@ -336,34 +342,41 @@ async def manufacturer_mine(
     all_companies = []
     seen_domains = set()
     
-    # 最多跑 4 個 query
+    # 策略：Google CSE (優先) -> 如果失敗或沒結果 -> Bing
     for i, query in enumerate(queries[:4]):
-        add_log(f"🔍 搜尋 [{i+1}/{min(len(queries),4)}]：{query[:60]}")
+        add_log(f"🔍 搜尋 [{i+1}/4]：{query[:60]}")
         
-        # 優先 Google CSE，備援 Bing
+        current_results = []
         if GOOGLE_API_KEY and GOOGLE_CSE_ID:
-            companies = await search_via_google_cse(query, pages=1)
-        else:
-            companies = await search_via_bing(query)
+            current_results = await search_via_google_cse(query, pages=1)
         
-        # 去重（同一個 domain 只取一次）
-        for co in companies:
+        # 如果 Google 沒結果或 API 失敗，立即使用 Bing 備援
+        if not current_results:
+            add_log(f"  🔄 Google 無法使用，呼叫 Bing 備援...")
+            current_results = await search_via_bing(query)
+        
+        # 去重
+        for co in current_results:
             domain = co.get("domain", "")
             if domain and domain not in seen_domains:
                 seen_domains.add(domain)
                 all_companies.append(co)
+            elif not domain and co.get("company_name"):
+                # 如果沒有 domain 但有公司名，也先放進去，後面再找
+                all_companies.append(co)
         
         await asyncio.sleep(1)
     
-    # 補充 Thomasnet（只對美國市場）
-    if market == "US" and len(all_companies) < 20:
-        add_log(f"🏭 補充 Thomasnet 搜尋...")
-        # 搜尋 Thomasnet 需要一點時間
+    # 補充 Thomasnet（針對美國市場且結果不足時）
+    if market == "US" and len(all_companies) < 15:
+        add_log(f"🏭 結果不足，嘗試 Thomasnet 目錄搜尋...")
         thomas_results = await search_thomasnet(keyword, pages=1)
         for co in thomas_results:
             domain = co.get("domain", "")
             if domain and domain not in seen_domains:
                 seen_domains.add(domain)
+                all_companies.append(co)
+            elif not domain and co["company_name"] not in [c["company_name"] for c in all_companies]:
                 all_companies.append(co)
     
     add_log(f"📊 共找到 {len(all_companies)} 家不重複公司")

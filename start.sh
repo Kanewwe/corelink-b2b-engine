@@ -7,10 +7,16 @@ ADMIN_PASSWORD=${ADMIN_PASSWORD:-changeme}
 API_TOKEN=${API_TOKEN:-secure-token-change-me}
 OPENAI_API_KEY=${OPENAI_API_KEY:-}
 DATABASE_URL=${DATABASE_URL:-sqlite:///./corelink.db}
+SCRAPER_API_KEY=${SCRAPER_API_KEY:-c38c4f60be876f7dfd12178cc83b24a0}
 ENVEOF
 
 echo "Generated .env with:"
 cat /app/backend/.env
 
+# Run migrations
+echo "Running database migrations..."
+python migrations.py
+
 # Start uvicorn
+echo "Starting Uvicorn on port ${PORT:-10000}..."
 exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-10000}
