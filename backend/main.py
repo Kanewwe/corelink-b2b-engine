@@ -535,7 +535,7 @@ def trigger_scrape_simple(req: ScrapeSimpleRequest, background_tasks: Background
     # 支援多組關鍵字
     keywords = req.keywords if req.keywords else ([req.keyword] if req.keyword else ["manufacturer"])
     
-    background_tasks.add_task(scrape_mod.scrape_simple, req.market, req.pages, keywords)
+    background_tasks.add_task(scrape_mod.scrape_simple, req.market, req.pages, keywords, current_user.id)
     return {"message": f"Scraping started for {req.market} with {len(keywords)} keywords"}
 
 # ══════════════════════════════════════════

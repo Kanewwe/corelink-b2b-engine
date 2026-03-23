@@ -11,7 +11,7 @@ from database import SessionLocal
 from logger import add_log
 import traceback
 
-def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None):
+def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, user_id: int = None):
     """
     Mine companies using multiple keywords from Yellowpages.
     Each keyword will be scraped for the specified number of pages.
@@ -50,6 +50,7 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None):
                     
                     # Create lead
                     lead = models.Lead(
+                        user_id=user_id,
                         company_name=name,
                         website_url=company.get("url", ""),
                         domain=domain,
