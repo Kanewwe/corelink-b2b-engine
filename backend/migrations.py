@@ -16,8 +16,24 @@ def run_migrations():
         "email_logs": ["user_id"]
     }
 
+    print(f"🚀 Starting migration on: {engine.url.render_as_string(hide_password=True)}")
+    
     with engine.connect() as conn:
+        # Check existing tables
+        try:
+            if "postgresql" in str(engine.url):
+                res = conn.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema='public'"))
+                tables = [row[0] for row in res.fetchall()]
+                print(f"📊 Detected tables: {', '.join(tables)}")
+            else:
+                res = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'"))
+                tables = [row[0] for row in res.fetchall()]
+                print(f"📊 Detected tables: {', '.join(tables)}")
+        except Exception as e:
+            print(f"⚠️ Could not list tables: {e}")
+
         for table, columns in tables_to_patch.items():
+            print(f"🔎 Checking table: {table}")
             for column in columns:
                 try:
                     # Define type based on column name
@@ -25,19 +41,34 @@ def run_migrations():
                     if column == "email_sent": col_type = "BOOLEAN DEFAULT FALSE"
                     if column == "email_sent_at": col_type = "TIMESTAMP"
                     
-                    print(f"Trying to add {column} to {table}...")
-                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
-                    conn.commit()
-                    print(f"✅ {table}.{column} added")
+                    # More aggressive check
+                    has_column = False
+                    try:
+                        if "postgresql" in str(engine.url):
+                            check_sql = text(f"SELECT 1 FROM information_schema.columns WHERE table_name='{table}' AND column_name='{column}'")
+                            has_column = conn.execute(check_sql).fetchone() is not None
+                        else:
+                            res = conn.execute(text(f"PRAGMA table_info({table})"))
+                            has_column = column in [row[1] for row in res.fetchall()]
+                    except:
+                        pass
+
+                    if not has_column:
+                        print(f"➕ Adding {column} to {table}...")
+                        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+                        conn.commit()
+                        print(f"✅ {table}.{column} added successfully")
+                    else:
+                        print(f"✔️ {table}.{column} already exists")
+                        
                 except Exception as e:
-                    # Ignore "already exists" errors (standard Postgres and SQLite error messages)
                     err_msg = str(e).lower()
-                    if "already exists" in err_msg or "duplicate column" in err_msg or "has no column" in err_msg:
-                        # For SQLite, it might say "duplicate column name"
+                    if "already exists" in err_msg or "duplicate" in err_msg:
+                        print(f"✔️ {table}.{column} already exists (confirmed by error)")
                         continue
-                    print(f"ℹ️ {table}.{column} could not be added (likely already exists): {e}")
+                    print(f"❌ Failed to process {table}.{column}: {e}")
         
-        print("🎉 Database migrations complete!")
+    print("🎉 Database migration check complete!")
 
 if __name__ == "__main__":
     run_migrations()
