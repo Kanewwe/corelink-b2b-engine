@@ -7,36 +7,49 @@ from database import engine
 
 def run_migrations():
     """Run all database migrations."""
+    import sqlalchemy
+    
+    tables_to_patch = {
+        "leads": ["user_id", "email_sent", "email_sent_at"],
+        "email_campaigns": ["user_id"],
+        "email_templates": ["user_id"],
+        "email_logs": ["user_id"]
+    }
+
     with engine.connect() as conn:
-        # Check if email_sent column exists
-        result = conn.execute(text("""
-            SELECT column_name FROM information_schema.columns 
-            WHERE table_name='leads' AND column_name='email_sent'
-        """))
+        for table, columns in tables_to_patch.items():
+            for column in columns:
+                try:
+                    # Check if column exists (Different for SQLite vs Postgres)
+                    if "sqlite" in str(engine.url):
+                        res = conn.execute(text(f"PRAGMA table_info({table})"))
+                        existing_cols = [row[1] for row in res.fetchall()]
+                        if column in existing_cols:
+                            continue
+                    else:
+                        # Postgres
+                        res = conn.execute(text(f"""
+                            SELECT 1 FROM information_schema.columns 
+                            WHERE table_name='{table}' AND column_name='{column}'
+                        """))
+                        if res.fetchone():
+                            continue
+
+                    print(f"Adding column {column} to table {table}...")
+                    
+                    # Define type based on column name
+                    col_type = "INTEGER"
+                    if column == "email_sent": col_type = "BOOLEAN DEFAULT 0"
+                    if column == "email_sent_at": col_type = "TIMESTAMP"
+                    if column == "user_id": col_type = "INTEGER"
+                    
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+                    conn.commit()
+                    print(f"✅ {table}.{column} added")
+                except Exception as e:
+                    print(f"⚠️ Could not add {column} to {table}: {e}")
         
-        if not result.fetchone():
-            print("Adding email_sent column...")
-            conn.execute(text("ALTER TABLE leads ADD COLUMN email_sent BOOLEAN DEFAULT 0"))
-            conn.commit()
-            print("✅ email_sent column added")
-        else:
-            print("ℹ️ email_sent column already exists")
-        
-        # Check if email_sent_at column exists
-        result = conn.execute(text("""
-            SELECT column_name FROM information_schema.columns 
-            WHERE table_name='leads' AND column_name='email_sent_at'
-        """))
-        
-        if not result.fetchone():
-            print("Adding email_sent_at column...")
-            conn.execute(text("ALTER TABLE leads ADD COLUMN email_sent_at TIMESTAMP"))
-            conn.commit()
-            print("✅ email_sent_at column added")
-        else:
-            print("ℹ️ email_sent_at column already exists")
-        
-        print("🎉 All migrations complete!")
+        print("🎉 Database migrations complete!")
 
 if __name__ == "__main__":
     run_migrations()
