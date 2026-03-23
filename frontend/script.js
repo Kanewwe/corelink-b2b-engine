@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const response = await fetch(`${API_BASE_URL}/auth/me`, {
             credentials: 'include'
         });
-        
+
         if (response.ok) {
             const data = await response.json();
             updateUIWithUser(data);
@@ -59,14 +59,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('btn-scheduler-start')?.addEventListener('click', startScheduler);
     document.getElementById('btn-scheduler-stop')?.addEventListener('click', stopScheduler);
     document.getElementById('btn-scheduler-refresh')?.addEventListener('click', fetchSchedulerStatus);
-    
+
     // Filters
     document.getElementById('search-leads')?.addEventListener('input', debounce(fetchLeads, 300));
     document.getElementById('filter-status')?.addEventListener('change', fetchLeads);
     document.getElementById('filter-tag')?.addEventListener('change', fetchLeads);
     document.getElementById('clear-logs-btn')?.addEventListener('click', clearLogs);
     document.getElementById('toggle-password')?.addEventListener('click', togglePasswordVisibility);
-    
+
     // Email strategy toggle
     document.querySelectorAll('input[name="email-strategy"]').forEach(radio => {
         radio.addEventListener('change', updateStrategyDescription);
@@ -128,16 +128,16 @@ async function updateKPIs() {
         const response = await fetch(`${API_BASE_URL}/leads`, { headers: getAuthHeaders() });
         if (!response.ok) return;
         const leads = await response.json();
-        
+
         // Total leads
         document.getElementById('kpi-total-leads').textContent = leads.length;
-        
+
         // Sent this month
         const now = new Date();
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         const sentThisMonth = leads.filter(l => l.email_sent && new Date(l.email_sent_at) >= monthStart).length;
         document.getElementById('kpi-sent-today').textContent = sentThisMonth;
-        
+
     } catch (error) {
         console.error('KPI update error:', error);
     }
@@ -261,34 +261,34 @@ function showLoginModal() {
 
 function updateUIWithUser(data) {
     const { user, plan, usage, subscription } = data;
-    
+
     // Update username display
     document.getElementById('display-username').textContent = user?.name || user?.email || 'User';
-    
+
     // Store user info
     localStorage.setItem('corelink_user', user?.name || user?.email);
-    
+
     // Update KPI cards with usage
     updateUsageDisplay(usage, plan);
-    
+
     // Show plan badge
     showPlanBadge(plan);
-    
+
     // Apply feature restrictions
     applyFeatureRestrictions(plan);
 }
 
 function updateUsageDisplay(usage, plan) {
     if (!usage) return;
-    
+
     // Update KPI values
     document.getElementById('kpi-total-leads').textContent = usage.customers?.used ?? 0;
     document.getElementById('kpi-sent-today').textContent = usage.emails_month?.used ?? 0;
-    
+
     // Update limits display
     const customersLimit = usage.customers?.limit;
     const emailsLimit = usage.emails_month?.limit;
-    
+
     if (customersLimit !== undefined && customersLimit !== -1) {
         const customersEl = document.getElementById('kpi-customers-limit');
         if (customersEl) {
@@ -300,7 +300,7 @@ function updateUsageDisplay(usage, plan) {
         const customersEl = document.getElementById('kpi-customers-limit');
         if (customersEl) customersEl.textContent = '無上限';
     }
-    
+
     if (emailsLimit !== undefined && emailsLimit !== -1) {
         const emailsEl = document.getElementById('kpi-emails-limit');
         if (emailsEl) {
@@ -317,10 +317,10 @@ function updateUsageDisplay(usage, plan) {
 function showPlanBadge(plan) {
     const container = document.querySelector('.user-profile') || document.querySelector('#display-username')?.parentElement;
     if (!container) return;
-    
+
     // Remove existing badge
     document.querySelector('.plan-badge')?.remove();
-    
+
     // Add plan badge
     const badge = document.createElement('span');
     badge.className = 'plan-badge';
@@ -337,7 +337,7 @@ function applyFeatureRestrictions(plan) {
         aiBtn.title = '需升級至專業方案';
         aiBtn.style.opacity = '0.5';
     }
-    
+
     // Add upgrade prompts where needed
     if (!plan?.features?.ai_email) {
         addLog('💡 部分功能需要專業方案才能使用', 'info');
@@ -398,24 +398,24 @@ async function generateAIKeywords() {
     const resultDiv = document.getElementById('ai-keywords-result');
     const chipsDiv = document.getElementById('keyword-chips');
     const btn = document.getElementById('ai-keyword-btn');
-    
+
     if (!keyword) {
         alert('請先輸入一個產業關鍵字');
         return;
     }
-    
+
     btn.disabled = true;
     btn.innerHTML = '⏳ 生成中...';
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/keywords/generate`, {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({ keyword })
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success && result.keywords) {
             chipsDiv.innerHTML = '';
             result.keywords.forEach(kw => {
@@ -427,7 +427,7 @@ async function generateAIKeywords() {
                 `;
                 chipsDiv.appendChild(chip);
             });
-            
+
             const customInput = document.createElement('div');
             customInput.style.cssText = 'display:flex; gap:4px;';
             customInput.innerHTML = `
@@ -436,7 +436,7 @@ async function generateAIKeywords() {
                 <button type="button" onclick="addCustomKeyword()" style="padding:4px 8px; font-size:11px; background:rgba(139,92,246,0.3); border:1px solid rgba(139,92,246,0.4); border-radius:12px; color:#fff; cursor:pointer;">新增</button>
             `;
             chipsDiv.appendChild(customInput);
-            
+
             resultDiv.classList.remove('hidden');
             addLog('✨ 已生成 5 組關鍵字，請選擇要使用的', 'success');
         } else {
@@ -445,7 +445,7 @@ async function generateAIKeywords() {
     } catch (error) {
         alert('生成失敗：' + error.message);
     }
-    
+
     btn.disabled = false;
     btn.innerHTML = '✨ AI 關鍵字';
 }
@@ -454,12 +454,12 @@ function addCustomKeyword() {
     const input = document.getElementById('custom-keyword');
     const value = input?.value.trim();
     if (!value) return;
-    
+
     const chipsDiv = document.getElementById('keyword-chips');
     const chip = document.createElement('label');
     chip.style.cssText = 'display:inline-flex; align-items:center; gap:4px; padding:6px 12px; background:rgba(139,92,246,0.2); border:1px solid rgba(139,92,246,0.4); border-radius:16px; cursor:pointer; font-size:12px;';
     chip.innerHTML = `<input type="checkbox" value="${value}" checked style="accent-color:#8b5cf6;"><span>${value}</span>`;
-    
+
     const customInput = chipsDiv.querySelector('div:last-child');
     chipsDiv.insertBefore(chip, customInput);
     input.value = '';
@@ -479,11 +479,12 @@ async function startScrape(e) {
     const btn = document.getElementById('start-scrape-btn');
     const status = document.getElementById('scrape-status');
     const progress = document.getElementById('miner-progress');
-    
+
     const market = document.getElementById('scrape-market').value;
     const baseKeyword = document.getElementById('scrape-keyword').value;
     const location = document.getElementById('scrape-location')?.value || '';
     const pages = document.getElementById('scrape-pages')?.value || 3;
+    const minerMode = document.querySelector('input[name="miner-mode"]:checked')?.value || 'yellowpages';
 
     // Get selected keywords or use base keyword
     const selectedKeywords = getSelectedKeywords();
@@ -491,7 +492,7 @@ async function startScrape(e) {
 
     btn.disabled = true;
     btn.innerHTML = '🚀 探勘中...';
-    
+
     // Show progress
     if (progress) {
         progress.classList.remove('hidden');
@@ -507,21 +508,22 @@ async function startScrape(e) {
                 market: market,
                 pages: parseInt(pages),
                 keywords: keywords,
-                location: location
+                location: location,
+                miner_mode: minerMode
             })
         });
 
         if (response.ok) {
             status.classList.remove('hidden');
             status.className = 'status-msg success';
-            status.innerText = `✅ 探勘任務已啟動！使用 ${keywords.length} 組關鍵字`;
-            addLog(`🔍 開始探勘: ${keywords.join(', ')} (${market})`, 'info');
-            
+            status.innerText = `✅ 探勘任務已啟動！使用 ${keywords.length} 組關鍵字 (${minerMode === 'manufacturer' ? '製造商模式' : '黃頁模式'})`;
+            addLog(`🔍 開始探勘: ${keywords.join(', ')} [${minerMode}] (${market})`, 'info');
+
             // Update progress
             if (progress) {
                 document.getElementById('miner-progress-bar').style.width = '30%';
             }
-            
+
             setTimeout(() => {
                 status.classList.add('hidden');
                 if (progress) {
@@ -553,14 +555,14 @@ async function fetchLeads() {
         const search = document.getElementById('search-leads')?.value || '';
         const statusFilter = document.getElementById('filter-status')?.value || '';
         const tagFilter = document.getElementById('filter-tag')?.value || '';
-        
+
         const response = await fetch(`${API_BASE_URL}/leads`, { headers: getAuthHeaders() });
         if (response.status === 401) {
             handleLogout();
             return;
         }
         let leads = await response.json();
-        
+
         // Apply filters
         if (search) {
             leads = leads.filter(l => l.company_name.toLowerCase().includes(search.toLowerCase()));
@@ -575,7 +577,7 @@ async function fetchLeads() {
                 leads = leads.filter(l => l.ai_tag === tagFilter);
             }
         }
-        
+
         renderLeads(leads);
     } catch (error) {
         console.error('Fetch leads error:', error);
@@ -600,20 +602,20 @@ function renderLeads(leads) {
 
         const card = document.createElement('div');
         card.className = 'lead-card';
-        
+
         const emailSentBadge = lead.email_sent ? '<span style="background:#10b981; color:white; padding:2px 8px; border-radius:4px; font-size:11px; margin-left:8px;">✓ 已寄信</span>' : '';
         const assignedBD = lead.assigned_bd || '尚未指派';
         const keywords = lead.extracted_keywords || '無';
-        
+
         // NEW: Contact info display
-        const contactInfo = lead.contact_name 
+        const contactInfo = lead.contact_name
             ? `<div style="margin-top:5px; font-size:12px;">👤 聯絡人: <strong>${lead.contact_name}</strong> ${lead.contact_role ? `(${lead.contact_role})` : ''}</div>`
             : (lead.contact_role ? `<div style="margin-top:5px; font-size:12px;">👤 角色: ${lead.contact_role}</div>` : '');
-        
+
         const phoneInfo = lead.phone ? `<div style="margin-top:5px; font-size:12px;">📞 電話: ${lead.phone}</div>` : '';
         const addressInfo = lead.address ? `<div style="margin-top:5px; font-size:12px;">📍 地址: ${lead.address}${lead.city ? `, ${lead.city}` : ''}</div>` : '';
         const sourceInfo = lead.source_domain ? `<div style="font-size:11px; color:var(--text-muted); margin-top:5px;">來源: ${lead.source_domain}</div>` : '';
-        
+
         card.innerHTML = `
             <div class="lead-card-header">
                 <span class="lead-name">${lead.company_name}${emailSentBadge}</span>
@@ -633,9 +635,9 @@ function renderLeads(leads) {
             </div>
             <div class="lead-actions">
                 ${lead.status === 'Tagged' || lead.status === 'Scraped'
-                    ? `<button class="btn-primary" onclick="generateEmail(${lead.id})" style="padding:8px 16px; font-size:13px; border-radius:6px;">✨ 生成開發信</button>`
-                    : `<button class="btn-secondary" onclick="viewEmail(${lead.id})" style="padding:8px 16px; font-size:13px; border-radius:6px;">✉️ 查看信件</button>`
-                }
+                ? `<button class="btn-primary" onclick="generateEmail(${lead.id})" style="padding:8px 16px; font-size:13px; border-radius:6px;">✨ 生成開發信</button>`
+                : `<button class="btn-secondary" onclick="viewEmail(${lead.id})" style="padding:8px 16px; font-size:13px; border-radius:6px;">✉️ 查看信件</button>`
+            }
                 ${!lead.email_sent ? `<button onclick="markEmailSent(${lead.id})" style="padding:8px 16px; font-size:13px; border-radius:6px; background:transparent; border:1px solid var(--glass-border); color:var(--text-muted); margin-left:8px; cursor:pointer;">✓ 標記已寄</button>` : ''}
             </div>
         `;
@@ -665,8 +667,8 @@ function renderCampaigns(campaigns) {
     }
 
     campaigns.forEach(c => {
-        const statusClass = c.status === 'Sent' ? 'level-success' : 
-                           c.status === 'Draft' ? 'level-info' : 'level-warning';
+        const statusClass = c.status === 'Sent' ? 'level-success' :
+            c.status === 'Draft' ? 'level-info' : 'level-warning';
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${c.created_at || 'N/A'}</td>
@@ -724,11 +726,11 @@ function loadSMTPSettings() {
 // Scheduler Control
 async function fetchSchedulerStatus() {
     try {
-        const response = await fetch(`${API_BASE_URL}/scheduler/status`, { 
-            headers: getAuthHeaders() 
+        const response = await fetch(`${API_BASE_URL}/scheduler/status`, {
+            headers: getAuthHeaders()
         });
         const data = await response.json();
-        
+
         const statusEl = document.getElementById('scheduler-status');
         if (data.running) {
             statusEl.innerHTML = '<span style="color:#10b981;">● 運行中</span>';
@@ -742,9 +744,9 @@ async function fetchSchedulerStatus() {
 
 async function startScheduler() {
     try {
-        const response = await fetch(`${API_BASE_URL}/scheduler/start`, { 
+        const response = await fetch(`${API_BASE_URL}/scheduler/start`, {
             method: 'POST',
-            headers: getAuthHeaders() 
+            headers: getAuthHeaders()
         });
         if (response.ok) {
             addLog('✅ 寄信排程已啟動', 'success');
@@ -757,9 +759,9 @@ async function startScheduler() {
 
 async function stopScheduler() {
     try {
-        const response = await fetch(`${API_BASE_URL}/scheduler/stop`, { 
+        const response = await fetch(`${API_BASE_URL}/scheduler/stop`, {
             method: 'POST',
-            headers: getAuthHeaders() 
+            headers: getAuthHeaders()
         });
         if (response.ok) {
             addLog('✅ 寄信排程已停止', 'success');
@@ -772,7 +774,7 @@ async function stopScheduler() {
 
 async function saveSMTPSettings(e) {
     e.preventDefault();
-    
+
     const settings = {
         server: document.getElementById('smtp-server').value,
         port: document.getElementById('smtp-port').value,
@@ -811,7 +813,7 @@ async function testSMTP() {
         });
 
         const result = await response.json();
-        
+
         if (result.success) {
             status.className = 'status-msg success';
             status.innerText = `✅ ${result.message}`;
@@ -837,7 +839,7 @@ async function generateEmail(leadId) {
             headers: getAuthHeaders()
         });
         if (!response.ok) throw new Error('Generation failed');
-        
+
         const campaign = await response.json();
         fetchLeads();
         openModal(campaign.subject, campaign.content);
@@ -876,7 +878,7 @@ function addLog(message, level = 'info') {
     const console = document.getElementById('system-console');
     const timestamp = new Date().toLocaleTimeString('zh-TW', { hour12: false });
     const levelClass = `level-${level}`;
-    
+
     const entry = document.createElement('div');
     entry.innerHTML = `<span class="timestamp">[${timestamp}]</span> <span class="${levelClass}">${message}</span>`;
     console.appendChild(entry);
@@ -887,7 +889,7 @@ function addLog(message, level = 'info') {
 function showUpgradePrompt(type, used, limit) {
     const message = `⚠️ 已達用量上限（${used}/${limit}）`;
     addLog(message, 'warning');
-    
+
     // Create toast notification
     const toast = document.createElement('div');
     toast.style.cssText = `
@@ -915,7 +917,7 @@ function showUpgradePrompt(type, used, limit) {
         </a>
     `;
     document.body.appendChild(toast);
-    
+
     // Auto remove after 10 seconds
     setTimeout(() => toast.remove(), 10000);
 }
@@ -942,7 +944,7 @@ function startLogPolling() {
 
 function updateConsole(logs) {
     if (!logs || logs.length === 0) return;
-    
+
     const console = document.getElementById('system-console');
     // Only update if new logs
     const currentText = console.innerText;
@@ -959,7 +961,7 @@ function updateConsole(logs) {
 // Email Templates Management
 async function fetchTemplates() {
     const container = document.getElementById('templates-list');
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/templates`, { headers: getAuthHeaders() });
         if (!response.ok) {
@@ -993,19 +995,19 @@ function renderTemplates(templates) {
     Object.keys(grouped).forEach(tag => {
         const tagSection = document.createElement('div');
         tagSection.style.marginBottom = '20px';
-        
+
         let tagClass = 'tag-unknown';
         if (tag === 'NA-CABLE') tagClass = 'tag-cable';
         else if (tag === 'NA-NAMEPLATE') tagClass = 'tag-nameplate';
         else if (tag === 'NA-PLASTIC') tagClass = 'tag-plastic';
         else if (tag.startsWith('AUTO')) tagClass = 'tag-auto';
-        
+
         tagSection.innerHTML = `<h4 style="margin-bottom:10px;"><span class="tag-badge ${tagClass}">${tag}</span></h4>`;
-        
+
         grouped[tag].forEach(t => {
             const item = document.createElement('div');
             item.style.cssText = 'padding:12px; background:rgba(255,255,255,0.05); border-radius:6px; margin-bottom:8px;';
-            
+
             const defaultToggle = `
                 <label style="display:flex; align-items:center; gap:6px; cursor:pointer; margin-top:8px;">
                     <input type="checkbox" 
@@ -1015,7 +1017,7 @@ function renderTemplates(templates) {
                     <span style="font-size:12px; color:var(--text-muted);">預設模板</span>
                 </label>
             `;
-            
+
             item.innerHTML = `
                 <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                     <div style="flex:1;">
@@ -1035,7 +1037,7 @@ function renderTemplates(templates) {
             `;
             tagSection.appendChild(item);
         });
-        
+
         container.appendChild(tagSection);
     });
 }
@@ -1045,15 +1047,15 @@ async function toggleDefault(templateId, isDefault) {
         const response = await fetch(`${API_BASE_URL}/templates/${templateId}`, {
             method: 'PUT',
             headers: getAuthHeaders(),
-            body: JSON.stringify({ 
-                name: '', 
-                tag: '', 
-                subject: '', 
+            body: JSON.stringify({
+                name: '',
+                tag: '',
+                subject: '',
                 body: '',
-                is_default: isDefault 
+                is_default: isDefault
             })
         });
-        
+
         if (response.ok) {
             fetchTemplates();
             addLog(`✅ 預設模板已${isDefault ? '設為' : '取消'}: ID ${templateId}`, 'success');
@@ -1068,7 +1070,7 @@ async function duplicateTemplate(id) {
         const response = await fetch(`${API_BASE_URL}/templates`, { headers: getAuthHeaders() });
         const templates = await response.json();
         const template = templates.find(t => t.id === id);
-        
+
         if (template) {
             // Create duplicate
             const createResponse = await fetch(`${API_BASE_URL}/templates`, {
@@ -1082,7 +1084,7 @@ async function duplicateTemplate(id) {
                     is_default: false
                 })
             });
-            
+
             if (createResponse.ok) {
                 fetchTemplates();
                 addLog('✅ 模板已複製', 'success');
@@ -1095,7 +1097,7 @@ async function duplicateTemplate(id) {
 
 async function saveTemplate(e) {
     e.preventDefault();
-    
+
     const templateId = document.getElementById('template-id').value;
     const templateData = {
         name: document.getElementById('template-name').value,
@@ -1108,7 +1110,7 @@ async function saveTemplate(e) {
     try {
         const url = templateId ? `${API_BASE_URL}/templates/${templateId}` : `${API_BASE_URL}/templates`;
         const method = templateId ? 'PUT' : 'POST';
-        
+
         const response = await fetch(url, {
             method: method,
             headers: getAuthHeaders(),
@@ -1131,7 +1133,7 @@ async function editTemplate(id) {
         const response = await fetch(`${API_BASE_URL}/templates`, { headers: getAuthHeaders() });
         const templates = await response.json();
         const template = templates.find(t => t.id === id);
-        
+
         if (template) {
             document.getElementById('template-id').value = template.id;
             document.getElementById('template-name').value = template.name;
@@ -1147,7 +1149,7 @@ async function editTemplate(id) {
 
 async function deleteTemplate(id) {
     if (!confirm('確定要刪除這個模板嗎？')) return;
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/templates/${id}`, {
             method: 'DELETE',
@@ -1354,7 +1356,7 @@ function togglePasswordVisibility() {
 function updateStrategyDescription() {
     const strategy = document.querySelector('input[name="email-strategy"]:checked')?.value || 'free';
     const desc = document.getElementById('strategy-desc');
-    
+
     if (strategy === 'free') {
         desc.innerHTML = `
             <strong>免費模式：</strong>三層策略（官網爬取 → SMTP驗活 → Google Dork）<br>
@@ -1389,12 +1391,12 @@ let monacoEditor = null;
 async function initMonacoEditor() {
     const container = document.getElementById('monaco-container');
     if (!container || monacoEditor) return;
-    
+
     // Load Monaco
     if (!window.monaco) {
         await loadMonaco();
     }
-    
+
     monacoEditor = window.monaco.editor.create(container, {
         value: originalHTML || '<!-- 在此輸入 HTML 或讓 AI 生成 -->',
         language: 'html',
@@ -1409,7 +1411,7 @@ async function initMonacoEditor() {
         renderWhitespace: 'selection',
         bracketPairColorization: { enabled: true }
     });
-    
+
     // Update preview on change
     monacoEditor.onDidChangeModelContent(() => {
         updatePreview();
@@ -1421,9 +1423,9 @@ async function loadMonaco() {
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js';
         script.onload = () => {
-            require.config({ 
-                paths: { 
-                    vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' 
+            require.config({
+                paths: {
+                    vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs'
                 }
             });
             require(['vs/editor/editor.main'], () => {
@@ -1453,10 +1455,10 @@ function setEditorContent(content) {
 function switchTemplateTab(tab) {
     document.querySelectorAll('.template-tab-content').forEach(el => el.classList.add('hidden'));
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-    
+
     document.getElementById(`template-${tab}-tab`)?.classList.remove('hidden');
     document.getElementById(`tab-${tab}`)?.classList.add('active');
-    
+
     if (tab === 'list') fetchTemplates();
     if (tab === 'attachments') loadAttachments();
 }
@@ -1466,10 +1468,10 @@ function setEditorMode(mode) {
     const container = document.getElementById('editor-container');
     const editor = document.getElementById('html-editor-wrapper');
     const preview = document.getElementById('preview-wrapper');
-    
+
     document.querySelectorAll('[id^="mode-"]').forEach(btn => btn.classList.remove('active'));
     document.getElementById(`mode-${mode}`)?.classList.add('active');
-    
+
     if (mode === 'edit') {
         container.style.gridTemplateColumns = '1fr';
         editor.style.display = 'flex';
@@ -1483,14 +1485,14 @@ function setEditorMode(mode) {
         editor.style.display = 'flex';
         preview.style.display = 'flex';
     }
-    
+
     updatePreview();
 }
 
 function updatePreview() {
     const html = getEditorContent();
     const iframe = document.getElementById('preview-iframe');
-    
+
     if (iframe) {
         // Replace variables with test data for preview
         const previewHTML = html
@@ -1498,21 +1500,21 @@ function updatePreview() {
             .replace(/\{\{bd_name\}\}/g, 'John Doe')
             .replace(/\{\{keywords\}\}/g, 'cable, wire, harness')
             .replace(/\{\{description\}\}/g, 'A leading manufacturer of custom cable assemblies.');
-        
+
         iframe.srcdoc = previewHTML;
     }
 }
 
 function insertVariable(varName) {
     const variable = `{{${varName}}}`;
-    
+
     if (monacoEditor) {
         const position = monacoEditor.getPosition();
         monacoEditor.executeEdits('', [{
             range: new window.monaco.Range(
-                position.lineNumber, 
-                position.column, 
-                position.lineNumber, 
+                position.lineNumber,
+                position.column,
+                position.lineNumber,
                 position.column
             ),
             text: variable
@@ -1524,7 +1526,7 @@ function insertVariable(varName) {
             const start = editor.selectionStart;
             const end = editor.selectionEnd;
             const text = editor.value;
-            
+
             editor.value = text.substring(0, start) + variable + text.substring(end);
             editor.selectionStart = editor.selectionEnd = start + variable.length;
             editor.focus();
@@ -1535,11 +1537,11 @@ function insertVariable(varName) {
 
 function formatHTML() {
     let html = getEditorContent();
-    
+
     // Basic HTML formatting - add proper indentation
     html = html.replace(/>\s+</g, '>\n<');
     html = html.replace(/\n\s*\n/g, '\n');
-    
+
     // Indent tags
     const lines = html.split('\n');
     let indent = 0;
@@ -1550,7 +1552,7 @@ function formatHTML() {
         if (trimmed.match(/^<[^\/!][^>]*[^\/]>$/)) indent++;
         return result;
     }).join('\n');
-    
+
     setEditorContent(formatted);
     updatePreview();
     addLog('📝 HTML 已格式化', 'info');
@@ -1570,32 +1572,32 @@ async function aiGenerateTemplate() {
     const style = document.getElementById('ai-style')?.value || 'professional';
     const language = document.getElementById('ai-language')?.value || 'english';
     const status = document.getElementById('ai-status');
-    
+
     if (!prompt) {
         status.classList.remove('hidden');
         status.className = 'status-msg error';
         status.innerText = '請輸入信件需求描述';
         return;
     }
-    
+
     status.classList.remove('hidden');
     status.className = 'status-msg';
     status.innerText = '⏳ AI 正在生成中...';
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/templates/ai-generate`, {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({ prompt, style, language })
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
             setEditorContent(result.html);
             originalHTML = result.html; // Save for restore
             updatePreview();
-            
+
             status.className = 'status-msg success';
             status.innerText = '✅ AI 已生成草稿，可在下方編輯器調整';
             addLog('✨ AI 模板生成成功', 'success');
@@ -1616,16 +1618,16 @@ async function saveTemplateV2() {
     const subject = document.getElementById('template-subject')?.value;
     const body = getEditorContent();
     const isDefault = document.getElementById('template-default')?.checked;
-    
+
     const status = document.getElementById('template-status');
-    
+
     if (!name || !tag || !subject || !body) {
         status.classList.remove('hidden');
         status.className = 'status-msg error';
         status.innerText = '請填寫所有必填欄位';
         return;
     }
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/templates`, {
             method: 'POST',
@@ -1638,13 +1640,13 @@ async function saveTemplateV2() {
                 is_default: isDefault
             })
         });
-        
+
         if (response.ok) {
             status.classList.remove('hidden');
             status.className = 'status-msg success';
             status.innerText = '✅ 模板已儲存';
             addLog(`💾 模板已儲存: ${name}`, 'success');
-            
+
             // Clear form
             document.getElementById('template-name').value = '';
             document.getElementById('template-subject').value = '';
@@ -1670,15 +1672,15 @@ async function sendTestEmail() {
     status.classList.remove('hidden');
     status.className = 'status-msg';
     status.innerText = '📧 正在寄送測試信...';
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/templates/test-send`, {
             method: 'POST',
             headers: getAuthHeaders()
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
             status.className = 'status-msg success';
             status.innerText = `✅ ${result.message}`;
@@ -1707,7 +1709,7 @@ function handleDragLeave(e) {
 function handleDrop(e) {
     e.preventDefault();
     document.getElementById('upload-dropzone')?.classList.remove('dragover');
-    
+
     const files = e.dataTransfer.files;
     handleFiles(files);
 }
@@ -1720,10 +1722,10 @@ function handleFileSelect(e) {
 function handleFiles(files) {
     // For now, just log - file upload would need backend storage
     addLog(`📁 選擇了 ${files.length} 個檔案`, 'info');
-    
+
     const list = document.getElementById('uploaded-files-list');
     list.innerHTML = '';
-    
+
     Array.from(files).forEach(file => {
         const item = document.createElement('div');
         item.className = 'file-item';

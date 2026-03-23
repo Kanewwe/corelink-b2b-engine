@@ -526,17 +526,27 @@ class ScrapeSimpleRequest(BaseModel):
     keyword: Optional[str] = None  # 相容舊版
     location: Optional[str] = None
     email_strategy: str = "free"  # "free" or "hunter"
+    miner_mode: str = "yellowpages"  # "yellowpages" 為原版, "manufacturer" 為新版製造商模式
 
 @app.post("/api/scrape-simple")
 def trigger_scrape_simple(req: ScrapeSimpleRequest, background_tasks: BackgroundTasks, current_user: models.User = Depends(get_current_user_id)):
-    """Simplified scraper using Yahoo search dorking + email finder."""
-    import scrape_simple as scrape_mod
-    
+    """Simplified scraper with mode selection."""
     # 支援多組關鍵字
     keywords = req.keywords if req.keywords else ([req.keyword] if req.keyword else ["manufacturer"])
     
-    background_tasks.add_task(scrape_mod.scrape_simple, req.market, req.pages, keywords, current_user.id)
-    return {"message": f"Scraping started for {req.market} with {len(keywords)} keywords"}
+    if req.miner_mode == "manufacturer":
+        import manufacturer_miner
+        # 使用循環執行多個關鍵字（manufacturer_mine 是一次處理一個關鍵字）
+        async def run_manufacturer_task():
+            for kw in keywords:
+                await manufacturer_miner.manufacturer_mine(kw, req.market, req.pages, current_user.id)
+        
+        background_tasks.add_task(run_manufacturer_task)
+        return {"message": f"Manufacturer Mode mining started for {req.market} with {len(keywords)} keywords"}
+    else:
+        import scrape_simple as scrape_mod
+        background_tasks.add_task(scrape_mod.scrape_simple, req.market, req.pages, keywords, current_user.id)
+        return {"message": f"Yellowpages Mode mining started for {req.market} with {len(keywords)} keywords"}
 
 # ══════════════════════════════════════════
 # AI Keyword Generator

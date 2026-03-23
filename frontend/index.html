@@ -218,12 +218,12 @@
                                 開始自動探勘</button>
                         </form>
 
-                        <!-- Hunter.io Status -->
+                        <!-- Email Discovery Strategy (Legacy, keeping for context) -->
                         <div
-                            style="margin-top:15px; padding:10px; background:rgba(255,255,255,0.05); border-radius:6px;">
+                            style="margin-top:15px; padding:10px; background:rgba(255,255,255,0.05); border-radius:6px; border-left: 3px solid #10b981;">
                             <div
                                 style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                                <span style="font-size:12px; font-weight:500;">📧 Email 發現策略</span>
+                                <span style="font-size:12px; font-weight:600;">📧 Email 發現策略</span>
                             </div>
                             <div style="display:flex; gap:15px; margin-bottom:8px;">
                                 <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
@@ -237,12 +237,35 @@
                                     <span style="font-size:12px;">💰 Hunter.io</span>
                                 </label>
                             </div>
-                            <div id="strategy-desc"
-                                style="font-size:11px; color:var(--text-muted); padding:8px; background:rgba(255,255,255,0.03); border-radius:4px;">
-                                <strong>免費模式：</strong>三層策略（官網爬取 → SMTP驗活 → Google Dork）<br>
-                                <span style="color:#10b981;">✓ 完全免費</span> ·
-                                <span style="color:#f59e0b;">~60% 準確率</span> ·
-                                <span style="color:#60a5fa;">5-20秒/筆</span>
+                        </div>
+
+                        <!-- NEW: Miner Mode Selection -->
+                        <div
+                            style="margin-top:15px; padding:12px; background:rgba(79,142,247,0.08); border-radius:6px; border-left: 3px solid var(--primary);">
+                            <div
+                                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                                <span style="font-size:12px; font-weight:600;">🏭 探勘模式 (Mining Mode)</span>
+                            </div>
+                            <div style="display:flex; flex-direction:column; gap:10px;">
+                                <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer;">
+                                    <input type="radio" name="miner-mode" value="manufacturer" checked
+                                        style="accent-color:var(--primary); margin-top:3px;">
+                                    <div>
+                                        <div style="font-size:12px; font-weight:600; color:var(--primary);">製造商模式 (推薦)
+                                        </div>
+                                        <div style="font-size:11px; color:var(--text-muted);">搜尋 B2B 製造商目錄 (Thomasnet /
+                                            Google)。適合工業品、OEM、零件及原料供應商。</div>
+                                    </div>
+                                </label>
+                                <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer;">
+                                    <input type="radio" name="miner-mode" value="yellowpages"
+                                        style="accent-color:#f59e0b; margin-top:3px;">
+                                    <div>
+                                        <div style="font-size:12px; font-weight:600; color:#f59e0b;">黃頁模式 (原版)</div>
+                                        <div style="font-size:11px; color:var(--text-muted);">搜尋 Yellowpages /
+                                            Yelp。適合本地服務業、維修店、零售商。</div>
+                                    </div>
+                                </label>
                             </div>
                         </div>
 
