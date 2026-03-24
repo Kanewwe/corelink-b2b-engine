@@ -125,7 +125,7 @@ function switchView(navId) {
 
 async function updateKPIs() {
     try {
-        const response = await fetch(`${API_BASE_URL}/leads`, { headers: getAuthHeaders(), credentials: 'include' });
+        const response = await fetch(`${API_BASE_URL}/leads`, { headers: getAuthHeaders() });
         if (!response.ok) return;
         const leads = await response.json();
 
@@ -143,7 +143,14 @@ async function updateKPIs() {
     }
 }
 
-// Auth (Session-based, cookies handle auth automatically)
+// Auth
+function getAuthHeaders() {
+    const token = localStorage.getItem('corelink_token');
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+    };
+}
 
 // ══════════════════════════════════════════
 // Auth Functions
@@ -355,7 +362,6 @@ async function submitQuickLead(e) {
         const response = await fetch(`${API_BASE_URL}/leads`, {
             method: 'POST',
             headers: getAuthHeaders(),
-            credentials: 'include',
             body: JSON.stringify({
                 company_name: document.getElementById('quick-company-name').value,
                 website_url: document.getElementById('quick-website-url').value,
@@ -405,7 +411,6 @@ async function generateAIKeywords() {
         const response = await fetch(`${API_BASE_URL}/keywords/generate`, {
             method: 'POST',
             headers: getAuthHeaders(),
-            credentials: 'include',
             body: JSON.stringify({ keyword })
         });
 
@@ -499,7 +504,6 @@ async function startScrape(e) {
         const response = await fetch(`${API_BASE_URL}/scrape-simple`, {
             method: 'POST',
             headers: getAuthHeaders(),
-            credentials: 'include',
             body: JSON.stringify({
                 market: market,
                 pages: parseInt(pages),
@@ -552,7 +556,7 @@ async function fetchLeads() {
         const statusFilter = document.getElementById('filter-status')?.value || '';
         const tagFilter = document.getElementById('filter-tag')?.value || '';
 
-        const response = await fetch(`${API_BASE_URL}/leads`, { headers: getAuthHeaders(), credentials: 'include' });
+        const response = await fetch(`${API_BASE_URL}/leads`, { headers: getAuthHeaders() });
         if (response.status === 401) {
             handleLogout();
             return;
@@ -644,7 +648,7 @@ function renderLeads(leads) {
 // Campaigns (寄信記錄)
 async function fetchCampaigns() {
     try {
-        const response = await fetch(`${API_BASE_URL}/campaigns`, { headers: getAuthHeaders(), credentials: 'include' });
+        const response = await fetch(`${API_BASE_URL}/campaigns`, { headers: getAuthHeaders() });
         if (!response.ok) throw new Error('Failed to fetch');
         const campaigns = await response.json();
         renderCampaigns(campaigns);
@@ -681,7 +685,7 @@ function renderCampaigns(campaigns) {
 // Search Logs (搜尋記錄)
 async function fetchSearchLogs() {
     try {
-        const response = await fetch(`${API_BASE_URL}/system-logs`, { headers: getAuthHeaders(), credentials: 'include' });
+        const response = await fetch(`${API_BASE_URL}/system-logs`, { headers: getAuthHeaders() });
         if (!response.ok) throw new Error('Failed to fetch');
         const data = await response.json();
         renderSearchLogs(data.logs || []);
@@ -723,8 +727,7 @@ function loadSMTPSettings() {
 async function fetchSchedulerStatus() {
     try {
         const response = await fetch(`${API_BASE_URL}/scheduler/status`, {
-            headers: getAuthHeaders(),
-            credentials: 'include'
+            headers: getAuthHeaders()
         });
         const data = await response.json();
 
@@ -743,8 +746,7 @@ async function startScheduler() {
     try {
         const response = await fetch(`${API_BASE_URL}/scheduler/start`, {
             method: 'POST',
-            headers: getAuthHeaders(),
-            credentials: 'include'
+            headers: getAuthHeaders()
         });
         if (response.ok) {
             addLog('✅ 寄信排程已啟動', 'success');
@@ -759,8 +761,7 @@ async function stopScheduler() {
     try {
         const response = await fetch(`${API_BASE_URL}/scheduler/stop`, {
             method: 'POST',
-            headers: getAuthHeaders(),
-            credentials: 'include'
+            headers: getAuthHeaders()
         });
         if (response.ok) {
             addLog('✅ 寄信排程已停止', 'success');
@@ -803,7 +804,6 @@ async function testSMTP() {
         const response = await fetch(`${API_BASE_URL}/smtp/test`, {
             method: 'POST',
             headers: getAuthHeaders(),
-            credentials: 'include',
             body: JSON.stringify({
                 server: document.getElementById('smtp-server').value,
                 port: parseInt(document.getElementById('smtp-port').value),
@@ -836,8 +836,7 @@ async function generateEmail(leadId) {
     try {
         const response = await fetch(`${API_BASE_URL}/leads/${leadId}/generate-email`, {
             method: 'POST',
-            headers: getAuthHeaders(),
-            credentials: 'include'
+            headers: getAuthHeaders()
         });
         if (!response.ok) throw new Error('Generation failed');
 
@@ -852,7 +851,7 @@ async function generateEmail(leadId) {
 
 async function viewEmail(leadId) {
     try {
-        const response = await fetch(`${API_BASE_URL}/leads/${leadId}/emails`, { headers: getAuthHeaders(), credentials: 'include' });
+        const response = await fetch(`${API_BASE_URL}/leads/${leadId}/emails`, { headers: getAuthHeaders() });
         const emails = await response.json();
         if (emails && emails.length > 0) {
             const latest = emails[emails.length - 1];
@@ -932,7 +931,7 @@ function startLogPolling() {
     // Poll system logs every 10 seconds
     setInterval(async () => {
         try {
-            const response = await fetch(`${API_BASE_URL}/system-logs`, { headers: getAuthHeaders(), credentials: 'include' });
+            const response = await fetch(`${API_BASE_URL}/system-logs`, { headers: getAuthHeaders() });
             if (response.ok) {
                 const data = await response.json();
                 updateConsole(data.logs);
@@ -964,7 +963,7 @@ async function fetchTemplates() {
     const container = document.getElementById('templates-list');
 
     try {
-        const response = await fetch(`${API_BASE_URL}/templates`, { headers: getAuthHeaders(), credentials: 'include' });
+        const response = await fetch(`${API_BASE_URL}/templates`, { headers: getAuthHeaders() });
         if (!response.ok) {
             container.innerHTML = '<p style="color:var(--text-muted);">API 錯誤，請檢查認證</p>';
             throw new Error('Failed to fetch');
@@ -1048,7 +1047,6 @@ async function toggleDefault(templateId, isDefault) {
         const response = await fetch(`${API_BASE_URL}/templates/${templateId}`, {
             method: 'PUT',
             headers: getAuthHeaders(),
-            credentials: 'include',
             body: JSON.stringify({
                 name: '',
                 tag: '',
@@ -1069,7 +1067,7 @@ async function toggleDefault(templateId, isDefault) {
 
 async function duplicateTemplate(id) {
     try {
-        const response = await fetch(`${API_BASE_URL}/templates`, { headers: getAuthHeaders(), credentials: 'include' });
+        const response = await fetch(`${API_BASE_URL}/templates`, { headers: getAuthHeaders() });
         const templates = await response.json();
         const template = templates.find(t => t.id === id);
 
@@ -1078,7 +1076,6 @@ async function duplicateTemplate(id) {
             const createResponse = await fetch(`${API_BASE_URL}/templates`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
-            credentials: 'include',
                 body: JSON.stringify({
                     name: template.name + ' (複製)',
                     tag: template.tag,
@@ -1117,7 +1114,6 @@ async function saveTemplate(e) {
         const response = await fetch(url, {
             method: method,
             headers: getAuthHeaders(),
-            credentials: 'include',
             body: JSON.stringify(templateData)
         });
 
@@ -1134,7 +1130,7 @@ async function saveTemplate(e) {
 
 async function editTemplate(id) {
     try {
-        const response = await fetch(`${API_BASE_URL}/templates`, { headers: getAuthHeaders(), credentials: 'include' });
+        const response = await fetch(`${API_BASE_URL}/templates`, { headers: getAuthHeaders() });
         const templates = await response.json();
         const template = templates.find(t => t.id === id);
 
@@ -1157,8 +1153,7 @@ async function deleteTemplate(id) {
     try {
         const response = await fetch(`${API_BASE_URL}/templates/${id}`, {
             method: 'DELETE',
-            headers: getAuthHeaders(),
-            credentials: 'include'
+            headers: getAuthHeaders()
         });
 
         if (response.ok) {
@@ -1175,8 +1170,7 @@ async function markEmailSent(leadId) {
     try {
         const response = await fetch(`${API_BASE_URL}/leads/${leadId}/mark-sent`, {
             method: 'POST',
-            headers: getAuthHeaders(),
-            credentials: 'include'
+            headers: getAuthHeaders()
         });
 
         if (response.ok) {
@@ -1191,7 +1185,7 @@ async function markEmailSent(leadId) {
 // --- Email Engagement Tracking ---
 async function fetchEngagements() {
     try {
-        const response = await fetch(`${API_BASE_URL}/engagements`, { headers: getAuthHeaders(), credentials: 'include' });
+        const response = await fetch(`${API_BASE_URL}/engagements`, { headers: getAuthHeaders() });
         if (!response.ok) throw new Error('Failed');
         const data = await response.json();
         renderEngagementStats(data);
@@ -1262,7 +1256,7 @@ function renderEngagementStats(data) {
 // --- Pricing Config ---
 async function loadPricing() {
     try {
-        const response = await fetch(`${API_BASE_URL}/pricing`, { headers: getAuthHeaders(), credentials: 'include' });
+        const response = await fetch(`${API_BASE_URL}/pricing`, { headers: getAuthHeaders() });
         if (!response.ok) return;
         const config = await response.json();
         document.getElementById('pricing-base-fee').value = config.base_fee || 1000;
@@ -1282,7 +1276,6 @@ async function savePricing(e) {
         const response = await fetch(`${API_BASE_URL}/pricing`, {
             method: 'PUT',
             headers: getAuthHeaders(),
-            credentials: 'include',
             body: JSON.stringify({
                 base_fee: parseInt(document.getElementById('pricing-base-fee').value),
                 per_lead: parseInt(document.getElementById('pricing-per-lead').value),
@@ -1595,7 +1588,6 @@ async function aiGenerateTemplate() {
         const response = await fetch(`${API_BASE_URL}/templates/ai-generate`, {
             method: 'POST',
             headers: getAuthHeaders(),
-            credentials: 'include',
             body: JSON.stringify({ prompt, style, language })
         });
 
@@ -1640,7 +1632,6 @@ async function saveTemplateV2() {
         const response = await fetch(`${API_BASE_URL}/templates`, {
             method: 'POST',
             headers: getAuthHeaders(),
-            credentials: 'include',
             body: JSON.stringify({
                 name,
                 tag,
@@ -1685,8 +1676,7 @@ async function sendTestEmail() {
     try {
         const response = await fetch(`${API_BASE_URL}/templates/test-send`, {
             method: 'POST',
-            headers: getAuthHeaders(),
-            credentials: 'include'
+            headers: getAuthHeaders()
         });
 
         const result = await response.json();
