@@ -209,12 +209,7 @@
                                     <option value="5">5 頁 (約 50 筆)</option>
                                 </select>
                             </div>
-                            <button type="submit" class="btn-primary" id="start-scrape-btn"
-                                style="background: linear-gradient(135deg, var(--primary), var(--primary-hover));">🚀
-                                開始自動探勘</button>
-                        </form>
-
-                        <!-- Email Discovery Strategy (Legacy, keeping for context) -->
+                            <!-- Email Discovery Strategy (Legacy, keeping for context) -->
                         <div
                             style="margin-top:15px; padding:10px; background:rgba(255,255,255,0.05); border-radius:6px; border-left: 3px solid #10b981;">
                             <div
@@ -259,6 +254,31 @@
                                     <div>
                                         <div style="font-size:12px; font-weight:600; color:#f59e0b;">黃頁模式 (原版)</div>
                                         <div style="font-size:11px; color:var(--text-muted);">搜尋 Yellowpages /
+                          
+<!-- NEW: Miner Mode Selection -->
+                        <div
+                            style="margin-top:15px; padding:12px; background:rgba(79,142,247,0.08); border-radius:6px; border-left: 3px solid var(--primary);">
+                            <div
+                                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                                <span style="font-size:12px; font-weight:600;">🏭 探勘模式 (Mining Mode)</span>
+                            </div>
+                            <div style="display:flex; flex-direction:column; gap:10px;">
+                                <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer;">
+                                    <input type="radio" name="miner-mode" value="manufacturer" checked
+                                        style="accent-color:var(--primary); margin-top:3px;">
+                                    <div>
+                                        <div style="font-size:12px; font-weight:600; color:var(--primary);">製造商模式 (推薦)
+                                        </div>
+                                        <div style="font-size:11px; color:var(--text-muted);">搜尋 B2B 製造商目錄 (Thomasnet /
+                                            Google)。適合工業品、OEM、零件及原料供應商。</div>
+                                    </div>
+                                </label>
+                                <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer;">
+                                    <input type="radio" name="miner-mode" value="yellowpages"
+                                        style="accent-color:#f59e0b; margin-top:3px;">
+                                    <div>
+                                        <div style="font-size:12px; font-weight:600; color:#f59e0b;">黃頁模式 (原版)</div>
+                                        <div style="font-size:11px; color:var(--text-muted);">搜尋 Yellowpages /
                                             Yelp。適合本地服務業、維修店、零售商。</div>
                                     </div>
                                 </label>
@@ -268,7 +288,13 @@
                         <div id="scrape-status" class="status-msg hidden">
                             探勘任務已啟動！請查看下方系統日誌。
                         </div>
-                    </section>
+                    
+<button type="submit" class="btn-primary" id="start-scrape-btn"
+                                style="background: linear-gradient(135deg, var(--primary), var(--primary-hover));">🚀
+                                開始自動探勘</button>
+                        </form>
+
+                        </section>
 
                     <!-- Right Column: Results & Logs -->
                     <section class="lead-results-section">
@@ -433,9 +459,9 @@
                 <div style="margin-bottom:20px;">
                     <div
                         style="display:flex; gap:10px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px;">
-                        <button id="tab-create" class="tab-btn active" onclick="switchTemplateTab('create')">📝
+                        <button id="tab-create" class="tab-btn" onclick="switchTemplateTab('create')">📝
                             建立/編輯模板</button>
-                        <button id="tab-list" class="tab-btn" onclick="switchTemplateTab('list')">📁 現有模板</button>
+                        <button id="tab-list" class="tab-btn active" onclick="switchTemplateTab('list')">📁 現有模板</button>
                         <button id="tab-attachments" class="tab-btn" onclick="switchTemplateTab('attachments')">📎
                             附件管理</button>
                     </div>
@@ -523,7 +549,7 @@
                                         style="padding:8px; background:rgba(255,255,255,0.05); border-radius:6px 6px 0 0; font-size:12px; color:var(--text-muted);">
                                         HTML 編輯器
                                     </div>
-                                    <div id="monaco-container"
+                                    <div id="monaco-container" style="min-height:300px;"
                                         style="flex:1; min-height:350px; border-radius:0 0 6px 6px; border:1px solid rgba(255,255,255,0.1); overflow:hidden;">
                                     </div>
                                 </div>

@@ -1049,18 +1049,49 @@ function updateConsole(logs) {
 // Email Templates Management
 async function fetchTemplates() {
     const container = document.getElementById('templates-list');
+    if (!container) return;
+
+    // Show loading state
+    container.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:40px;">載入中...</p>';
 
     try {
         const response = await fetch(`${API_BASE_URL}/templates`, { headers: getAuthHeaders() });
+        
         if (!response.ok) {
-            container.innerHTML = '<p style="color:var(--text-muted);">API 錯誤，請檢查認證</p>';
-            throw new Error('Failed to fetch');
+            throw new Error('Server error: ' + response.status);
         }
+        
         const templates = await response.json();
+        
+        // Empty array = no templates yet (not an error!)
+        if (!Array.isArray(templates) || templates.length === 0) {
+            container.innerHTML = `
+                <div style="text-align:center; padding:60px 20px;">
+                    <div style="font-size:48px; margin-bottom:16px;">📝</div>
+                    <div style="font-size:16px; margin-bottom:8px;">尚無模板</div>
+                    <div style="color:var(--text-muted); margin-bottom:20px;">建立第一個模板開始使用</div>
+                    <button class="btn-primary" onclick="switchTemplateTab('create')" style="padding:10px 24px;">
+                        + 建立新模板
+                    </button>
+                </div>
+            `;
+            return;
+        }
+        
+        // Success - render templates
         renderTemplates(templates);
+        
     } catch (error) {
         console.error('Fetch templates error:', error);
-        container.innerHTML = '<p style="color:var(--text-muted);">載入失敗，請重新整理</p>';
+        container.innerHTML = `
+            <div style="text-align:center; padding:40px; color:var(--text-muted);">
+                <div style="font-size:48px; margin-bottom:16px;">⚠️</div>
+                <div>載入失敗：${error.message}</div>
+                <button onclick="fetchTemplates()" style="margin-top:16px; padding:8px 20px; background:var(--primary); border:none; border-radius:6px; color:white; cursor:pointer;">
+                    🔄 重試
+                </button>
+            </div>
+        `;
     }
 }
 
