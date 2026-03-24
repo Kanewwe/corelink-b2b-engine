@@ -821,6 +821,10 @@ async function testSMTP() {
         } else {
             status.className = 'status-msg error';
             status.innerText = `❌ ${result.message}`;
+            if (aiBtn) {
+                aiBtn.disabled = false;
+                aiBtn.innerText = aiBtn.dataset.originalText || '✨ AI 關鍵字';
+            }
             addLog('❌ SMTP 測試失敗: ' + result.message, 'error');
         }
     } catch (error) {
@@ -884,6 +888,59 @@ function addLog(message, level = 'info') {
     console.appendChild(entry);
     console.scrollTop = console.scrollHeight;
 }
+
+
+// ══════════════════════════════════════════
+// Toast Notifications
+// ══════════════════════════════════════════
+
+function showToast(message, type = 'info', duration = 3000) {
+    // Remove existing toast
+    const existing = document.querySelector('.toast-notification');
+    if (existing) existing.remove();
+    
+    const toast = document.createElement('div');
+    toast.className = `toast-notification toast-${type}`;
+    toast.innerHTML = `
+        <span>${message}</span>
+        <button onclick="this.parentElement.remove()" style="background:none;border:none;color:inherit;cursor:pointer;margin-left:10px;">✕</button>
+    `;
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 8px;
+        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        color: white;
+        font-size: 14px;
+        z-index: 10000;
+        animation: slideIn 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    `;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
+
+// Add CSS for toast animations
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateX(100px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes slideOut {
+        from { opacity: 1; transform: translateX(0); }
+        to { opacity: 0; transform: translateX(100px); }
+    }
+`;
+document.head.appendChild(style);
+
+
 
 // Show upgrade prompt when limit exceeded
 function showUpgradePrompt(type, used, limit) {
@@ -1583,6 +1640,12 @@ async function aiGenerateTemplate() {
     status.classList.remove('hidden');
     status.className = 'status-msg';
     status.innerText = '⏳ AI 正在生成中...';
+    const aiBtn = document.getElementById('ai-generate-btn');
+    if (aiBtn) {
+        aiBtn.disabled = true;
+        aiBtn.dataset.originalText = aiBtn.innerText;
+        aiBtn.innerText = '⏳ 生成中...';
+    }
 
     try {
         const response = await fetch(`${API_BASE_URL}/templates/ai-generate`, {
@@ -1600,10 +1663,18 @@ async function aiGenerateTemplate() {
 
             status.className = 'status-msg success';
             status.innerText = '✅ AI 已生成草稿，可在下方編輯器調整';
+            if (aiBtn) {
+                aiBtn.disabled = false;
+                aiBtn.innerText = aiBtn.dataset.originalText || '✨ AI 關鍵字';
+            }
             addLog('✨ AI 模板生成成功', 'success');
         } else {
             status.className = 'status-msg error';
             status.innerText = `❌ ${result.message}`;
+            if (aiBtn) {
+                aiBtn.disabled = false;
+                aiBtn.innerText = aiBtn.dataset.originalText || '✨ AI 關鍵字';
+            }
         }
     } catch (error) {
         status.className = 'status-msg error';
@@ -1688,6 +1759,10 @@ async function sendTestEmail() {
         } else {
             status.className = 'status-msg error';
             status.innerText = `❌ ${result.message}`;
+            if (aiBtn) {
+                aiBtn.disabled = false;
+                aiBtn.innerText = aiBtn.dataset.originalText || '✨ AI 關鍵字';
+            }
         }
     } catch (error) {
         status.className = 'status-msg error';
@@ -1758,8 +1833,30 @@ function loadAttachments() {
 // Initialize template page
 document.getElementById('ai-generate-btn')?.addEventListener('click', aiGenerateTemplate);
 document.getElementById('ai-clear-btn')?.addEventListener('click', () => {
-    document.getElementById('ai-prompt-input').value = '';
-    document.getElementById('ai-status').classList.add('hidden');
+    if (confirm('確定要清除輸入內容？')) {
+        document.getElementById('ai-prompt-input').value = '';
+        document.getElementById('ai-status').classList.add('hidden');
+    }
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+    // Ctrl+Enter: AI Generate
+    if (e.ctrlKey && e.key === 'Enter') {
+        const promptInput = document.getElementById('ai-prompt-input');
+        if (promptInput && document.activeElement === promptInput) {
+            e.preventDefault();
+            aiGenerateTemplate();
+        }
+    }
+    // Ctrl+S: Save Template
+    if (e.ctrlKey && e.key === 's') {
+        const templateForm = document.getElementById('template-form');
+        if (templateForm && !templateForm.classList.contains('hidden')) {
+            e.preventDefault();
+            saveTemplateV2();
+        }
+    }
 });
 document.getElementById('upload-dropzone')?.addEventListener('click', () => {
     document.getElementById('file-input')?.click();
