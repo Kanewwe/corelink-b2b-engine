@@ -169,8 +169,8 @@ Cookie: session_id=<uuid>
     "id": 2,
     "name": "pro",
     "display_name": "專業方案",
-    "price_monthly": 29,
-    "price_yearly": 290,
+    "price_monthly": 890,
+    "price_yearly": 8900,
     "max_customers": 500,
     "max_emails_month": 500,
     "features": {
@@ -360,10 +360,13 @@ AI 生成模板
 {
   "market": "US",
   "pages": 3,
-  "keywords": ["cable assembly", "wire harness", "cable manufacturer"],
-  "location": "California"
+  "keywords": ["car parts", "cable assembly", "wire harness"],
+  "location": "California",
+  "miner_mode": "manufacturer"
 }
 ```
+
+> `miner_mode` 可選値：`"manufacturer"`（預設，適合 B2B 工業品）或 `"yellowpages"`（適合本地服務業）。
 
 **Response:**
 ```json

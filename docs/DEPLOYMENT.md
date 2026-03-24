@@ -71,8 +71,9 @@ git push origin v2.0-optimized
 | `SMTP_PASSWORD` | - | SMTP 密碼 |
 | `SMTP_SERVER` | `smtp.gmail.com` | SMTP 伺服器 |
 | `SMTP_PORT` | `587` | SMTP 埠號 |
-| `GOOGLE_API_KEY` | - | Google CSE API Key |
-| `GOOGLE_CSE_ID` | - | Custom Search Engine ID |
+| `GOOGLE_API_KEY` | - | Google CSE API Key（製造商模式可選）|
+| `GOOGLE_CSE_ID` | - | Custom Search Engine ID（製造商模式可選）|
+| `SCRAPER_API_KEY` | `c38c...` | ScraperAPI（黃頁與 Thomasnet 繞過封鎖）|
 
 ## Step 5: Deploy
 
@@ -142,6 +143,14 @@ GOOGLE_CSE_ID=xxxxxxxx...
 ### Database Connection Error
 - 確認 `DATABASE_URL` 正確
 - 確認 PostgreSQL 已啟動
+
+### 爬蟲返回 0 筆
+- 非北美 IP 會被 Yellowpages 403 封鎖，請確認 `SCRAPER_API_KEY` 已設定。
+- 切換為**製造商模式**可繞過 Yellowpages，改用 Bing + Thomasnet。
+
+### DB 欄位缺失（`UndefinedColumn`）
+- 檢查 Render Logs 是否出現 `✅ 資料庫結構確認完成`。
+- v2.2 起，`migrations.py` 已嵌入 `lifespan()`，每次啟動都會自動執行。
 
 ### 502 Bad Gateway
 - 檢查後端是否正常啟動

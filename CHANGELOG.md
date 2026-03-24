@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v2.2-manufacturer] - 2026-03-24
+
+### 🏭 New: Manufacturer Mode (B2B Sourcing Engine)
+- **New file** `manufacturer_miner.py`: Multi-source B2B manufacturer scraper
+  - Google Custom Search API (primary)
+  - Bing Search (automatic fallback when Google CSE fails)
+  - Thomasnet via ScraperAPI (US B2B directory)
+- **Query expansion**: Keywords like `car battery` automatically expanded to B2B variants (`OEM supplier factory`, `manufacturer small medium enterprise`, etc.)
+- **Frontend toggle**: Added Mining Mode selector to Auto-Miner panel (Manufacturer Mode / Yellowpages Mode)
+- **API**: `POST /api/scrape-simple` now accepts `miner_mode` field (`"manufacturer"` or `"yellowpages"`)
+
+### 🗄️ Database Migration Reliability Fix
+- `migrations.py`: Upgraded to "force-alter" strategy — directly attempts `ALTER TABLE ADD COLUMN` and gracefully ignores "already exists" errors. Added verbose diagnostic logs.
+- `main.py` `lifespan()`: Now calls `run_migrations()` on every app startup, bypassing `start.sh` execution issues.
+
+### 🚀 Deployment Fixes
+- `start.sh`: Correctly binds to `${PORT}` env var (required by Render)
+- ScraperAPI integrated in Thomasnet scraper to bypass 403 blocks
+
+---
+
 ## [v2.0-optimized] - 2026-03-23
 
 ### 🚀 New Features
@@ -17,14 +38,9 @@ All notable changes to this project will be documented in this file.
 - **Page Transitions**: 150ms fade-in animation
 
 #### Auto-Miner (Lead Engine)
-- **AI Keyword Generator**: 
-  - Generate 5 related part-focused keywords
-  - Based on seed keyword using GPT
-  - Selectable chips interface
-  - Custom keyword support
-- **Multi-Keyword Scraping**: 
-  - Scrapes multiple keywords in sequence
-  - Each keyword gets full page allocation
+- **AI Keyword Generator**: Generate 5 related part-focused keywords
+- **Multi-Keyword Scraping**: Scrapes multiple keywords in sequence
+- **Yellowpages integration**: With ScraperAPI premium bypass for geo-blocked regions
 
 #### Email Finder
 - **3-Layer Strategy v2**:

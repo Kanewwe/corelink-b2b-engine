@@ -1,4 +1,4 @@
-# Deployment Guide - Corelink B2B Engine
+# Deployment Guide - Linkora B2B Engine
 
 ## Prerequisites
 
@@ -34,14 +34,14 @@ git push -u origin main
 1. Click **New** → **Web Service**
 2. Connect your GitHub repository
 3. Configure:
-   - **Name**: `corelink-b2b-engine`
+   - **Name**: `linkora-api`
    - **Region**: Same as database
    - **Branch**: `main`
-   - **Root Directory**: (leave empty, or `backend` if separated)
-   - **Runtime**: `Python 3`
-   - **Build Command**: `pip install -r backend/requirements.txt`
-   - **Start Command**: `cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT`
+   - **Root Directory**: (leave empty)
+   - **Runtime**: `Docker`
    - **Plan**: **Free**
+
+> ✅ Render 會自動偵測 `Dockerfile`，並透過 `start.sh` 啟動，自動執行資料庫 migration。
 
 ## Step 4: Set Environment Variables
 
@@ -54,8 +54,11 @@ In Render Web Service → **Environment** tab, add:
 | `ADMIN_USER` | `admin` | Change to your preferred username |
 | `ADMIN_PASSWORD` | `your_secure_password` | **Generate a strong password!** |
 | `API_TOKEN` | `your_random_token` | **Generate a random string!** |
+| `SCRAPER_API_KEY` | `c38c...` | ScraperAPI key (for Yellowpages + Thomasnet) |
 | `SMTP_USER` | `your_email@gmail.com` | Optional: for real email sending |
 | `SMTP_PASSWORD` | `your_app_password` | Optional: Gmail app password |
+| `GOOGLE_API_KEY` | *(optional)* | For Manufacturer Mode (Google CSE) |
+| `GOOGLE_CSE_ID` | *(optional)* | For Manufacturer Mode (Google CSE) |
 
 ### How to Link Database
 1. In Environment tab, click **Add Environment Variable**
@@ -115,9 +118,17 @@ If you want frontend on a separate domain:
 - For Gmail, use App Password (not regular password)
 - Enable 2FA on Gmail, then generate App Password
 
+### Scraping Returns 0 Results
+- Non-US IPs are often blocked by Yellowpages (403). Make sure `SCRAPER_API_KEY` is correctly set.
+- Try switching to **Manufacturer Mode** which uses Bing and Thomasnet instead.
+
+### Database Column Missing Error (`UndefinedColumn`)
+- This means `migrations.py` did not run. Check Render logs for `✅ 資料庫結構確認完成`.
+- As of v2.2, migrations run automatically inside `lifespan()` in `main.py`.
+
 ### Rate Limiting from Scraping
-- Reduce scraping frequency in `scraper.py`
-- Add longer `time.sleep()` between requests
+- Reduce scraping frequency or keywords
+- Use ScraperAPI for more stable results
 
 ## Security Checklist
 
