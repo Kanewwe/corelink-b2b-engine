@@ -2110,6 +2110,20 @@ window.addEventListener('beforeunload', (e) => {
     }
 });
 
+// Pill toggle click handlers
+document.addEventListener('click', (e) => {
+    const pillToggle = e.target.closest('.pill-toggle');
+    if (pillToggle) {
+        const group = pillToggle.closest('.pill-toggle-group');
+        if (group) {
+            group.querySelectorAll('.pill-toggle').forEach(p => p.classList.remove('active'));
+            pillToggle.classList.add('active');
+            const radio = pillToggle.querySelector('input[type="radio"]');
+            if (radio) radio.checked = true;
+        }
+    }
+});
+
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
     // Ctrl+Enter: AI Generate
