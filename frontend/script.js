@@ -1033,9 +1033,47 @@ async function fetchTemplates() {
     }
 }
 
+
+// Template filter function
+let allTemplates = [];
+
+function filterTemplates() {
+    const search = document.getElementById('template-search')?.value?.toLowerCase() || '';
+    const tagFilter = document.getElementById('template-tag-filter')?.value || '';
+    
+    const filtered = allTemplates.filter(t => {
+        const matchSearch = !search || 
+            (t.name && t.name.toLowerCase().includes(search)) ||
+            (t.subject && t.subject.toLowerCase().includes(search));
+        const matchTag = !tagFilter || t.tag === tagFilter;
+        return matchSearch && matchTag;
+    });
+    
+    renderTemplates(filtered);
+}
+
+// Override renderTemplates to store templates
+const originalRenderTemplates = renderTemplates;
+renderTemplates = function(templates) {
+    allTemplates = templates || [];
+    filterTemplates();
+};
+
+
 function renderTemplates(templates) {
     const container = document.getElementById('templates-list');
     container.innerHTML = '';
+    
+    if (!templates || templates.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center; padding:40px; color:var(--text-muted);">
+                <div style="font-size:48px; margin-bottom:16px;">📝</div>
+                <div>尚無模板</div>
+                <div style="font-size:12px; margin-top:8px;">點擊上方「建立/編輯模板」開始創建</div>
+            </div>
+        `;
+        return;
+    }
 
     if (!templates || templates.length === 0) {
         container.innerHTML = '<p style="color:var(--text-muted);">尚無模板，請先新增</p>';
@@ -1059,7 +1097,10 @@ function renderTemplates(templates) {
         else if (tag === 'NA-PLASTIC') tagClass = 'tag-plastic';
         else if (tag.startsWith('AUTO')) tagClass = 'tag-auto';
 
-        tagSection.innerHTML = `<h4 style="margin-bottom:10px;"><span class="tag-badge ${tagClass}">${tag}</span></h4>`;
+        tagSection.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span class="tag-badge ${tagClass}">${tag}</span>
+            <span style="font-size:11px; color:var(--text-muted);">${grouped[tag].length} 個模板</span>
+        </div>`;
 
         grouped[tag].forEach(t => {
             const item = document.createElement('div');
@@ -1076,7 +1117,7 @@ function renderTemplates(templates) {
             `;
 
             item.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div class="template-card" onclick="editTemplate(${t.id})" style="display:flex; justify-content:space-between; align-items:flex-start;">
                     <div style="flex:1;">
                         <div style="display:flex; align-items:center; gap:8px;">
                             <strong>${t.name}</strong>
@@ -1795,8 +1836,61 @@ function handleFileSelect(e) {
 }
 
 function handleFiles(files) {
-    // For now, just log - file upload would need backend storage
     addLog(`📁 選擇了 ${files.length} 個檔案`, 'info');
+    
+    const list = document.getElementById('uploaded-files-list');
+    
+    Array.from(files).forEach((file, index) => {
+        // Check file size (>8MB warning)
+        const sizeWarning = file.size > 8 * 1024 * 1024 
+            ? '<span style="color:#f59e0b; font-size:11px;">⚠️ 檔案較大(>8MB)</span>' 
+            : '';
+        
+        const item = document.createElement('div');
+        item.className = 'file-item';
+        item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:12px; background:rgba(255,255,255,0.05); border-radius:8px; margin-bottom:8px;';
+        item.innerHTML = `
+            <div style="display:flex; align-items:center; gap:12px; flex:1;">
+                <span style="font-size:24px;">${file.type.includes('pdf') ? '📄' : '📎'}</span>
+                <div>
+                    <div style="font-weight:500;">${file.name}</div>
+                    <div style="font-size:12px; color:var(--text-muted);">
+                        ${(file.size / 1024).toFixed(1)}KB ${sizeWarning}
+                    </div>
+                    <div class="upload-progress" style="display:none; margin-top:4px;">
+                        <div style="height:4px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden;">
+                            <div class="progress-bar" style="height:100%; width:0%; background:var(--primary); transition:width 0.3s;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <label style="display:flex; align-items:center; gap:4px; cursor:pointer;">
+                    <input type="checkbox" ${file.size < 8*1024*1024 ? 'checked' : ''} style="accent-color:var(--primary);">
+                    <span style="font-size:12px;">預設夾帶</span>
+                </label>
+                <button onclick="this.closest('.file-item').remove()" style="background:none; border:none; color:#ef4444; cursor:pointer;">✕</button>
+            </div>
+        `;
+        list.appendChild(item);
+        
+        // Simulate upload progress
+        const progress = item.querySelector('.upload-progress');
+        const progressBar = item.querySelector('.progress-bar');
+        if (progress && progressBar) {
+            progress.style.display = 'block';
+            let width = 0;
+            const interval = setInterval(() => {
+                width += 10;
+                progressBar.style.width = width + '%';
+                if (width >= 100) {
+                    clearInterval(interval);
+                    setTimeout(() => progress.style.display = 'none', 500);
+                }
+            }, 100);
+        }
+    });
+}
 
     const list = document.getElementById('uploaded-files-list');
     list.innerHTML = '';
@@ -1865,4 +1959,69 @@ document.getElementById('upload-dropzone')?.addEventListener('click', () => {
 // Init Monaco on templates view
 document.getElementById('nav-templates')?.addEventListener('click', () => {
     setTimeout(initMonacoEditor, 100);
+
+// Editor resize functionality
+const resizeHandle = document.getElementById('editor-resize-handle');
+const editorWrapper = document.getElementById('monaco-container');
+if (resizeHandle && editorWrapper) {
+    let isResizing = false;
+    resizeHandle.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+    });
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        const rect = editorWrapper.getBoundingClientRect();
+        const newWidth = e.clientX - rect.left;
+        if (newWidth > 200 && newWidth < 800) {
+            editorWrapper.style.width = newWidth + 'px';
+        }
+    });
+    document.addEventListener('mouseup', () => {
+        isResizing = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+    });
+}
+
 });
+
+
+// Enhanced template card styling
+const style = document.createElement('style');
+style.textContent = `
+    .template-card {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .template-card:hover {
+        border-color: var(--primary);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .template-card-actions {
+        display: flex;
+        gap: 8px;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    .template-card:hover .template-card-actions {
+        opacity: 1;
+    }
+    .template-tag {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        background: rgba(79, 142, 247, 0.2);
+        color: var(--primary);
+        margin-right: 8px;
+    }
+`;
+document.head.appendChild(style);

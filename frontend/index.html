@@ -584,6 +584,18 @@
                     <section class="glass-panel" style="padding:1.5rem;">
                         <div class="panel-header" style="margin-bottom:1rem;">
                             <h3>現有模板</h3>
+                        </div>
+                        <div style="display:flex; gap:8px; margin-bottom:12px;">
+                            <input type="text" id="template-search" placeholder="搜尋模板..." style="flex:1; padding:8px 12px; border-radius:6px; border:1px solid var(--glass-border); background:rgba(255,255,255,0.05); color:#fff; font-size:13px;">
+                            <select id="template-tag-filter" style="padding:8px; border-radius:6px; border:1px solid var(--glass-border); background:rgba(255,255,255,0.05); color:#fff; font-size:13px;">
+                                <option value="">全部標籤</option>
+                                <option value="NA-CABLE">NA-CABLE</option>
+                                <option value="NA-NAMEPLATE">NA-NAMEPLATE</option>
+                                <option value="NA-PLASTIC">NA-PLASTIC</option>
+                                <option value="AUTO">AUTO</option>
+                            </select>
+                        </div>
+                        <div id="templates-list" style="overflow-y:auto;">
                             <button class="btn-primary" onclick="switchTemplateTab('create')" style="padding:6px 16px;">
                                 + 新增模板
                             </button>
