@@ -940,8 +940,8 @@ function showToast(message, type = 'info', duration = 3000) {
 }
 
 // Add CSS for toast animations
-const style = document.createElement('style');
-style.textContent = `
+const toastStyleTag = document.createElement('style');
+toastStyleTag.textContent = `
     @keyframes slideIn {
         from { opacity: 0; transform: translateX(100px); }
         to { opacity: 1; transform: translateX(0); }
@@ -951,7 +951,7 @@ style.textContent = `
         to { opacity: 0; transform: translateX(100px); }
     }
 `;
-document.head.appendChild(style);
+document.head.appendChild(toastStyleTag);
 
 // Show keyboard shortcuts
 function showKeyboardShortcuts() {
@@ -1142,6 +1142,7 @@ function dropTemplate(e, targetId) {
 // Template filter function
 let allLeads = [];
 let allTemplates = [];
+let selectedLeads = new Set();
 
 function filterTemplates() {
     const search = document.getElementById('template-search')?.value?.toLowerCase() || '';
@@ -2203,8 +2204,8 @@ document.getElementById('nav-templates')?.addEventListener('click', () => {
 
 
 // Enhanced template card styling
-const style = document.createElement('style');
-style.textContent = `
+const templateCardStyleTag = document.createElement('style');
+templateCardStyleTag.textContent = `
     .template-card {
         background: var(--glass-bg);
         border: 1px solid var(--glass-border);
@@ -2238,30 +2239,18 @@ style.textContent = `
         margin-right: 8px;
     }
 `;
-document.head.appendChild(style);
+document.head.appendChild(templateCardStyleTag);
 
 // Show keyboard shortcuts
 
 
-// Add ? button to header
-const navRight = document.querySelector('.nav-right');
-if (navRight) {
-    const helpBtn = document.createElement('button');
-    helpBtn.innerHTML = '?';
-    helpBtn.title = '鍵盤快捷鍵';
-    helpBtn.style.cssText = 'width:32px; height:32px; border-radius:50%; border:none; background:rgba(255,255,255,0.1); color:#fff; cursor:pointer; font-weight:bold;';
-    helpBtn.onclick = showKeyboardShortcuts;
-    navRight.appendChild(helpBtn);
-}
+
 
 
 
 // ============================================================
 // Missing utility functions (batch ops, miner controls, etc.)
 // ============================================================
-
-let allLeads = [];
-let selectedLeads = new Set();
 
 function renderLeadCard(lead) {
     // Alias for renderLeads single lead - not used directly
@@ -2331,22 +2320,22 @@ function batchExportCSV() {
     const toExport = selectedLeads.size > 0
         ? allLeads.filter(l => selectedLeads.has(l.id))
         : allLeads;
-    
+
     const headers = ['ID', '公司名稱', '網站', '網域', 'Email', 'AI標籤', '負責人', '狀態'];
     const rows = toExport.map(l => [
         l.id, l.company_name, l.website_url || '', l.domain || '',
         l.email_candidates || '', l.ai_tag || '', l.assigned_bd || '', l.status || ''
     ]);
-    
+
     const csvContent = [headers, ...rows]
         .map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
         .join('\n');
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `linkora_leads_${new Date().toISOString().slice(0,10)}.csv`;
+    a.download = `linkora_leads_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     addLog(`📥 已匯出 ${toExport.length} 筆客戶資料`, 'success');
@@ -2358,7 +2347,7 @@ async function batchDeleteLeads() {
         return;
     }
     if (!confirm(`確定要刪除選取的 ${selectedLeads.size} 筆客戶？此操作無法復原。`)) return;
-    
+
     const ids = Array.from(selectedLeads);
     let success = 0, fail = 0;
     for (const id of ids) {
