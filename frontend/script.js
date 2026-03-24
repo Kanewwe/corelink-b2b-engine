@@ -2031,6 +2031,51 @@ document.getElementById('nav-templates')?.addEventListener('click', () => {
 });
 
 
+
+// Step card toggle
+function toggleStep(stepId) {
+    const content = document.getElementById(stepId + '-content');
+    const header = document.querySelector('#' + stepId + ' .step-header');
+    const toggle = header?.querySelector('.step-toggle');
+    
+    if (content) {
+        if (content.style.display === 'none') {
+            content.style.display = 'block';
+            if (toggle) toggle.textContent = '▼';
+        } else {
+            content.style.display = 'none';
+            if (toggle) toggle.textContent = '▶';
+        }
+    }
+}
+
+// Advanced section toggle
+function toggleAdvanced() {
+    const section = document.getElementById('advanced-section');
+    const arrow = document.getElementById('advanced-arrow');
+    
+    if (section) {
+        section.classList.toggle('show');
+        if (arrow) {
+            arrow.textContent = section.classList.contains('show') ? '▲' : '▼';
+        }
+    }
+}
+
+// Update CTA hint based on page count
+document.addEventListener('change', (e) => {
+    if (e.target.name === 'scrape-pages') {
+        const pages = parseInt(e.target.value);
+        const estimates = { 3: { leads: 30, time: '2-3' }, 5: { leads: 50, time: '4-5' }, 10: { leads: 100, time: '8-10' } };
+        const est = estimates[pages] || estimates[3];
+        const hint = document.getElementById('cta-hint');
+        if (hint) {
+            hint.innerHTML = `預計取得約 <strong>${est.leads}</strong> 筆潛在客戶，約需 <strong>${est.time}</strong> 分鐘`;
+        }
+    }
+});
+
+
 // Initialize template page
 document.getElementById('ai-generate-btn')?.addEventListener('click', aiGenerateTemplate);
 document.getElementById('ai-clear-btn')?.addEventListener('click', () => {
