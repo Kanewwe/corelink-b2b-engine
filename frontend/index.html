@@ -107,23 +107,61 @@
 
             <!-- View: Lead Engine -->
             <div id="lead-engine-view" class="view-content">
-                <!-- Phase 1: Compact KPI Bar -->
-                <div class="kpi-bar" style="display:flex; gap:12px; height:auto; padding:8px 12px; flex-wrap:wrap;">
-                    <div class="kpi-compact" onclick="fetchLeads()" style="flex:1; min-width:120px; cursor:pointer;" title="點擊查看客戶列表">
-                        <span class="kpi-num" id="kpi-total-leads">-</span>
-                        <span class="kpi-lbl">客戶總數 →</span>
+                <!-- KPI Cards -->
+                <div class="kpi-bar">
+                    <div class="kpi-card" onclick="fetchLeads()" style="cursor:pointer;" title="點擊查看客戶列表">
+                        <div class="kpi-icon" style="background:rgba(79,142,247,0.15); color:var(--primary);">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="9" cy="7" r="4"></circle>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                            </svg>
+                        </div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="kpi-total-leads">0</div>
+                            <div class="kpi-label">客戶總數</div>
+                            <div class="kpi-sub" id="kpi-customers-limit">無上限</div>
+                        </div>
                     </div>
-                    <div class="kpi-compact" onclick="fetchCampaigns()" style="flex:1; min-width:120px; cursor:pointer;" title="點擊查看寄信記錄">
-                        <span class="kpi-num" id="kpi-sent-today">-</span>
-                        <span class="kpi-lbl">本月寄信 →</span>
+                    <div class="kpi-card" onclick="fetchCampaigns()" style="cursor:pointer;" title="點擊查看寄信記錄">
+                        <div class="kpi-icon" style="background:rgba(110,231,183,0.15); color:var(--accent);">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                            </svg>
+                        </div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="kpi-sent-today">0</div>
+                            <div class="kpi-label">本月寄信</div>
+                            <div class="kpi-sub" id="kpi-emails-limit">無上限</div>
+                        </div>
                     </div>
-                    <div class="kpi-compact" title="完成首次寄信後開始統計">
-                        <span class="kpi-num" id="kpi-open-rate">-</span>
-                        <span class="kpi-lbl">開信率 ℹ️</span>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background:rgba(245,158,11,0.15); color:var(--warning);">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                        </div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="kpi-open-rate">-</div>
+                            <div class="kpi-label">開信率</div>
+                            <div class="kpi-sub">本月統計</div>
+                        </div>
                     </div>
-                    <div class="kpi-compact" title="完成首次寄信後開始統計">
-                        <span class="kpi-num" id="kpi-bounce-rate">-</span>
-                        <span class="kpi-lbl">退信率 ℹ️</span>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background:rgba(239,68,68,0.15); color:var(--error);">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="15" y1="9" x2="9" y2="15"></line>
+                                <line x1="9" y1="9" x2="15" y2="15"></line>
+                            </svg>
+                        </div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="kpi-bounce-rate">-</div>
+                            <div class="kpi-label">退信率</div>
+                            <div class="kpi-sub">本月統計</div>
+                        </div>
                     </div>
                 </div>
 
