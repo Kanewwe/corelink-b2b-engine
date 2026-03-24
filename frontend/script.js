@@ -3,13 +3,13 @@ const API_BASE_URL = window.location.origin + '/api';
 // Navigation
 const views = {
     'nav-lead-engine': 'lead-engine-view',
-    'nav-add-lead': 'add-lead-view',
+    'nav-templates': 'templates-view',
     'nav-campaigns': 'campaign-logs-view',
     'nav-engagements': 'engagements-view',
     'nav-search-logs': 'search-logs-view',
-    'nav-templates': 'templates-view',
     'nav-smtp-settings': 'smtp-settings-view'
 };
+console.log('Views defined:', views);
 
 // Get Auth Headers
 function getAuthHeaders() {
@@ -20,7 +20,9 @@ function getAuthHeaders() {
 }
 
 // Initialize
+console.log('Script loaded, setting up...');
 document.addEventListener('DOMContentLoaded', async () => {
+    console.log('DOMContentLoaded fired');
     // Check auth status
     try {
         const response = await fetch(`${API_BASE_URL}/auth/me`, {
@@ -72,12 +74,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         radio.addEventListener('change', updateStrategyDescription);
     });
 
-    // Navigation
+    // Navigation setup
+    console.log('Setting up navigation for:', Object.keys(views));
     Object.keys(views).forEach(navId => {
-        document.getElementById(navId)?.addEventListener('click', (e) => {
-            e.preventDefault();
-            switchView(navId);
-        });
+        const el = document.getElementById(navId);
+        if (el) {
+            el.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log('Nav clicked:', navId);
+                switchView(navId);
+            });
+            console.log('Nav handler added for:', navId);
+        } else {
+            console.warn('Nav element NOT found:', navId);
+        }
     });
 
     // Modal close buttons
@@ -88,9 +98,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Navigation
 function switchView(navId) {
+    console.log('switchView called:', navId);
     // Update nav active state
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-    document.getElementById(navId).classList.add('active');
+    const navElement = document.getElementById(navId);
+    if (navElement) {
+        navElement.classList.add('active');
+    } else {
+        console.error('Nav element not found:', navId);
+        return;
+    }
 
     // Hide all views
     document.querySelectorAll('.view-content').forEach(view => view.classList.add('hidden'));
