@@ -885,7 +885,7 @@ async def batch_find_emails(
         "results": results
     }
 
-")
+
 def mark_email_sent(lead_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
     lead = db.query(models.Lead).filter(
         models.Lead.id == lead_id,
