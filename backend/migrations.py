@@ -10,7 +10,7 @@ def run_migrations():
     import sqlalchemy
     
     tables_to_patch = {
-        "leads": ["user_id", "email_sent", "email_sent_at"],
+        "leads": ["user_id", "email_sent", "email_sent_at", "email_source"],
         "email_campaigns": ["user_id"],
         "email_templates": ["user_id"],
         "email_logs": ["user_id"]
@@ -40,6 +40,7 @@ def run_migrations():
                     col_type = "INTEGER"
                     if column == "email_sent": col_type = "BOOLEAN DEFAULT FALSE"
                     if column == "email_sent_at": col_type = "TIMESTAMP"
+                    if column == "email_source": col_type = "VARCHAR(50)"
                     
                     # More aggressive check
                     has_column = False
