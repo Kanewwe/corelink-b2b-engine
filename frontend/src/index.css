@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-[#0F1117] text-[#F1F5F9] min-h-screen overflow-x-hidden;
+    background: linear-gradient(135deg, #0F1117 0%, #161B27 100%);
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-glass-bg border border-glass-border rounded-2xl shadow-[0_4px_30px_rgba(0,0,0,0.3)] backdrop-blur-md;
+  }
+  
+  .btn-primary {
+    @apply bg-gradient-to-br from-primary to-indigo-500 text-white py-3 px-6 rounded-lg font-semibold hover:shadow-[0_4px_15px_rgba(59,130,246,0.4)] hover:-translate-y-0.5 transition-all w-full;
+  }
+  
+  .btn-secondary {
+    @apply bg-white/10 text-text-main border border-white/20 py-2.5 px-5 rounded-lg font-medium hover:bg-white/15 transition-all;
+  }
+
+  /* Tag Badges */
+  .tag-badge {
+    @apply px-3 py-1 rounded-full text-xs font-bold tracking-wide;
+  }
+  .tag-cable { @apply bg-red-500/15 text-accent-cable border border-red-500/30; }
+  .tag-nameplate { @apply bg-yellow-500/15 text-accent-nameplate border border-yellow-500/30; }
+  .tag-plastic { @apply bg-emerald-500/15 text-accent-plastic border border-emerald-500/30; }
+  .tag-auto { @apply bg-gradient-to-br from-purple-500 to-purple-600 text-white; }
+  .tag-unknown { @apply bg-white/10 text-gray-300; }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}

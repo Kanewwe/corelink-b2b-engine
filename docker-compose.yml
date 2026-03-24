@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: linkora-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=production
+      # - DATABASE_URL=postgresql://user:password@db:5432/linkora
+    restart: unless-stopped
+    networks:
+      - linkora-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: linkora-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - linkora-network
+
+networks:
+  linkora-network:
+    driver: bridge

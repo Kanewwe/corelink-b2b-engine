@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linkora | B2B Outreach Platform</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <!-- Monaco Editor -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/editor/editor.main.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar glass-panel">
+            <div class="logo">
+                <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+                    <circle cx="10" cy="16" r="5" stroke="#4F8EF7" stroke-width="2" />
+                    <circle cx="22" cy="16" r="5" stroke="#6EE7B7" stroke-width="2" />
+                    <path d="M15 16 L17 16" stroke="#4F8EF7" stroke-width="2" stroke-linecap="round" />
+                </svg>
+                <h1>Linkora</h1>
+            </div>
+            <nav>
+                <!-- 主要功能 -->
+                <div class="nav-group-title">主要功能</div>
+                <a href="#" id="nav-lead-engine" class="nav-item active">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 6v6l4 2" />
+                    </svg>
+                    Lead Engine
+                </a>
+
+                <!-- 寄信作業 -->
+                <div class="nav-group-title">寄信作業</div>
+                <a href="#" id="nav-templates" class="nav-item">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+                    </svg>
+                    信件模板
+                </a>
+                <a href="#" id="nav-campaigns" class="nav-item">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                    </svg>
+                    寄信記錄
+                </a>
+
+                <!-- 分析 -->
+                <div class="nav-group-title">分析</div>
+                <a href="#" id="nav-engagements" class="nav-item">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 20V10M12 20V4M6 20v-6" />
+                    </svg>
+                    觸及率分析
+                </a>
+                <a href="#" id="nav-search-logs" class="nav-item">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="M21 21l-4.35-4.35" />
+                    </svg>
+                    探勘歷史
+                </a>
+
+                <!-- 設定 -->
+                <div class="nav-group-title">設定</div>
+                <a href="#" id="nav-smtp-settings" class="nav-item">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3" />
+                        <path
+                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                    </svg>
+                    SMTP 設定
+                </a>
+            </nav>
+            <div style="margin-top:auto; padding-top:20px; border-top:1px solid var(--glass-border);">
+                <div
+                    style="display:flex; align-items:center; gap:10px; padding:10px; background:rgba(79,142,247,0.1); border-radius:8px;">
+                    <div
+                        style="width:32px; height:32px; background:linear-gradient(135deg,var(--primary),var(--accent)); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:600;">
+                        A</div>
+                    <div style="flex:1;">
+                        <div id="display-username" style="font-weight:600; font-size:13px;">Admin</div>
+                        <div style="font-size:11px; color:var(--text-muted);">Administrator</div>
+                    </div>
+                    <button id="logout-btn" title="登出"
+                        style="background:none; border:none; color:var(--text-muted); cursor:pointer; padding:4px;"
+                        onmouseover="this.style.color='var(--error)'" onmouseout="this.style.color='var(--text-muted)'">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                            <polyline points="16 17 21 12 16 7" />
+                            <line x1="21" y1="12" x2="9" y2="12" />
+                        </svg>
+                    </button>
+                </div>
+                <p style="color:var(--text-muted); font-size:12px; text-align:center; margin-top:15px;">Linkora v1.0</p>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="header">
+                <h2 id="page-title">Linkora — AI Prospecting</h2>
+            </header>
+
+            <!-- View: Lead Engine -->
+            <div id="lead-engine-view" class="view-content">
+                <!-- KPI Cards -->
+                <div class="kpi-bar">
+                    <div class="kpi-card" onclick="fetchLeads()" style="cursor:pointer;" title="點擊查看客戶列表">
+                        <div class="kpi-icon" style="background:rgba(79,142,247,0.15); color:var(--primary);">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="9" cy="7" r="4"></circle>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                            </svg>
+                        </div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="kpi-total-leads">0</div>
+                            <div class="kpi-label">客戶總數</div>
+                            <div class="kpi-sub" id="kpi-customers-limit">無上限</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card" onclick="fetchCampaigns()" style="cursor:pointer;" title="點擊查看寄信記錄">
+                        <div class="kpi-icon" style="background:rgba(110,231,183,0.15); color:var(--accent);">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                            </svg>
+                        </div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="kpi-sent-today">0</div>
+                            <div class="kpi-label">本月寄信</div>
+                            <div class="kpi-sub" id="kpi-emails-limit">無上限</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background:rgba(245,158,11,0.15); color:var(--warning);">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                        </div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="kpi-open-rate">-</div>
+                            <div class="kpi-label">開信率</div>
+                            <div class="kpi-sub">本月統計</div>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon" style="background:rgba(239,68,68,0.15); color:var(--error);">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="15" y1="9" x2="9" y2="15"></line>
+                                <line x1="9" y1="9" x2="15" y2="15"></line>
+                            </svg>
+                        </div>
+                        <div class="kpi-content">
+                            <div class="kpi-value" id="kpi-bounce-rate">-</div>
+                            <div class="kpi-label">退信率</div>
+                            <div class="kpi-sub">本月統計</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="content-grid">
+                    <!-- Left Column: Input Form -->
+                    <section class="lead-input-section glass-panel">
+                        <h3>🕷️ 全自動化探勘引擎 (Auto-Miner)</h3>
+                        <p style="color:var(--text-muted); font-size:13px; margin-bottom: 20px;">
+                            直接爬取黃頁網站，自動發現採購/負責人 Email
+                        </p>
+                        <form id="scrape-form">
+                            <div class="input-group">
+                                <label>目標市場 (Target Market)</label>
+                                <select id="scrape-market" required>
+                                    <option value="US">美國 (US) - Yellowpages, Yelp</option>
+                                    <option value="EU">歐洲 (EU) - Yell, Europages</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label>目標地區 (Location)</label>
+                                <input type="text" id="scrape-location" placeholder="例如: California, New York, Texas">
+                                <small style="color:var(--text-muted);">選填，預設為整個市場</small>
+                            </div>
+                            <div class="input-group">
+                                <label>產業關鍵字 (Industry Keyword)</label>
+                                <div style="display:flex; gap:8px;">
+                                    <input type="text" id="scrape-keyword" required
+                                        placeholder="例如: Cable Manufacturer, Plastic Injection" style="flex:1;">
+                                    <button type="button" id="ai-keyword-btn" onclick="generateAIKeywords()"
+                                        style="padding:8px 12px; background:linear-gradient(135deg, var(--primary), var(--primary-hover)); border:none; border-radius:6px; color:white; cursor:pointer; white-space:nowrap;">
+                                        ✨ AI 關鍵字
+                                    </button>
+                                </div>
+                                <div id="ai-keywords-result" class="hidden" style="margin-top:10px;">
+                                    <p style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">選擇或新增關鍵字：</p>
+                                    <div id="keyword-chips" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <label>爬取頁數</label>
+                                <select id="scrape-pages">
+                                    <option value="1">1 頁 (約 10 筆)</option>
+                                    <option value="2">2 頁 (約 20 筆)</option>
+                                    <option value="3" selected>3 頁 (約 30 筆)</option>
+                                    <option value="5">5 頁 (約 50 筆)</option>
+                                </select>
+                            </div>
+                            <!-- Email Discovery Strategy (Legacy, keeping for context) -->
+                            <div
+                                style="margin-top:15px; padding:10px; background:rgba(255,255,255,0.05); border-radius:6px; border-left: 3px solid #10b981;">
+                                <div
+                                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                    <span style="font-size:12px; font-weight:600;">📧 Email 發現策略</span>
+                                </div>
+                                <div style="display:flex; gap:15px; margin-bottom:8px;">
+                                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                        <input type="radio" name="email-strategy" value="free" checked
+                                            style="accent-color:#10b981;">
+                                        <span style="font-size:12px;">🆓 免費模式</span>
+                                    </label>
+                                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                        <input type="radio" name="email-strategy" value="hunter"
+                                            style="accent-color:#3b82f6;">
+                                        <span style="font-size:12px;">💰 Hunter.io</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <!-- Miner Mode Selection -->
+                            <div
+                                style="margin-top:15px; padding:12px; background:rgba(79,142,247,0.08); border-radius:6px; border-left: 3px solid var(--primary);">
+                                <div
+                                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                                    <span style="font-size:12px; font-weight:600;">🏭 探勘模式 (Mining Mode)</span>
+                                </div>
+                                <div style="display:flex; flex-direction:column; gap:10px;">
+                                    <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer;">
+                                        <input type="radio" name="miner-mode" value="manufacturer" checked
+                                            style="accent-color:var(--primary); margin-top:3px;">
+                                        <div>
+                                            <div style="font-size:12px; font-weight:600; color:var(--primary);">製造商模式
+                                                (推薦)</div>
+                                            <div style="font-size:11px; color:var(--text-muted);">搜尋 B2B 製造商目錄
+                                                (Thomasnet / Google)。適合工業品、OEM、零件及原料供應商。</div>
+                                        </div>
+                                    </label>
+                                    <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer;">
+                                        <input type="radio" name="miner-mode" value="yellowpages"
+                                            style="accent-color:#f59e0b; margin-top:3px;">
+                                        <div>
+                                            <div style="font-size:12px; font-weight:600; color:#f59e0b;">黃頁模式 (原版)</div>
+                                            <div style="font-size:11px; color:var(--text-muted);">搜尋 Yellowpages /
+                                                Yelp。適合本地服務業、維修店、零售商。</div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div id="scrape-status" class="status-msg hidden">
+                                探勘任務已啟動！請查看下方系統日誌。
+                            </div>
+                            <button type="submit" class="btn-primary" id="start-scrape-btn"
+                                style="margin-top:15px; width:100%; background: linear-gradient(135deg, var(--primary), var(--primary-hover));">🚀
+                                開始自動探勘</button>
+                        </form>
+
+                    </section>
+
+                    <!-- Right Column: Results & Logs -->
+                    <section class="lead-results-section">
+                        <div class="glass-panel recent-leads-panel">
+                            <div class="panel-header">
+                                <h3>客戶列表 <span id="leads-count"
+                                        style="font-size:12px; color:var(--text-muted); font-weight:normal;">0 筆</span>
+                                </h3>
+                                <div id="filter-bar" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                    <input type="text" id="search-leads" placeholder="搜尋公司..."
+                                        style="padding:6px 10px; border-radius:6px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:#fff; width:120px;">
+                                    <select id="filter-status" style="padding:6px; border-radius:6px;">
+                                        <option value="">所有狀態</option>
+                                        <option value="new">未聯繫</option>
+                                        <option value="Email_Sent">已寄信</option>
+                                        <option value="opened">已開信</option>
+                                        <option value="replied">已回覆</option>
+                                    </select>
+                                    <select id="filter-tag" style="padding:6px; border-radius:6px;">
+                                        <option value="">所有產業</option>
+                                        <option value="NA-CABLE">Cable</option>
+                                        <option value="NA-NAMEPLATE">Nameplate</option>
+                                        <option value="NA-PLASTIC">Plastic</option>
+                                        <option value="AUTO">Auto Parts</option>
+                                    </select>
+                                    <button id="refresh-btn" class="btn-icon" title="重新整理">↺</button>
+                                </div>
+                            </div>
+                            <!-- Batch Actions Bar -->
+                            <div id="batch-bar" class="batch-bar hidden">
+                                <label style="display:flex; align-items:center; gap:8px; font-size:13px;">
+                                    <input type="checkbox" id="select-all-leads" onchange="toggleAllLeads()">
+                                    <span>全選</span>
+                                    <span id="selected-count" style="color:var(--primary);">0</span> 筆
+                                </label>
+                                <div style="display:flex; gap:8px;">
+                                    <button class="btn-sm" onclick="batchSendEmail()" title="批次寄信">✉️ 寄信</button>
+                                    <button class="btn-sm" onclick="batchExportCSV()" title="匯出 CSV">📥 匯出</button>
+                                    <button class="btn-sm danger" onclick="batchDeleteLeads()" title="批次刪除">🗑️
+                                        刪除</button>
+                                </div>
+                            </div>
+                            <div class="leads-list" id="leads-list">
+                                <!-- Empty state -->
+                                <div class="leads-empty" id="leads-empty">
+                                    <div style="font-size:48px; margin-bottom:16px;">📭</div>
+                                    <div style="font-size:16px; margin-bottom:8px;">尚無客戶資料</div>
+                                    <div style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">
+                                        在左側設定條件後開始探勘
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Auto-Miner Progress (Collapsible) -->
+                        <div id="miner-progress" class="glass-panel hidden" style="margin-top:15px; padding:15px;">
+                            <div
+                                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span class="miner-spinner">🕷️</span>
+                                    <h4 style="font-size:14px; margin:0;">自動探勘中</h4>
+                                </div>
+                                <button class="btn-sm danger" onclick="stopMiner()" style="padding:6px 12px;">⏹
+                                    停止</button>
+                            </div>
+                            <div
+                                style="background:rgba(255,255,255,0.1); border-radius:8px; height:12px; overflow:hidden;">
+                                <div id="miner-progress-bar"
+                                    style="background:linear-gradient(90deg, #f59e0b, #10b981); height:100%; width:0%; transition:width 0.3s; border-radius:8px;">
+                                </div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-top:12px; font-size:13px;">
+                                <span>已處理: <strong id="miner-processed" style="color:var(--primary);">0</strong></span>
+                                <span>新增: <strong id="miner-added" style="color:#10b981;">0</strong></span>
+                                <span>跳過: <strong id="miner-skipped" style="color:var(--text-muted);">0</strong></span>
+                            </div>
+                            <div
+                                style="margin-top:12px; padding:8px; background:rgba(0,0,0,0.2); border-radius:6px; font-size:12px; color:var(--text-muted);">
+                                <div id="miner-current-task">準備中...</div>
+                            </div>
+                            <label
+                                style="display:flex; align-items:center; gap:8px; margin-top:12px; font-size:13px; cursor:pointer;">
+                                <input type="checkbox" id="auto-send-after-mining">
+                                <span>完成後自動寄送預設模板</span>
+                            </label>
+                        </div>
+
+                        <!-- System Logs -->
+                        <div class="glass-panel" style="margin-top:20px; padding:15px;">
+                            <div class="panel-header" style="margin-bottom:10px;">
+                                <h3 style="font-size:14px;">🖥️ 系統運作日誌</h3>
+                                <div style="display:flex; gap:8px; align-items:center;">
+                                    <button id="clear-logs-btn"
+                                        style="font-size:11px; padding:2px 8px; background:rgba(255,255,255,0.1); border:none; border-radius:4px; color:var(--text-muted); cursor:pointer;">清除</button>
+                                    <span id="console-status" style="font-size:11px; color:#10b981;">● Online</span>
+                                </div>
+                            </div>
+                            <div id="system-console" class="console-log">
+                                等待系統日誌...
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- View: Campaign Logs (寄信記錄) -->
+            <div id="campaign-logs-view" class="view-content hidden">
+                <!-- 子功能 A: SMTP 狀態警示 -->
+                <div id="smtp-warning-card" class="feature-card" style="display:none; border-left:4px solid #f59e0b;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <div style="font-weight:600; color:#f59e0b; margin-bottom:4px;">⚠️ SMTP 尚未設定，目前無法寄信</div>
+                            <div style="font-size:13px; color:var(--text-muted);">完成設定後才能發送開發信</div>
+                        </div>
+                        <button class="btn-primary" onclick="switchView('nav-smtp-settings')">
+                            前往 SMTP 設定 →
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 子功能 B: 篩選控制列 -->
+                <div class="feature-card">
+                    <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                        <select id="filter-campaign-status"
+                            style="padding:8px 12px; border-radius:6px; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:#fff;">
+                            <option value="">所有狀態</option>
+                            <option value="Sent">已寄出</option>
+                            <option value="Delivered">已送達</option>
+                            <option value="Opened">已開信</option>
+                            <option value="Clicked">已點擊</option>
+                            <option value="Replied">已回覆</option>
+                            <option value="Bounced">退信</option>
+                            <option value="Failed">失敗</option>
+                        </select>
+                        <input type="date" id="filter-campaign-date-start"
+                            style="padding:8px; border-radius:6px; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:#fff;">
+                        <span style="color:var(--text-muted);">至</span>
+                        <input type="date" id="filter-campaign-date-end"
+                            style="padding:8px; border-radius:6px; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:#fff;">
+                        <input type="text" id="search-campaign" placeholder="搜尋主旨/公司..."
+                            style="flex:1; min-width:150px; padding:8px 12px; border-radius:6px; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:#fff;">
+                        <button id="refresh-campaigns-btn" class="btn-icon" title="重整">↺</button>
+                    </div>
+                </div>
+
+                <!-- 子功能 C: 寄信記錄表格 -->
+                <div class="feature-card" style="padding:0;">
+                    <table class="data-table" style="margin:0;">
+                        <thead>
+                            <tr>
+                                <th style="width:40px;"><input type="checkbox" id="select-all-campaigns"
+                                        onchange="toggleAllCampaigns()"></th>
+                                <th>時間</th>
+                                <th>目標公司</th>
+                                <th>Email</th>
+                                <th>主旨</th>
+                                <th>狀態</th>
+                                <th style="width:100px;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="campaigns-table-body">
+                            <!-- Empty state will be rendered by JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Batch actions bar -->
+                <div id="campaign-batch-bar" class="feature-card"
+                    style="display:none; padding:12px 16px; background:rgba(79,142,247,0.1);">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>已選取 <span id="campaign-selected-count">0</span> 筆</span>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn-sm" onclick="batchResendCampaigns()">🔄 批次重寄</button>
+                            <button class="btn-sm danger" onclick="batchDeleteCampaigns()">🗑️ 批次刪除</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View: Search Logs (搜尋記錄) -->
+            <div id="search-logs-view" class="view-content hidden">
+                <!-- 子功能 A: 探勘歷史 -->
+                <div class="feature-card">
+                    <div class="panel-header" style="margin-bottom:1rem;">
+                        <h3>🔍 探勘歷史</h3>
+                        <button id="refresh-search-logs-btn" class="btn-icon" title="重整">↺</button>
+                    </div>
+                    <div id="search-logs-container">
+                        <div style="text-align:center; padding:60px 20px; color:var(--text-muted);">
+                            <div style="font-size:48px; margin-bottom:16px;">🔍</div>
+                            <div>尚無探勘記錄</div>
+                            <div style="font-size:13px; margin-top:8px;">前往 Lead Engine 開始第一次探勘</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 子功能 B: 系統日誌 (折疊) -->
+                <div class="feature-card">
+                    <div class="panel-header" style="cursor:pointer;" onclick="toggleSystemLogs()">
+                        <h3>📝 系統日誌</h3>
+                        <span id="system-logs-toggle">▼</span>
+                    </div>
+                    <div id="system-logs-container"
+                        style="display:none; max-height:300px; overflow-y:auto; font-family:monospace; font-size:12px;">
+                        <div id="search-logs-text" style="color:var(--text-muted);">系統日誌...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View: Email Templates -->
+            <div id="templates-view" class="view-content hidden">
+                <!-- Tab Navigation -->
+                <div style="margin-bottom:20px;">
+                    <div
+                        style="display:flex; gap:10px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px;">
+                        <button id="tab-create" class="tab-btn" onclick="switchTemplateTab('create')">📝
+                            建立/編輯模板</button>
+                        <button id="tab-list" class="tab-btn active" onclick="switchTemplateTab('list')">📁
+                            現有模板</button>
+                        <button id="tab-attachments" class="tab-btn" onclick="switchTemplateTab('attachments')">📎
+                            附件管理</button>
+                    </div>
+                </div>
+
+                <!-- Tab: Create/Edit Template -->
+                <div id="template-create-tab" class="template-tab-content">
+                    <div class="content-grid">
+                        <!-- Left: AI Generation + HTML Editor -->
+                        <section class="glass-panel" style="padding:1.5rem;">
+                            <!-- AI Generation Section -->
+                            <div
+                                style="margin-bottom:20px; padding:15px; background:rgba(99,102,241,0.1); border-radius:8px;">
+                                <h4 style="margin-bottom:10px;">🤖 AI 智慧生成信件排版</h4>
+                                <p style="color:var(--text-muted); font-size:12px; margin-bottom:12px;">
+                                    描述你的信件目的，AI 自動排版為專業 HTML 開發信
+                                </p>
+                                <textarea id="ai-prompt-input" rows="3"
+                                    placeholder="例如：我要寫一封針對美國汽車零件採購商的開發信，強調我們的 Cable 產品品質與交期..."
+                                    style="width:100%; padding:10px; border-radius:6px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:#fff; resize:vertical;"></textarea>
+
+                                <div style="display:flex; gap:15px; margin-top:12px; align-items:center;">
+                                    <div>
+                                        <span style="font-size:12px; color:var(--text-muted);">語言風格：</span>
+                                        <select id="ai-style"
+                                            style="padding:4px 8px; border-radius:4px; margin-left:5px;">
+                                            <option value="professional">正式</option>
+                                            <option value="friendly">親切</option>
+                                            <option value="technical">技術型</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <span style="font-size:12px; color:var(--text-muted);">信件語言：</span>
+                                        <select id="ai-language"
+                                            style="padding:4px 8px; border-radius:4px; margin-left:5px;">
+                                            <option value="english">English</option>
+                                            <option value="chinese">中文</option>
+                                        </select>
+                                    </div>
+                                    <button id="ai-generate-btn" class="btn-primary" style="padding:6px 16px;">
+                                        ✨ 讓 AI 生成 HTML
+                                    </button>
+                                    <button id="ai-clear-btn" class="btn-secondary" style="padding:6px 16px;">
+                                        清除
+                                    </button>
+                                </div>
+                                <div id="ai-status" class="status-msg hidden" style="margin-top:10px;"></div>
+                            </div>
+
+                            <!-- Mode Toggle -->
+                            <div style="display:flex; gap:10px; margin-bottom:15px; align-items:center;">
+                                <span style="font-size:13px; color:var(--text-muted);">模式切換：</span>
+                                <button id="mode-edit" class="btn-secondary active" onclick="setEditorMode('edit')"
+                                    style="padding:4px 12px;">📝 HTML 編輯</button>
+                                <button id="mode-preview" class="btn-secondary" onclick="setEditorMode('preview')"
+                                    style="padding:4px 12px;">👁 預覽</button>
+                                <button id="mode-split" class="btn-secondary" onclick="setEditorMode('split')"
+                                    style="padding:4px 12px;">↔ 分割視圖</button>
+
+                                <div style="margin-left:auto; display:flex; gap:5px;">
+                                    <button class="btn-secondary" onclick="formatHTML()"
+                                        style="padding:4px 8px; font-size:11px;">格式化</button>
+                                    <button class="btn-secondary" onclick="restoreOriginal()"
+                                        style="padding:4px 8px; font-size:11px;">復原</button>
+                                </div>
+                            </div>
+
+                            <!-- Variable Chips -->
+                            <div style="margin-bottom:15px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                <span style="font-size:12px; color:var(--text-muted);">變數插入：</span>
+                                <button class="var-chip"
+                                    onclick="insertVariable('company_name')">`{{company_name}}`</button>
+                                <button class="var-chip" onclick="insertVariable('bd_name')">`{{bd_name}}`</button>
+                                <button class="var-chip" onclick="insertVariable('keywords')">`{{keywords}}`</button>
+                                <button class="var-chip"
+                                    onclick="insertVariable('description')">`{{description}}`</button>
+                            </div>
+
+                            <!-- Editor + Preview Split View -->
+                            <div id="editor-container"
+                                style="display:grid; grid-template-columns:1fr 1fr; gap:15px; min-height:400px; overflow-y:auto;">
+                                <!-- HTML Editor -->
+                                <div id="html-editor-wrapper" style="display:flex; flex-direction:column;">
+                                    <div
+                                        style="padding:8px; background:rgba(255,255,255,0.05); border-radius:6px 6px 0 0; font-size:12px; color:var(--text-muted);">
+                                        HTML 編輯器
+                                    </div>
+                                    <div id="monaco-container" style="min-height:400px;"
+                                        style="flex:1; min-height:400px; border-radius:0 0 6px 6px; border:1px solid rgba(255,255,255,0.1); overflow:hidden;">
+                                    </div>
+                                </div>
+
+                                <!-- Preview -->
+                                <div id="preview-wrapper" style="display:flex; flex-direction:column;">
+                                    <div
+                                        style="padding:8px; background:rgba(255,255,255,0.05); border-radius:6px 6px 0 0; font-size:12px; color:var(--text-muted);">
+                                        即時預覽
+                                    </div>
+                                    <iframe id="preview-iframe"
+                                        style="flex:1; min-height:400px; border-radius:0 0 6px 6px; border:1px solid rgba(255,255,255,0.1); background:#fff;">
+                                    </iframe>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Right: Template Settings -->
+                        <section class="glass-panel" style="padding:1.5rem;">
+                            <h3 style="margin-bottom:20px;">⚙️ 模板設定</h3>
+
+                            <div class="input-group">
+                                <label>模板名稱 *</label>
+                                <input type="text" id="template-name" placeholder="例如: Cable 標準開發信">
+                            </div>
+
+                            <div class="input-group">
+                                <label>適用標籤 *</label>
+                                <select id="template-tag">
+                                    <option value="NA-CABLE">NA-CABLE (Cable)</option>
+                                    <option value="NA-NAMEPLATE">NA-NAMEPLATE (Nameplate)</option>
+                                    <option value="NA-PLASTIC">NA-PLASTIC (Plastic)</option>
+                                    <option value="AUTO-ENGINE">AUTO-ENGINE (汽車引擎)</option>
+                                    <option value="AUTO-BRAKE">AUTO-BRAKE (汽車煞車)</option>
+                                    <option value="AUTO-PARTS">AUTO-PARTS (汽車零件)</option>
+                                </select>
+                            </div>
+
+                            <div class="input-group">
+                                <label>信件主旨 *</label>
+                                <input type="text" id="template-subject"
+                                    placeholder="例如: Partnership Opportunity - {{company_name}}">
+                            </div>
+
+                            <div class="input-group">
+                                <label>夾帶附件</label>
+                                <div id="attachment-select" style="margin-top:5px;">
+                                    <p style="color:var(--text-muted); font-size:12px;">尚無附件，請先到「附件管理」上傳</p>
+                                </div>
+                            </div>
+
+                            <div style="display:flex; gap:10px; margin-top:20px; align-items:center;">
+                                <button id="save-template-btn" class="btn-primary" onclick="saveTemplateV2()">
+                                    💾 儲存模板
+                                </button>
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                    <input type="checkbox" id="template-default">
+                                    <span style="font-size:13px;">設為預設</span>
+                                </label>
+                            </div>
+
+                            <hr style="border-color:rgba(255,255,255,0.1); margin:25px 0;">
+
+                            <div>
+                                <button class="btn-secondary" onclick="sendTestEmail()" style="width:100%;">
+                                    📧 傳送測試信到我的信箱
+                                </button>
+                                <p style="color:var(--text-muted); font-size:11px; margin-top:8px;">
+                                    用 SMTP 設定寄一封測試信給自己，確認排版效果
+                                </p>
+                            </div>
+
+                            <div id="template-status" class="status-msg hidden" style="margin-top:15px;"></div>
+                        </section>
+                    </div>
+                </div>
+
+                <!-- Tab: Existing Templates -->
+                <div id="template-list-tab" class="template-tab-content hidden">
+                    <section class="glass-panel" style="padding:1.5rem;">
+                        <div class="panel-header" style="margin-bottom:1rem;">
+                            <h3>現有模板</h3>
+                        </div>
+                        <div style="display:flex; gap:8px; margin-bottom:12px;">
+                            <input type="text" id="template-search" placeholder="搜尋模板..."
+                                style="flex:1; padding:8px 12px; border-radius:6px; border:1px solid var(--glass-border); background:rgba(255,255,255,0.05); color:#fff; font-size:13px;">
+                            <select id="template-tag-filter"
+                                style="padding:8px; border-radius:6px; border:1px solid var(--glass-border); background:rgba(255,255,255,0.05); color:#fff; font-size:13px;">
+                                <option value="">全部標籤</option>
+                                <option value="NA-CABLE">NA-CABLE</option>
+                                <option value="NA-NAMEPLATE">NA-NAMEPLATE</option>
+                                <option value="NA-PLASTIC">NA-PLASTIC</option>
+                                <option value="AUTO">AUTO</option>
+                            </select>
+                        </div>
+                        <div id="templates-list" style="overflow-y:auto;">
+                            <button class="btn-primary" onclick="switchTemplateTab('create')" style="padding:6px 16px;">
+                                + 新增模板
+                            </button>
+                        </div>
+                        <div id="templates-list" style="overflow-y:auto;">
+                            <p style="color:var(--text-muted);">載入中...</p>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Tab: Attachments -->
+                <div id="template-attachments-tab" class="template-tab-content hidden">
+                    <section class="glass-panel" style="padding:1.5rem;">
+                        <h3 style="margin-bottom:15px;">📎 附件管理</h3>
+                        <p style="color:var(--text-muted); font-size:13px; margin-bottom:20px;">
+                            上傳的檔案可在模板中設定是否夾帶，支援 PDF/PPT/圖片
+                        </p>
+
+                        <!-- Upload Area -->
+                        <div id="upload-dropzone"
+                            style="border:2px dashed rgba(255,255,255,0.2); border-radius:8px; padding:40px; text-align:center; cursor:pointer; transition:all 0.3s;"
+                            ondrop="handleDrop(event)" ondragover="handleDragOver(event)"
+                            ondragleave="handleDragLeave(event)">
+                            <div style="font-size:40px; margin-bottom:10px;">📁</div>
+                            <div style="font-size:14px; margin-bottom:5px;">拖曳檔案到此處，或點擊上傳</div>
+                            <div style="font-size:12px; color:var(--text-muted);">
+                                支援：PDF、DOCX、XLSX、PPT、PNG、JPG | 單檔限制：10MB
+                            </div>
+                            <input type="file" id="file-input" multiple
+                                accept=".pdf,.docx,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg" style="display:none;"
+                                onchange="handleFileSelect(event)">
+                        </div>
+
+                        <!-- Uploaded Files List -->
+                        <div style="margin-top:25px;">
+                            <h4 style="font-size:14px; margin-bottom:12px;">已上傳檔案：</h4>
+                            <div id="uploaded-files-list">
+                                <p style="color:var(--text-muted); font-size:12px;">尚無上傳檔案</p>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- View: Add Lead (獨立頁面) -->
+            <div id="add-lead-view" class="view-content hidden">
+                <div class="content-grid" style="max-width: 700px;">
+                    <section class="glass-panel" style="padding:2rem;">
+                        <h3>➕ 新增客戶</h3>
+                        <p style="color:var(--text-muted); font-size:13px; margin-bottom: 24px;">
+                            輸入公司名稱與網站，AI 會自動分類並存入資料庫
+                        </p>
+                        <form id="quick-lead-form">
+                            <div class="input-group">
+                                <label>公司名稱 *</label>
+                                <input type="text" id="quick-company-name" required placeholder="例如: Acme Cable Tech">
+                            </div>
+                            <div class="input-group">
+                                <label>公司網站 (選填)</label>
+                                <input type="url" id="quick-website-url" placeholder="https://example.com">
+                            </div>
+                            <button type="submit" class="btn-primary" id="quick-lead-btn" style="margin-top:10px;">
+                                ➕ 新增並分類
+                            </button>
+                        </form>
+                        <div id="quick-lead-loading" class="loading-spinner hidden" style="margin-top:20px;">
+                            <div class="spinner"></div>
+                            <p>AI 分析中，自動分類中...</p>
+                        </div>
+                        <div id="quick-lead-result" class="status-msg hidden" style="margin-top:15px;"></div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- View: Email Engagements (觸及率) -->
+            <div id="engagements-view" class="view-content hidden">
+                <div class="content-grid">
+                    <!-- 左：標籤維度統計 -->
+                    <section class="glass-panel" style="padding:1.5rem;">
+                        <div class="panel-header" style="margin-bottom:1rem;">
+                            <h3>📊 各行業界別觸及統計</h3>
+                            <button id="refresh-engagements-btn" class="btn-icon">↺</button>
+                        </div>
+                        <div id="engagement-tag-stats"></div>
+                    </section>
+
+                    <!-- 右：收費標準設定 -->
+                    <section class="glass-panel" style="padding:1.5rem;">
+                        <h3>💰 收費標準設定</h3>
+                        <p style="color:var(--text-muted); font-size:13px; margin-bottom: 20px;">
+                            用於內部報價參考，可隨時調整
+                        </p>
+                        <form id="pricing-form">
+                            <div class="input-group">
+                                <label>基本費用 (Base Fee)</label>
+                                <input type="number" id="pricing-base-fee" required>
+                            </div>
+                            <div class="input-group">
+                                <label>每筆客戶費用</label>
+                                <input type="number" id="pricing-per-lead" required>
+                            </div>
+                            <div class="input-group">
+                                <label>開信追蹤費用</label>
+                                <input type="number" id="pricing-email-open-track" required>
+                            </div>
+                            <div class="input-group">
+                                <label>點擊追蹤費用</label>
+                                <input type="number" id="pricing-email-click-track" required>
+                            </div>
+                            <div class="input-group">
+                                <label>每筆客戶美元報價</label>
+                                <input type="number" step="0.1" id="pricing-per-lead-usd" required>
+                            </div>
+                            <button type="submit" class="btn-primary" style="margin-top:10px;">💾 儲存收費標準</button>
+                        </form>
+                        <div id="pricing-status" class="status-msg hidden" style="margin-top:15px;"></div>
+
+                        <hr style="border-color:rgba(255,255,255,0.1); margin: 24px 0;">
+
+                        <h4>📋 報價試算</h4>
+                        <div id="quote-calculator" style="margin-top:12px;">
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                <input type="number" id="quote-lead-count" placeholder="客戶數量"
+                                    style="flex:1; padding:8px; border-radius:6px; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.05); color:white;"
+                                    value="100">
+                                <span style="color:var(--text-muted);">筆</span>
+                                <button type="button" class="btn-secondary" onclick="calcQuote()"
+                                    style="padding:8px 16px;">試算</button>
+                            </div>
+                            <div id="quote-result" style="margin-top:12px; font-size:13px;"></div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- 個別追蹤記錄表格 -->
+                <section class="glass-panel" style="padding:1.5rem; margin-top:20px;">
+                    <h3>📋 個別追蹤記錄</h3>
+                    <div style="overflow-y:auto; max-height:400px; margin-top:15px;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>公司名稱</th>
+                                    <th>行業界別</th>
+                                    <th>開信</th>
+                                    <th>點擊</th>
+                                    <th>回覆</th>
+                                    <th>時間</th>
+                                </tr>
+                            </thead>
+                            <tbody id="engagements-table-body">
+                                <tr>
+                                    <td colspan="6" style="text-align:center; color:var(--text-muted);">尚無追蹤資料</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <!-- View: SMTP Settings -->
+            <div id="smtp-settings-view" class="view-content hidden">
+                <div class="content-grid" style="max-width: 900px;">
+                    <div class="glass-panel" style="padding:1.5rem; margin-bottom:20px;">
+                        <h3>📤 自動寄信排程</h3>
+                        <div style="display:flex; align-items:center; gap:15px; margin:15px 0;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span>狀態：</span>
+                                <span id="scheduler-status-badge"
+                                    style="padding:4px 12px; border-radius:12px; font-size:12px; font-weight:bold; background:#ef4444; color:white;">⏸
+                                    排程已停止</span>
+                            </div>
+                            <!-- Only show ONE button based on status -->
+                            <button id="btn-scheduler-start" class="btn-primary"
+                                style="background:#10b981; padding:10px 20px; display:none;">▶ 啟動排程</button>
+                            <button id="btn-scheduler-stop" class="btn-secondary"
+                                style="color:#fff; background:#ef4444; border:none; padding:10px 20px; border-radius:6px; cursor:pointer; display:inline-block;">⏹
+                                停止排程</button>
+                        </div>
+
+                        <div
+                            style="margin-top:15px; padding:15px; background:rgba(255,255,255,0.05); border-radius:8px;">
+                            <h4 style="font-size:14px; margin-bottom:10px;">排程設定</h4>
+                            <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:15px;">
+                                <div class="input-group" style="margin-bottom:0;">
+                                    <label style="font-size:12px;">執行時間</label>
+                                    <input type="time" id="schedule-time" value="09:00" style="padding:8px;">
+                                </div>
+                                <div class="input-group" style="margin-bottom:0;">
+                                    <label style="font-size:12px;">發送間隔 (秒)</label>
+                                    <input type="number" id="schedule-interval" value="30" min="10"
+                                        style="padding:8px;">
+                                </div>
+                                <div class="input-group" style="margin-bottom:0;">
+                                    <label style="font-size:12px;">每日上限</label>
+                                    <input type="number" id="schedule-daily-limit" value="50" min="1"
+                                        style="padding:8px;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <section class="glass-panel" style="padding:2rem;">
+                        <h3>⚙️ SMTP 發信設定</h3>
+                        <p style="color:var(--text-muted); font-size:13px; margin-bottom: 20px;">
+                            設定 SMTP 後，系統會自動寄出開發信。支援 Gmail、Outlook 等。
+                        </p>
+
+                        <form id="smtp-form">
+                            <div class="input-group">
+                                <label>SMTP 伺服器</label>
+                                <input type="text" id="smtp-server" placeholder="smtp.gmail.com">
+                            </div>
+                            <div class="input-group">
+                                <label>SMTP 埠號</label>
+                                <input type="number" id="smtp-port" placeholder="587" value="587">
+                            </div>
+                            <div class="input-group">
+                                <label>發信帳號 (Email)</label>
+                                <input type="email" id="smtp-user" placeholder="your-email@gmail.com">
+                            </div>
+                            <div class="input-group">
+                                <label>應用程式密碼 / 授權碼</label>
+                                <div style="position:relative;">
+                                    <input type="password" id="smtp-password" placeholder="你的應用程式密碼"
+                                        style="width:100%; padding-right:40px;">
+                                    <button type="button" id="toggle-password"
+                                        style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:18px;">👁</button>
+                                </div>
+                                <small style="color:var(--text-muted);">Gmail 請使用「應用程式密碼」，不是你的登入密碼</small>
+                            </div>
+                            <div style="display:flex; gap:10px; margin-top:20px;">
+                                <button type="submit" class="btn-primary">儲存設定</button>
+                                <button type="button" class="btn-secondary" id="test-smtp-btn">🔍 測試連線</button>
+                            </div>
+                        </form>
+
+                        <div id="smtp-status" class="status-msg hidden" style="margin-top:15px;"></div>
+
+                        <hr style="border-color: rgba(255,255,255,0.1); margin: 30px 0;">
+
+                        <h4>📋 常見 SMTP 設定</h4>
+                        <table class="data-table" style="margin-top:15px;">
+                            <thead>
+                                <tr>
+                                    <th>郵件服務</th>
+                                    <th>SMTP 伺服器</th>
+                                    <th>埠號</th>
+                                    <th>備註</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Gmail</td>
+                                    <td>smtp.gmail.com</td>
+                                    <td>587</td>
+                                    <td>需啟用 2FA + 應用程式密碼</td>
+                                </tr>
+                                <tr>
+                                    <td>Outlook/Hotmail</td>
+                                    <td>smtp-mail.outlook.com</td>
+                                    <td>587</td>
+                                    <td>使用 Microsoft 帳號</td>
+                                </tr>
+                                <tr>
+                                    <td>Yahoo</td>
+                                    <td>smtp.mail.yahoo.com</td>
+                                    <td>587</td>
+                                    <td>需啟用「允許應用程式」</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </section>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Email Preview Modal -->
+    <div id="email-modal" class="modal hidden">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h3>預覽開發信</h3>
+                <span class="close-btn">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label>主旨</label>
+                    <input type="text" id="modal-subject" readonly>
+                </div>
+                <div class="input-group">
+                    <label>內容</label>
+                    <textarea id="modal-body" rows="12" readonly></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary close-btn">關閉</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="modal hidden" style="background: var(--bg-dark); z-index: 9999;">
+        <div class="modal-content glass-panel" style="max-width: 420px; text-align: center;">
+            <div style="display:flex; justify-content:center; margin-bottom:20px;">
+                <svg width="48" height="48" viewBox="0 0 32 32" fill="none">
+                    <circle cx="10" cy="16" r="6" stroke="#4F8EF7" stroke-width="2.5" />
+                    <circle cx="22" cy="16" r="6" stroke="#6EE7B7" stroke-width="2.5" />
+                    <path d="M16 16H16" stroke="#4F8EF7" stroke-width="2.5" stroke-linecap="round" />
+                </svg>
+            </div>
+            <h2 style="margin-bottom:8px;">Linkora</h2>
+            <p style="color:var(--text-muted); margin-bottom:24px; font-size:14px;">AI B2B Outreach Platform</p>
+
+            <!-- Login Form -->
+            <form id="login-form">
+                <div class="input-group" style="text-align:left;">
+                    <label>Email</label>
+                    <input type="email" id="login-email" required placeholder="your@email.com"
+                        style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid var(--glass-border); background:rgba(255,255,255,0.05); color:#fff;">
+                </div>
+                <div class="input-group" style="text-align:left; margin-bottom:20px;">
+                    <label>密碼</label>
+                    <input type="password" id="login-password" required placeholder="••••••••"
+                        style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid var(--glass-border); background:rgba(255,255,255,0.05); color:#fff;">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%; padding:12px;">登入</button>
+            </form>
+            <p id="login-error" style="color:#ef4444; margin-top:12px; font-size:13px; display:none;"></p>
+
+            <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--glass-border);">
+                <p style="color:var(--text-muted); font-size:13px; margin-bottom:12px;">還沒有帳號？</p>
+                <button type="button" onclick="toggleAuthMode()" class="btn btn-outline"
+                    style="width:100%; padding:10px;">註冊新帳號</button>
+            </div>
+
+            <!-- Register Form (Hidden by default) -->
+            <form id="register-form" class="hidden" style="margin-top:20px;">
+                <div class="input-group" style="text-align:left;">
+                    <label>姓名</label>
+                    <input type="text" id="register-name" placeholder="王大明"
+                        style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid var(--glass-border); background:rgba(255,255,255,0.05); color:#fff;">
+                </div>
+                <div class="input-group" style="text-align:left;">
+                    <label>公司名稱</label>
+                    <input type="text" id="register-company" placeholder="ABC Corp"
+                        style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid var(--glass-border); background:rgba(255,255,255,0.05); color:#fff;">
+                </div>
+                <div class="input-group" style="text-align:left;">
+                    <label>Email</label>
+                    <input type="email" id="register-email" required placeholder="your@email.com"
+                        style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid var(--glass-border); background:rgba(255,255,255,0.05); color:#fff;">
+                </div>
+                <div class="input-group" style="text-align:left; margin-bottom:20px;">
+                    <label>密碼</label>
+                    <input type="password" id="register-password" required placeholder="••••••••"
+                        style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid var(--glass-border); background:rgba(255,255,255,0.05); color:#fff;">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%; padding:12px;">註冊</button>
+            </form>
+            <p id="register-error" style="color:#ef4444; margin-top:12px; font-size:13px; display:none;"></p>
+
+            <div style="margin-top:16px;">
+                <button type="button" onclick="toggleAuthMode()" class="btn-text"
+                    style="background:none; border:none; color:var(--primary); cursor:pointer; font-size:13px;">已有帳號？登入</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleAuthMode() {
+            const loginForm = document.getElementById('login-form');
+            const registerForm = document.getElementById('register-form');
+            const loginError = document.getElementById('login-error');
+            const registerError = document.getElementById('register-error');
+
+            if (loginForm.classList.contains('hidden')) {
+                // Switch to login
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+                loginError.style.display = 'none';
+            } else {
+                // Switch to register
+                loginForm.classList.add('hidden');
+                registerForm.classList.remove('hidden');
+                registerError.style.display = 'none';
+            }
+        }
+    </script>
+
+    <script src="script.js?v=1774329345"></script>
+</body>
+
+</html>
