@@ -90,7 +90,24 @@ def scrape_directory(config: dict, keyword: str, location: str = "United States"
             
             if resp.status_code == 200:
                 soup = BeautifulSoup(resp.text, 'lxml')
-                results = soup.select(config["result_selector"])
+                # Try multiple selectors for compatibility
+                selectors = [
+                    config.get("result_selector"),
+                    "div.organic .v-card",
+                    "div.result",
+                    "li[data-analytics]",
+                    ".search-results .organic"
+                ]
+                results = []
+                for sel in selectors:
+                    if sel:
+                        try:
+                            results = soup.select(sel)
+                            if results:
+                                add_log(f"  📄 使用 selector: {sel}")
+                                break
+                        except:
+                            continue
                 
                 if not results:
                     add_log(f"  📉 No results found on page {page}")

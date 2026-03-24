@@ -92,7 +92,7 @@ def scrape_keyword_page(keyword: str, page: int, market: str = "US") -> list:
     # ScraperAPI integration
     base_url = "http://api.scraperapi.com"
     params = {
-        "api_key": "c38c4f60be876f7dfd12178cc83b24a0",
+        "api_key": os.getenv("SCRAPER_API_KEY", ""),
         "url": target_url,
         "render": "true",
         "premium": "true"

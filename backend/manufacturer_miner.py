@@ -113,7 +113,11 @@ async def search_via_google_cse(
                     }
                 )
                 
-                if resp.status_code != 200:
+                if resp.status_code == 400:
+                    add_log(f"⚠️ Google CSE 400錯誤 - 請檢查 GOOGLE_API_KEY 和 GOOGLE_CSE_ID 環境變數")
+                    add_log(f"   API Key設定: {'YES' if GOOGLE_API_KEY else 'NO'}")
+                    add_log(f"   CSE ID設定: {'YES' if GOOGLE_CSE_ID else 'NO'}")
+                elif resp.status_code != 200:
                     add_log(f"⚠️ Google CSE 回應 {resp.status_code}")
                     break
                 
