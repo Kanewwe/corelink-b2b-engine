@@ -4,12 +4,13 @@ const API_BASE_URL = window.location.origin + '/api';
 const views = {
     'nav-lead-engine': 'lead-engine-view',
     'nav-add-lead': 'add-lead-view',
+    'nav-templates': 'templates-view',
     'nav-campaigns': 'campaign-logs-view',
     'nav-engagements': 'engagements-view',
     'nav-search-logs': 'search-logs-view',
-    'nav-templates': 'templates-view',
     'nav-smtp-settings': 'smtp-settings-view'
 };
+console.log('Views defined:', views);
 
 // Get Auth Headers
 function getAuthHeaders() {
@@ -20,13 +21,15 @@ function getAuthHeaders() {
 }
 
 // Initialize
+console.log('Script loaded, setting up...');
 document.addEventListener('DOMContentLoaded', async () => {
+    console.log('DOMContentLoaded fired');
     // Check auth status
     try {
         const response = await fetch(`${API_BASE_URL}/auth/me`, {
             credentials: 'include'
         });
-        
+
         if (response.ok) {
             const data = await response.json();
             updateUIWithUser(data);
@@ -59,25 +62,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('btn-scheduler-start')?.addEventListener('click', startScheduler);
     document.getElementById('btn-scheduler-stop')?.addEventListener('click', stopScheduler);
     document.getElementById('btn-scheduler-refresh')?.addEventListener('click', fetchSchedulerStatus);
-    
+
     // Filters
     document.getElementById('search-leads')?.addEventListener('input', debounce(fetchLeads, 300));
     document.getElementById('filter-status')?.addEventListener('change', fetchLeads);
     document.getElementById('filter-tag')?.addEventListener('change', fetchLeads);
     document.getElementById('clear-logs-btn')?.addEventListener('click', clearLogs);
     document.getElementById('toggle-password')?.addEventListener('click', togglePasswordVisibility);
-    
+
     // Email strategy toggle
     document.querySelectorAll('input[name="email-strategy"]').forEach(radio => {
         radio.addEventListener('change', updateStrategyDescription);
     });
 
-    // Navigation
+    // Navigation setup
+    console.log('Setting up navigation for:', Object.keys(views));
     Object.keys(views).forEach(navId => {
-        document.getElementById(navId)?.addEventListener('click', (e) => {
-            e.preventDefault();
-            switchView(navId);
-        });
+        const el = document.getElementById(navId);
+        if (el) {
+            el.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log('Nav clicked:', navId);
+                switchView(navId);
+            });
+            console.log('Nav handler added for:', navId);
+        } else {
+            console.warn('Nav element NOT found:', navId);
+        }
     });
 
     // Modal close buttons
@@ -88,9 +99,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Navigation
 function switchView(navId) {
+    console.log('switchView called:', navId);
     // Update nav active state
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-    document.getElementById(navId).classList.add('active');
+    const navElement = document.getElementById(navId);
+    if (navElement) {
+        navElement.classList.add('active');
+    } else {
+        console.error('Nav element not found:', navId);
+        return;
+    }
 
     // Hide all views
     document.querySelectorAll('.view-content').forEach(view => view.classList.add('hidden'));
@@ -128,16 +146,16 @@ async function updateKPIs() {
         const response = await fetch(`${API_BASE_URL}/leads`, { headers: getAuthHeaders() });
         if (!response.ok) return;
         const leads = await response.json();
-        
+
         // Total leads
         document.getElementById('kpi-total-leads').textContent = leads.length;
-        
+
         // Sent this month
         const now = new Date();
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         const sentThisMonth = leads.filter(l => l.email_sent && new Date(l.email_sent_at) >= monthStart).length;
         document.getElementById('kpi-sent-today').textContent = sentThisMonth;
-        
+
     } catch (error) {
         console.error('KPI update error:', error);
     }
@@ -261,34 +279,34 @@ function showLoginModal() {
 
 function updateUIWithUser(data) {
     const { user, plan, usage, subscription } = data;
-    
+
     // Update username display
     document.getElementById('display-username').textContent = user?.name || user?.email || 'User';
-    
+
     // Store user info
     localStorage.setItem('corelink_user', user?.name || user?.email);
-    
+
     // Update KPI cards with usage
     updateUsageDisplay(usage, plan);
-    
+
     // Show plan badge
     showPlanBadge(plan);
-    
+
     // Apply feature restrictions
     applyFeatureRestrictions(plan);
 }
 
 function updateUsageDisplay(usage, plan) {
     if (!usage) return;
-    
+
     // Update KPI values
     document.getElementById('kpi-total-leads').textContent = usage.customers?.used ?? 0;
     document.getElementById('kpi-sent-today').textContent = usage.emails_month?.used ?? 0;
-    
+
     // Update limits display
     const customersLimit = usage.customers?.limit;
     const emailsLimit = usage.emails_month?.limit;
-    
+
     if (customersLimit !== undefined && customersLimit !== -1) {
         const customersEl = document.getElementById('kpi-customers-limit');
         if (customersEl) {
@@ -300,7 +318,7 @@ function updateUsageDisplay(usage, plan) {
         const customersEl = document.getElementById('kpi-customers-limit');
         if (customersEl) customersEl.textContent = '無上限';
     }
-    
+
     if (emailsLimit !== undefined && emailsLimit !== -1) {
         const emailsEl = document.getElementById('kpi-emails-limit');
         if (emailsEl) {
@@ -317,10 +335,10 @@ function updateUsageDisplay(usage, plan) {
 function showPlanBadge(plan) {
     const container = document.querySelector('.user-profile') || document.querySelector('#display-username')?.parentElement;
     if (!container) return;
-    
+
     // Remove existing badge
     document.querySelector('.plan-badge')?.remove();
-    
+
     // Add plan badge
     const badge = document.createElement('span');
     badge.className = 'plan-badge';
@@ -337,7 +355,7 @@ function applyFeatureRestrictions(plan) {
         aiBtn.title = '需升級至專業方案';
         aiBtn.style.opacity = '0.5';
     }
-    
+
     // Add upgrade prompts where needed
     if (!plan?.features?.ai_email) {
         addLog('💡 部分功能需要專業方案才能使用', 'info');
@@ -398,24 +416,24 @@ async function generateAIKeywords() {
     const resultDiv = document.getElementById('ai-keywords-result');
     const chipsDiv = document.getElementById('keyword-chips');
     const btn = document.getElementById('ai-keyword-btn');
-    
+
     if (!keyword) {
         alert('請先輸入一個產業關鍵字');
         return;
     }
-    
+
     btn.disabled = true;
     btn.innerHTML = '⏳ 生成中...';
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/keywords/generate`, {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({ keyword })
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success && result.keywords) {
             chipsDiv.innerHTML = '';
             result.keywords.forEach(kw => {
@@ -427,7 +445,7 @@ async function generateAIKeywords() {
                 `;
                 chipsDiv.appendChild(chip);
             });
-            
+
             const customInput = document.createElement('div');
             customInput.style.cssText = 'display:flex; gap:4px;';
             customInput.innerHTML = `
@@ -436,7 +454,7 @@ async function generateAIKeywords() {
                 <button type="button" onclick="addCustomKeyword()" style="padding:4px 8px; font-size:11px; background:rgba(139,92,246,0.3); border:1px solid rgba(139,92,246,0.4); border-radius:12px; color:#fff; cursor:pointer;">新增</button>
             `;
             chipsDiv.appendChild(customInput);
-            
+
             resultDiv.classList.remove('hidden');
             addLog('✨ 已生成 5 組關鍵字，請選擇要使用的', 'success');
         } else {
@@ -445,7 +463,7 @@ async function generateAIKeywords() {
     } catch (error) {
         alert('生成失敗：' + error.message);
     }
-    
+
     btn.disabled = false;
     btn.innerHTML = '✨ AI 關鍵字';
 }
@@ -454,12 +472,12 @@ function addCustomKeyword() {
     const input = document.getElementById('custom-keyword');
     const value = input?.value.trim();
     if (!value) return;
-    
+
     const chipsDiv = document.getElementById('keyword-chips');
     const chip = document.createElement('label');
     chip.style.cssText = 'display:inline-flex; align-items:center; gap:4px; padding:6px 12px; background:rgba(139,92,246,0.2); border:1px solid rgba(139,92,246,0.4); border-radius:16px; cursor:pointer; font-size:12px;';
     chip.innerHTML = `<input type="checkbox" value="${value}" checked style="accent-color:#8b5cf6;"><span>${value}</span>`;
-    
+
     const customInput = chipsDiv.querySelector('div:last-child');
     chipsDiv.insertBefore(chip, customInput);
     input.value = '';
@@ -479,11 +497,12 @@ async function startScrape(e) {
     const btn = document.getElementById('start-scrape-btn');
     const status = document.getElementById('scrape-status');
     const progress = document.getElementById('miner-progress');
-    
+
     const market = document.getElementById('scrape-market').value;
     const baseKeyword = document.getElementById('scrape-keyword').value;
     const location = document.getElementById('scrape-location')?.value || '';
     const pages = document.getElementById('scrape-pages')?.value || 3;
+    const minerMode = document.querySelector('input[name="miner-mode"]:checked')?.value || 'yellowpages';
 
     // Get selected keywords or use base keyword
     const selectedKeywords = getSelectedKeywords();
@@ -491,7 +510,7 @@ async function startScrape(e) {
 
     btn.disabled = true;
     btn.innerHTML = '🚀 探勘中...';
-    
+
     // Show progress
     if (progress) {
         progress.classList.remove('hidden');
@@ -507,21 +526,22 @@ async function startScrape(e) {
                 market: market,
                 pages: parseInt(pages),
                 keywords: keywords,
-                location: location
+                location: location,
+                miner_mode: minerMode
             })
         });
 
         if (response.ok) {
             status.classList.remove('hidden');
             status.className = 'status-msg success';
-            status.innerText = `✅ 探勘任務已啟動！使用 ${keywords.length} 組關鍵字`;
-            addLog(`🔍 開始探勘: ${keywords.join(', ')} (${market})`, 'info');
-            
+            status.innerText = `✅ 探勘任務已啟動！使用 ${keywords.length} 組關鍵字 (${minerMode === 'manufacturer' ? '製造商模式' : '黃頁模式'})`;
+            addLog(`🔍 開始探勘: ${keywords.join(', ')} [${minerMode}] (${market})`, 'info');
+
             // Update progress
             if (progress) {
                 document.getElementById('miner-progress-bar').style.width = '30%';
             }
-            
+
             setTimeout(() => {
                 status.classList.add('hidden');
                 if (progress) {
@@ -553,14 +573,14 @@ async function fetchLeads() {
         const search = document.getElementById('search-leads')?.value || '';
         const statusFilter = document.getElementById('filter-status')?.value || '';
         const tagFilter = document.getElementById('filter-tag')?.value || '';
-        
+
         const response = await fetch(`${API_BASE_URL}/leads`, { headers: getAuthHeaders() });
         if (response.status === 401) {
             handleLogout();
             return;
         }
         let leads = await response.json();
-        
+
         // Apply filters
         if (search) {
             leads = leads.filter(l => l.company_name.toLowerCase().includes(search.toLowerCase()));
@@ -575,7 +595,8 @@ async function fetchLeads() {
                 leads = leads.filter(l => l.ai_tag === tagFilter);
             }
         }
-        
+
+        allLeads = leads;
         renderLeads(leads);
     } catch (error) {
         console.error('Fetch leads error:', error);
@@ -600,20 +621,20 @@ function renderLeads(leads) {
 
         const card = document.createElement('div');
         card.className = 'lead-card';
-        
+
         const emailSentBadge = lead.email_sent ? '<span style="background:#10b981; color:white; padding:2px 8px; border-radius:4px; font-size:11px; margin-left:8px;">✓ 已寄信</span>' : '';
         const assignedBD = lead.assigned_bd || '尚未指派';
         const keywords = lead.extracted_keywords || '無';
-        
+
         // NEW: Contact info display
-        const contactInfo = lead.contact_name 
+        const contactInfo = lead.contact_name
             ? `<div style="margin-top:5px; font-size:12px;">👤 聯絡人: <strong>${lead.contact_name}</strong> ${lead.contact_role ? `(${lead.contact_role})` : ''}</div>`
             : (lead.contact_role ? `<div style="margin-top:5px; font-size:12px;">👤 角色: ${lead.contact_role}</div>` : '');
-        
+
         const phoneInfo = lead.phone ? `<div style="margin-top:5px; font-size:12px;">📞 電話: ${lead.phone}</div>` : '';
         const addressInfo = lead.address ? `<div style="margin-top:5px; font-size:12px;">📍 地址: ${lead.address}${lead.city ? `, ${lead.city}` : ''}</div>` : '';
         const sourceInfo = lead.source_domain ? `<div style="font-size:11px; color:var(--text-muted); margin-top:5px;">來源: ${lead.source_domain}</div>` : '';
-        
+
         card.innerHTML = `
             <div class="lead-card-header">
                 <span class="lead-name">${lead.company_name}${emailSentBadge}</span>
@@ -633,9 +654,9 @@ function renderLeads(leads) {
             </div>
             <div class="lead-actions">
                 ${lead.status === 'Tagged' || lead.status === 'Scraped'
-                    ? `<button class="btn-primary" onclick="generateEmail(${lead.id})" style="padding:8px 16px; font-size:13px; border-radius:6px;">✨ 生成開發信</button>`
-                    : `<button class="btn-secondary" onclick="viewEmail(${lead.id})" style="padding:8px 16px; font-size:13px; border-radius:6px;">✉️ 查看信件</button>`
-                }
+                ? `<button class="btn-primary" onclick="generateEmail(${lead.id})" style="padding:8px 16px; font-size:13px; border-radius:6px;">✨ 生成開發信</button>`
+                : `<button class="btn-secondary" onclick="viewEmail(${lead.id})" style="padding:8px 16px; font-size:13px; border-radius:6px;">✉️ 查看信件</button>`
+            }
                 ${!lead.email_sent ? `<button onclick="markEmailSent(${lead.id})" style="padding:8px 16px; font-size:13px; border-radius:6px; background:transparent; border:1px solid var(--glass-border); color:var(--text-muted); margin-left:8px; cursor:pointer;">✓ 標記已寄</button>` : ''}
             </div>
         `;
@@ -665,8 +686,8 @@ function renderCampaigns(campaigns) {
     }
 
     campaigns.forEach(c => {
-        const statusClass = c.status === 'Sent' ? 'level-success' : 
-                           c.status === 'Draft' ? 'level-info' : 'level-warning';
+        const statusClass = c.status === 'Sent' ? 'level-success' :
+            c.status === 'Draft' ? 'level-info' : 'level-warning';
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${c.created_at || 'N/A'}</td>
@@ -724,11 +745,11 @@ function loadSMTPSettings() {
 // Scheduler Control
 async function fetchSchedulerStatus() {
     try {
-        const response = await fetch(`${API_BASE_URL}/scheduler/status`, { 
-            headers: getAuthHeaders() 
+        const response = await fetch(`${API_BASE_URL}/scheduler/status`, {
+            headers: getAuthHeaders()
         });
         const data = await response.json();
-        
+
         const statusEl = document.getElementById('scheduler-status');
         if (data.running) {
             statusEl.innerHTML = '<span style="color:#10b981;">● 運行中</span>';
@@ -742,9 +763,9 @@ async function fetchSchedulerStatus() {
 
 async function startScheduler() {
     try {
-        const response = await fetch(`${API_BASE_URL}/scheduler/start`, { 
+        const response = await fetch(`${API_BASE_URL}/scheduler/start`, {
             method: 'POST',
-            headers: getAuthHeaders() 
+            headers: getAuthHeaders()
         });
         if (response.ok) {
             addLog('✅ 寄信排程已啟動', 'success');
@@ -757,9 +778,9 @@ async function startScheduler() {
 
 async function stopScheduler() {
     try {
-        const response = await fetch(`${API_BASE_URL}/scheduler/stop`, { 
+        const response = await fetch(`${API_BASE_URL}/scheduler/stop`, {
             method: 'POST',
-            headers: getAuthHeaders() 
+            headers: getAuthHeaders()
         });
         if (response.ok) {
             addLog('✅ 寄信排程已停止', 'success');
@@ -772,7 +793,7 @@ async function stopScheduler() {
 
 async function saveSMTPSettings(e) {
     e.preventDefault();
-    
+
     const settings = {
         server: document.getElementById('smtp-server').value,
         port: document.getElementById('smtp-port').value,
@@ -811,7 +832,7 @@ async function testSMTP() {
         });
 
         const result = await response.json();
-        
+
         if (result.success) {
             status.className = 'status-msg success';
             status.innerText = `✅ ${result.message}`;
@@ -819,6 +840,10 @@ async function testSMTP() {
         } else {
             status.className = 'status-msg error';
             status.innerText = `❌ ${result.message}`;
+            if (aiBtn) {
+                aiBtn.disabled = false;
+                aiBtn.innerText = aiBtn.dataset.originalText || '✨ AI 關鍵字';
+            }
             addLog('❌ SMTP 測試失敗: ' + result.message, 'error');
         }
     } catch (error) {
@@ -837,7 +862,7 @@ async function generateEmail(leadId) {
             headers: getAuthHeaders()
         });
         if (!response.ok) throw new Error('Generation failed');
-        
+
         const campaign = await response.json();
         fetchLeads();
         openModal(campaign.subject, campaign.content);
@@ -845,6 +870,7 @@ async function generateEmail(leadId) {
     } catch (error) {
         addLog('❌ 生成失敗: ' + error.message, 'error');
     }
+    // */
 }
 
 async function viewEmail(leadId) {
@@ -876,18 +902,102 @@ function addLog(message, level = 'info') {
     const console = document.getElementById('system-console');
     const timestamp = new Date().toLocaleTimeString('zh-TW', { hour12: false });
     const levelClass = `level-${level}`;
-    
+
     const entry = document.createElement('div');
     entry.innerHTML = `<span class="timestamp">[${timestamp}]</span> <span class="${levelClass}">${message}</span>`;
     console.appendChild(entry);
     console.scrollTop = console.scrollHeight;
 }
 
+
+// ══════════════════════════════════════════
+// Toast Notifications
+// ══════════════════════════════════════════
+
+function showToast(message, type = 'info', duration = 3000) {
+    // Remove existing toast
+    const existing = document.querySelector('.toast-notification');
+    if (existing) existing.remove();
+    
+    const toast = document.createElement('div');
+    toast.className = `toast-notification toast-${type}`;
+    toast.innerHTML = `
+        <span>${message}</span>
+        <button onclick="this.parentElement.remove()" style="background:none;border:none;color:inherit;cursor:pointer;margin-left:10px;">✕</button>
+    `;
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 8px;
+        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        color: white;
+        font-size: 14px;
+        z-index: 10000;
+        animation: slideIn 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    `;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
+
+// Add CSS for toast animations
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateX(100px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes slideOut {
+        from { opacity: 1; transform: translateX(0); }
+        to { opacity: 0; transform: translateX(100px); }
+    }
+`;
+document.head.appendChild(style);
+
+// Show keyboard shortcuts
+function showKeyboardShortcuts() {
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:10000; display:flex; align-items:center; justify-content:center;';
+    modal.innerHTML = `
+        <div style="background:var(--bg-dark); padding:24px; border-radius:12px; max-width:400px; width:90%;">
+            <h3 style="margin-bottom:16px;">⌨️ 鍵盤快捷鍵</h3>
+            <div style="display:grid; gap:8px; font-size:14px;">
+                <div style="display:flex; justify-content:space-between;"><span>AI 生成</span><kbd style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px;">Ctrl + Enter</kbd></div>
+                <div style="display:flex; justify-content:space-between;"><span>儲存模板</span><kbd style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px;">Ctrl + S</kbd></div>
+                <div style="display:flex; justify-content:space-between;"><span>復原</span><kbd style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px;">Ctrl + Z</kbd></div>
+                <div style="display:flex; justify-content:space-between;"><span>搜尋</span><kbd style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px;">Ctrl + F</kbd></div>
+            </div>
+            <button onclick="this.closest('[style*=\"position:fixed\"]').remove()" class="btn-secondary" style="margin-top:16px; width:100%;">關閉</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+// Add ? button to header
+const navRight = document.querySelector('.nav-right');
+if (navRight) {
+    const helpBtn = document.createElement('button');
+    helpBtn.innerHTML = '?';
+    helpBtn.title = '鍵盤快捷鍵';
+    helpBtn.style.cssText = 'width:32px; height:32px; border-radius:50%; border:none; background:rgba(255,255,255,0.1); color:#fff; cursor:pointer; font-weight:bold;';
+    helpBtn.onclick = showKeyboardShortcuts;
+    navRight.appendChild(helpBtn);
+}
+
+
+
+
 // Show upgrade prompt when limit exceeded
 function showUpgradePrompt(type, used, limit) {
     const message = `⚠️ 已達用量上限（${used}/${limit}）`;
     addLog(message, 'warning');
-    
+
     // Create toast notification
     const toast = document.createElement('div');
     toast.style.cssText = `
@@ -915,7 +1025,7 @@ function showUpgradePrompt(type, used, limit) {
         </a>
     `;
     document.body.appendChild(toast);
-    
+
     // Auto remove after 10 seconds
     setTimeout(() => toast.remove(), 10000);
 }
@@ -942,7 +1052,7 @@ function startLogPolling() {
 
 function updateConsole(logs) {
     if (!logs || logs.length === 0) return;
-    
+
     const console = document.getElementById('system-console');
     // Only update if new logs
     const currentText = console.innerText;
@@ -959,24 +1069,124 @@ function updateConsole(logs) {
 // Email Templates Management
 async function fetchTemplates() {
     const container = document.getElementById('templates-list');
-    
+    if (!container) return;
+
+    // Show loading state
+    container.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:40px;">載入中...</p>';
+
     try {
         const response = await fetch(`${API_BASE_URL}/templates`, { headers: getAuthHeaders() });
+        
         if (!response.ok) {
-            container.innerHTML = '<p style="color:var(--text-muted);">API 錯誤，請檢查認證</p>';
-            throw new Error('Failed to fetch');
+            throw new Error('Server error: ' + response.status);
         }
+        
         const templates = await response.json();
+        
+        // Empty array = no templates yet (not an error!)
+        if (!Array.isArray(templates) || templates.length === 0) {
+            container.innerHTML = `
+                <div style="text-align:center; padding:60px 20px;">
+                    <div style="font-size:48px; margin-bottom:16px;">📝</div>
+                    <div style="font-size:16px; margin-bottom:8px;">尚無模板</div>
+                    <div style="color:var(--text-muted); margin-bottom:20px;">建立第一個模板開始使用</div>
+                    <button class="btn-primary" onclick="switchTemplateTab('create')" style="padding:10px 24px;">
+                        + 建立新模板
+                    </button>
+                </div>
+            `;
+            return;
+        }
+        
+        // Success - render templates
         renderTemplates(templates);
+        
     } catch (error) {
         console.error('Fetch templates error:', error);
-        container.innerHTML = '<p style="color:var(--text-muted);">載入失敗，請重新整理</p>';
+        container.innerHTML = `
+            <div style="text-align:center; padding:40px; color:var(--text-muted);">
+                <div style="font-size:48px; margin-bottom:16px;">⚠️</div>
+                <div>載入失敗：${error.message}</div>
+                <button onclick="fetchTemplates()" style="margin-top:16px; padding:8px 20px; background:var(--primary); border:none; border-radius:6px; color:white; cursor:pointer;">
+                    🔄 重試
+                </button>
+            </div>
+        `;
     }
 }
+
+
+
+// Drag and drop for templates
+let draggedTemplateId = null;
+
+function dragTemplate(e, id) {
+    draggedTemplateId = id;
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function allowDrop(e) {
+    e.preventDefault();
+}
+
+function dropTemplate(e, targetId) {
+    e.preventDefault();
+    if (draggedTemplateId && draggedTemplateId !== targetId) {
+        // Reorder in array
+        const idx1 = allTemplates.findIndex(t => t.id === draggedTemplateId);
+        const idx2 = allTemplates.findIndex(t => t.id === targetId);
+        if (idx1 !== -1 && idx2 !== -1) {
+            const [moved] = allTemplates.splice(idx1, 1);
+            allTemplates.splice(idx2, 0, moved);
+            renderTemplates(allTemplates);
+            showToast('✅ 模板順序已更新', 'success');
+        }
+    }
+    draggedTemplateId = null;
+}
+
+
+// Template filter function
+let allLeads = [];
+let allTemplates = [];
+
+function filterTemplates() {
+    const search = document.getElementById('template-search')?.value?.toLowerCase() || '';
+    const tagFilter = document.getElementById('template-tag-filter')?.value || '';
+    
+    const filtered = allTemplates.filter(t => {
+        const matchSearch = !search || 
+            (t.name && t.name.toLowerCase().includes(search)) ||
+            (t.subject && t.subject.toLowerCase().includes(search));
+        const matchTag = !tagFilter || t.tag === tagFilter;
+        return matchSearch && matchTag;
+    });
+    
+    renderTemplates(filtered);
+}
+
+// Override renderTemplates to store templates
+const originalRenderTemplates = renderTemplates;
+renderTemplates = function(templates) {
+    allTemplates = templates || [];
+    filterTemplates();
+};
+
 
 function renderTemplates(templates) {
     const container = document.getElementById('templates-list');
     container.innerHTML = '';
+    
+    if (!templates || templates.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center; padding:40px; color:var(--text-muted);">
+                <div style="font-size:48px; margin-bottom:16px;">📝</div>
+                <div>尚無模板</div>
+                <div style="font-size:12px; margin-top:8px;">點擊上方「建立/編輯模板」開始創建</div>
+            </div>
+        `;
+        return;
+    }
 
     if (!templates || templates.length === 0) {
         container.innerHTML = '<p style="color:var(--text-muted);">尚無模板，請先新增</p>';
@@ -993,19 +1203,22 @@ function renderTemplates(templates) {
     Object.keys(grouped).forEach(tag => {
         const tagSection = document.createElement('div');
         tagSection.style.marginBottom = '20px';
-        
+
         let tagClass = 'tag-unknown';
         if (tag === 'NA-CABLE') tagClass = 'tag-cable';
         else if (tag === 'NA-NAMEPLATE') tagClass = 'tag-nameplate';
         else if (tag === 'NA-PLASTIC') tagClass = 'tag-plastic';
         else if (tag.startsWith('AUTO')) tagClass = 'tag-auto';
-        
-        tagSection.innerHTML = `<h4 style="margin-bottom:10px;"><span class="tag-badge ${tagClass}">${tag}</span></h4>`;
-        
+
+        tagSection.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span class="tag-badge ${tagClass}">${tag}</span>
+            <span style="font-size:11px; color:var(--text-muted);">${grouped[tag].length} 個模板</span>
+        </div>`;
+
         grouped[tag].forEach(t => {
             const item = document.createElement('div');
             item.style.cssText = 'padding:12px; background:rgba(255,255,255,0.05); border-radius:6px; margin-bottom:8px;';
-            
+
             const defaultToggle = `
                 <label style="display:flex; align-items:center; gap:6px; cursor:pointer; margin-top:8px;">
                     <input type="checkbox" 
@@ -1015,9 +1228,9 @@ function renderTemplates(templates) {
                     <span style="font-size:12px; color:var(--text-muted);">預設模板</span>
                 </label>
             `;
-            
+
             item.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div class="template-card" draggable="true" ondragstart="dragTemplate(event, ${t.id})" ondragover="allowDrop(event)" ondrop="dropTemplate(event, ${t.id})" onclick="editTemplate(${t.id})" style="display:flex; justify-content:space-between; align-items:flex-start; cursor:grab;">
                     <div style="flex:1;">
                         <div style="display:flex; align-items:center; gap:8px;">
                             <strong>${t.name}</strong>
@@ -1035,7 +1248,7 @@ function renderTemplates(templates) {
             `;
             tagSection.appendChild(item);
         });
-        
+
         container.appendChild(tagSection);
     });
 }
@@ -1045,15 +1258,15 @@ async function toggleDefault(templateId, isDefault) {
         const response = await fetch(`${API_BASE_URL}/templates/${templateId}`, {
             method: 'PUT',
             headers: getAuthHeaders(),
-            body: JSON.stringify({ 
-                name: '', 
-                tag: '', 
-                subject: '', 
+            body: JSON.stringify({
+                name: '',
+                tag: '',
+                subject: '',
                 body: '',
-                is_default: isDefault 
+                is_default: isDefault
             })
         });
-        
+
         if (response.ok) {
             fetchTemplates();
             addLog(`✅ 預設模板已${isDefault ? '設為' : '取消'}: ID ${templateId}`, 'success');
@@ -1068,7 +1281,7 @@ async function duplicateTemplate(id) {
         const response = await fetch(`${API_BASE_URL}/templates`, { headers: getAuthHeaders() });
         const templates = await response.json();
         const template = templates.find(t => t.id === id);
-        
+
         if (template) {
             // Create duplicate
             const createResponse = await fetch(`${API_BASE_URL}/templates`, {
@@ -1082,7 +1295,7 @@ async function duplicateTemplate(id) {
                     is_default: false
                 })
             });
-            
+
             if (createResponse.ok) {
                 fetchTemplates();
                 addLog('✅ 模板已複製', 'success');
@@ -1095,7 +1308,7 @@ async function duplicateTemplate(id) {
 
 async function saveTemplate(e) {
     e.preventDefault();
-    
+
     const templateId = document.getElementById('template-id').value;
     const templateData = {
         name: document.getElementById('template-name').value,
@@ -1108,7 +1321,7 @@ async function saveTemplate(e) {
     try {
         const url = templateId ? `${API_BASE_URL}/templates/${templateId}` : `${API_BASE_URL}/templates`;
         const method = templateId ? 'PUT' : 'POST';
-        
+
         const response = await fetch(url, {
             method: method,
             headers: getAuthHeaders(),
@@ -1131,7 +1344,7 @@ async function editTemplate(id) {
         const response = await fetch(`${API_BASE_URL}/templates`, { headers: getAuthHeaders() });
         const templates = await response.json();
         const template = templates.find(t => t.id === id);
-        
+
         if (template) {
             document.getElementById('template-id').value = template.id;
             document.getElementById('template-name').value = template.name;
@@ -1147,7 +1360,7 @@ async function editTemplate(id) {
 
 async function deleteTemplate(id) {
     if (!confirm('確定要刪除這個模板嗎？')) return;
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/templates/${id}`, {
             method: 'DELETE',
@@ -1354,7 +1567,7 @@ function togglePasswordVisibility() {
 function updateStrategyDescription() {
     const strategy = document.querySelector('input[name="email-strategy"]:checked')?.value || 'free';
     const desc = document.getElementById('strategy-desc');
-    
+
     if (strategy === 'free') {
         desc.innerHTML = `
             <strong>免費模式：</strong>三層策略（官網爬取 → SMTP驗活 → Google Dork）<br>
@@ -1389,12 +1602,12 @@ let monacoEditor = null;
 async function initMonacoEditor() {
     const container = document.getElementById('monaco-container');
     if (!container || monacoEditor) return;
-    
+
     // Load Monaco
     if (!window.monaco) {
         await loadMonaco();
     }
-    
+
     monacoEditor = window.monaco.editor.create(container, {
         value: originalHTML || '<!-- 在此輸入 HTML 或讓 AI 生成 -->',
         language: 'html',
@@ -1409,7 +1622,7 @@ async function initMonacoEditor() {
         renderWhitespace: 'selection',
         bracketPairColorization: { enabled: true }
     });
-    
+
     // Update preview on change
     monacoEditor.onDidChangeModelContent(() => {
         updatePreview();
@@ -1421,9 +1634,9 @@ async function loadMonaco() {
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js';
         script.onload = () => {
-            require.config({ 
-                paths: { 
-                    vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' 
+            require.config({
+                paths: {
+                    vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs'
                 }
             });
             require(['vs/editor/editor.main'], () => {
@@ -1453,10 +1666,10 @@ function setEditorContent(content) {
 function switchTemplateTab(tab) {
     document.querySelectorAll('.template-tab-content').forEach(el => el.classList.add('hidden'));
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-    
+
     document.getElementById(`template-${tab}-tab`)?.classList.remove('hidden');
     document.getElementById(`tab-${tab}`)?.classList.add('active');
-    
+
     if (tab === 'list') fetchTemplates();
     if (tab === 'attachments') loadAttachments();
 }
@@ -1466,10 +1679,10 @@ function setEditorMode(mode) {
     const container = document.getElementById('editor-container');
     const editor = document.getElementById('html-editor-wrapper');
     const preview = document.getElementById('preview-wrapper');
-    
+
     document.querySelectorAll('[id^="mode-"]').forEach(btn => btn.classList.remove('active'));
     document.getElementById(`mode-${mode}`)?.classList.add('active');
-    
+
     if (mode === 'edit') {
         container.style.gridTemplateColumns = '1fr';
         editor.style.display = 'flex';
@@ -1483,14 +1696,14 @@ function setEditorMode(mode) {
         editor.style.display = 'flex';
         preview.style.display = 'flex';
     }
-    
+
     updatePreview();
 }
 
 function updatePreview() {
     const html = getEditorContent();
     const iframe = document.getElementById('preview-iframe');
-    
+
     if (iframe) {
         // Replace variables with test data for preview
         const previewHTML = html
@@ -1498,21 +1711,21 @@ function updatePreview() {
             .replace(/\{\{bd_name\}\}/g, 'John Doe')
             .replace(/\{\{keywords\}\}/g, 'cable, wire, harness')
             .replace(/\{\{description\}\}/g, 'A leading manufacturer of custom cable assemblies.');
-        
+
         iframe.srcdoc = previewHTML;
     }
 }
 
 function insertVariable(varName) {
     const variable = `{{${varName}}}`;
-    
+
     if (monacoEditor) {
         const position = monacoEditor.getPosition();
         monacoEditor.executeEdits('', [{
             range: new window.monaco.Range(
-                position.lineNumber, 
-                position.column, 
-                position.lineNumber, 
+                position.lineNumber,
+                position.column,
+                position.lineNumber,
                 position.column
             ),
             text: variable
@@ -1524,7 +1737,7 @@ function insertVariable(varName) {
             const start = editor.selectionStart;
             const end = editor.selectionEnd;
             const text = editor.value;
-            
+
             editor.value = text.substring(0, start) + variable + text.substring(end);
             editor.selectionStart = editor.selectionEnd = start + variable.length;
             editor.focus();
@@ -1535,11 +1748,11 @@ function insertVariable(varName) {
 
 function formatHTML() {
     let html = getEditorContent();
-    
+
     // Basic HTML formatting - add proper indentation
     html = html.replace(/>\s+</g, '>\n<');
     html = html.replace(/\n\s*\n/g, '\n');
-    
+
     // Indent tags
     const lines = html.split('\n');
     let indent = 0;
@@ -1550,7 +1763,7 @@ function formatHTML() {
         if (trimmed.match(/^<[^\/!][^>]*[^\/]>$/)) indent++;
         return result;
     }).join('\n');
-    
+
     setEditorContent(formatted);
     updatePreview();
     addLog('📝 HTML 已格式化', 'info');
@@ -1570,38 +1783,52 @@ async function aiGenerateTemplate() {
     const style = document.getElementById('ai-style')?.value || 'professional';
     const language = document.getElementById('ai-language')?.value || 'english';
     const status = document.getElementById('ai-status');
-    
+
     if (!prompt) {
         status.classList.remove('hidden');
         status.className = 'status-msg error';
         status.innerText = '請輸入信件需求描述';
         return;
     }
-    
+
     status.classList.remove('hidden');
     status.className = 'status-msg';
     status.innerText = '⏳ AI 正在生成中...';
-    
+    const aiBtn = document.getElementById('ai-generate-btn');
+    if (aiBtn) {
+        aiBtn.disabled = true;
+        aiBtn.dataset.originalText = aiBtn.innerText;
+        aiBtn.innerText = '⏳ 生成中...';
+    }
+
     try {
         const response = await fetch(`${API_BASE_URL}/templates/ai-generate`, {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({ prompt, style, language })
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
             setEditorContent(result.html);
             originalHTML = result.html; // Save for restore
             updatePreview();
-            
+
             status.className = 'status-msg success';
             status.innerText = '✅ AI 已生成草稿，可在下方編輯器調整';
+            if (aiBtn) {
+                aiBtn.disabled = false;
+                aiBtn.innerText = aiBtn.dataset.originalText || '✨ AI 關鍵字';
+            }
             addLog('✨ AI 模板生成成功', 'success');
         } else {
             status.className = 'status-msg error';
             status.innerText = `❌ ${result.message}`;
+            if (aiBtn) {
+                aiBtn.disabled = false;
+                aiBtn.innerText = aiBtn.dataset.originalText || '✨ AI 關鍵字';
+            }
         }
     } catch (error) {
         status.className = 'status-msg error';
@@ -1616,16 +1843,16 @@ async function saveTemplateV2() {
     const subject = document.getElementById('template-subject')?.value;
     const body = getEditorContent();
     const isDefault = document.getElementById('template-default')?.checked;
-    
+
     const status = document.getElementById('template-status');
-    
+
     if (!name || !tag || !subject || !body) {
         status.classList.remove('hidden');
         status.className = 'status-msg error';
         status.innerText = '請填寫所有必填欄位';
         return;
     }
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/templates`, {
             method: 'POST',
@@ -1638,13 +1865,13 @@ async function saveTemplateV2() {
                 is_default: isDefault
             })
         });
-        
+
         if (response.ok) {
             status.classList.remove('hidden');
             status.className = 'status-msg success';
             status.innerText = '✅ 模板已儲存';
             addLog(`💾 模板已儲存: ${name}`, 'success');
-            
+
             // Clear form
             document.getElementById('template-name').value = '';
             document.getElementById('template-subject').value = '';
@@ -1670,15 +1897,15 @@ async function sendTestEmail() {
     status.classList.remove('hidden');
     status.className = 'status-msg';
     status.innerText = '📧 正在寄送測試信...';
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/templates/test-send`, {
             method: 'POST',
             headers: getAuthHeaders()
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
             status.className = 'status-msg success';
             status.innerText = `✅ ${result.message}`;
@@ -1686,6 +1913,10 @@ async function sendTestEmail() {
         } else {
             status.className = 'status-msg error';
             status.innerText = `❌ ${result.message}`;
+            if (aiBtn) {
+                aiBtn.disabled = false;
+                aiBtn.innerText = aiBtn.dataset.originalText || '✨ AI 關鍵字';
+            }
         }
     } catch (error) {
         status.className = 'status-msg error';
@@ -1707,7 +1938,7 @@ function handleDragLeave(e) {
 function handleDrop(e) {
     e.preventDefault();
     document.getElementById('upload-dropzone')?.classList.remove('dragover');
-    
+
     const files = e.dataTransfer.files;
     handleFiles(files);
 }
@@ -1718,12 +1949,66 @@ function handleFileSelect(e) {
 }
 
 function handleFiles(files) {
-    // For now, just log - file upload would need backend storage
     addLog(`📁 選擇了 ${files.length} 個檔案`, 'info');
     
     const list = document.getElementById('uploaded-files-list');
-    list.innerHTML = '';
     
+    Array.from(files).forEach((file, index) => {
+        // Check file size (>8MB warning)
+        const sizeWarning = file.size > 8 * 1024 * 1024 
+            ? '<span style="color:#f59e0b; font-size:11px;">⚠️ 檔案較大(>8MB)</span>' 
+            : '';
+        
+        const item = document.createElement('div');
+        item.className = 'file-item';
+        item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:12px; background:rgba(255,255,255,0.05); border-radius:8px; margin-bottom:8px;';
+        item.innerHTML = `
+            <div style="display:flex; align-items:center; gap:12px; flex:1;">
+                <span style="font-size:24px;">${file.type.includes('pdf') ? '📄' : '📎'}</span>
+                <div>
+                    <div style="font-weight:500;">${file.name}</div>
+                    <div style="font-size:12px; color:var(--text-muted);">
+                        ${(file.size / 1024).toFixed(1)}KB ${sizeWarning}
+                    </div>
+                    <div class="upload-progress" style="display:none; margin-top:4px;">
+                        <div style="height:4px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden;">
+                            <div class="progress-bar" style="height:100%; width:0%; background:var(--primary); transition:width 0.3s;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <label style="display:flex; align-items:center; gap:4px; cursor:pointer;">
+                    <input type="checkbox" ${file.size < 8*1024*1024 ? 'checked' : ''} style="accent-color:var(--primary);">
+                    <span style="font-size:12px;">預設夾帶</span>
+                </label>
+                <button onclick="this.closest('.file-item').remove()" style="background:none; border:none; color:#ef4444; cursor:pointer;">✕</button>
+            </div>
+        `;
+        list.appendChild(item);
+        
+        // Simulate upload progress
+        const progress = item.querySelector('.upload-progress');
+        const progressBar = item.querySelector('.progress-bar');
+        if (progress && progressBar) {
+            progress.style.display = 'block';
+            let width = 0;
+            const interval = setInterval(() => {
+                width += 10;
+                progressBar.style.width = width + '%';
+                if (width >= 100) {
+                    clearInterval(interval);
+                    setTimeout(() => progress.style.display = 'none', 500);
+                }
+            }, 100);
+        }
+    });
+}
+
+function handleFiles(files) {
+    const list = document.getElementById('uploaded-files-list');
+    list.innerHTML = '';
+
     Array.from(files).forEach(file => {
         const item = document.createElement('div');
         item.className = 'file-item';
@@ -1753,11 +2038,163 @@ function loadAttachments() {
     }
 }
 
+
+// Auto-save draft to localStorage
+function saveDraft() {
+    const draft = {
+        name: document.getElementById('template-name')?.value,
+        subject: document.getElementById('template-subject')?.value,
+        prompt: document.getElementById('ai-prompt-input')?.value,
+        html: getEditorContent(),
+        tag: document.getElementById('template-tag')?.value,
+        timestamp: Date.now()
+    };
+    localStorage.setItem('template_draft', JSON.stringify(draft));
+}
+
+function loadDraft() {
+    const saved = localStorage.getItem('template_draft');
+    if (saved) {
+        try {
+            const draft = JSON.parse(saved);
+            if (draft.timestamp && Date.now() - draft.timestamp < 7 * 24 * 60 * 60 * 1000) { // 7 days
+                if (confirm('發現上次的草稿，要繼續編輯嗎？')) {
+                    document.getElementById('template-name').value = draft.name || '';
+                    document.getElementById('template-subject').value = draft.subject || '';
+                    document.getElementById('ai-prompt-input').value = draft.prompt || '';
+                    document.getElementById('template-tag').value = draft.tag || '';
+                    if (draft.html) {
+                        setEditorContent(draft.html);
+                        updatePreview();
+                    }
+                    showToast('📝 草稿已恢復', 'info');
+                }
+            }
+        } catch (e) {}
+    }
+}
+
+// Auto-save every 30 seconds
+setInterval(saveDraft, 30000);
+
+// Load draft on template page init
+document.getElementById('nav-templates')?.addEventListener('click', () => {
+    setTimeout(loadDraft, 500);
+    setTimeout(showOnboarding, 1500);
+});
+
+
+
+// Step card toggle
+function toggleStep(stepId) {
+    const content = document.getElementById(stepId + '-content');
+    const header = document.querySelector('#' + stepId + ' .step-header');
+    const toggle = header?.querySelector('.step-toggle');
+    
+    if (content) {
+        if (content.style.display === 'none') {
+            content.style.display = 'block';
+            if (toggle) toggle.textContent = '▼';
+        } else {
+            content.style.display = 'none';
+            if (toggle) toggle.textContent = '▶';
+        }
+    }
+}
+
+// Advanced section toggle
+function toggleAdvanced() {
+    const section = document.getElementById('advanced-section');
+    const arrow = document.getElementById('advanced-arrow');
+    
+    if (section) {
+        section.classList.toggle('show');
+        if (arrow) {
+            arrow.textContent = section.classList.contains('show') ? '▲' : '▼';
+        }
+    }
+}
+
+// Update CTA hint based on page count
+document.addEventListener('change', (e) => {
+    if (e.target.name === 'scrape-pages') {
+        const pages = parseInt(e.target.value);
+        const estimates = { 3: { leads: 30, time: '2-3' }, 5: { leads: 50, time: '4-5' }, 10: { leads: 100, time: '8-10' } };
+        const est = estimates[pages] || estimates[3];
+        const hint = document.getElementById('cta-hint');
+        if (hint) {
+            hint.innerHTML = `預計取得約 <strong>${est.leads}</strong> 筆潛在客戶，約需 <strong>${est.time}</strong> 分鐘`;
+        }
+    }
+});
+
+
 // Initialize template page
 document.getElementById('ai-generate-btn')?.addEventListener('click', aiGenerateTemplate);
 document.getElementById('ai-clear-btn')?.addEventListener('click', () => {
-    document.getElementById('ai-prompt-input').value = '';
-    document.getElementById('ai-status').classList.add('hidden');
+    if (confirm('確定要清除輸入內容？')) {
+        document.getElementById('ai-prompt-input').value = '';
+        document.getElementById('ai-status').classList.add('hidden');
+    }
+});
+
+// Track unsaved changes
+let hasUnsavedChanges = false;
+const templateFields = ['template-name', 'template-subject', 'ai-prompt-input', 'html-editor'];
+templateFields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+        el.addEventListener('input', () => { hasUnsavedChanges = true; });
+    }
+});
+
+// Clear unsaved flag on save
+const originalSaveTemplateV2 = saveTemplateV2;
+saveTemplateV2 = async function() {
+    hasUnsavedChanges = false;
+    return originalSaveTemplateV2.apply(this, arguments);
+};
+
+// Warn on page leave
+window.addEventListener('beforeunload', (e) => {
+    if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '你有未儲存的變更，確定要離開？';
+    }
+});
+
+// Pill toggle click handlers
+document.addEventListener('click', (e) => {
+    const pillToggle = e.target.closest('.pill-toggle');
+    if (pillToggle) {
+        const group = pillToggle.closest('.pill-toggle-group');
+        if (group) {
+            group.querySelectorAll('.pill-toggle').forEach(p => p.classList.remove('active'));
+            pillToggle.classList.add('active');
+            const radio = pillToggle.querySelector('input[type="radio"]');
+            if (radio) radio.checked = true;
+        }
+    }
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+    // Ctrl+Enter: AI Generate
+    if (e.ctrlKey && e.key === 'Enter') {
+        const promptInput = document.getElementById('ai-prompt-input');
+        if (promptInput && document.activeElement === promptInput) {
+            e.preventDefault();
+            aiGenerateTemplate();
+        }
+    }
+    // Ctrl+S: Save Template
+    if (e.ctrlKey && e.key === 's') {
+        const templateForm = document.getElementById('template-form');
+        if (templateForm && !templateForm.classList.contains('hidden')) {
+            e.preventDefault();
+            saveTemplateV2();
+        }
+    }
 });
 document.getElementById('upload-dropzone')?.addEventListener('click', () => {
     document.getElementById('file-input')?.click();
@@ -1766,4 +2203,100 @@ document.getElementById('upload-dropzone')?.addEventListener('click', () => {
 // Init Monaco on templates view
 document.getElementById('nav-templates')?.addEventListener('click', () => {
     setTimeout(initMonacoEditor, 100);
+
+// Editor resize functionality
+const resizeHandle = document.getElementById('editor-resize-handle');
+const editorWrapper = document.getElementById('monaco-container');
+if (resizeHandle && editorWrapper) {
+    let isResizing = false;
+    resizeHandle.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+    });
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        const rect = editorWrapper.getBoundingClientRect();
+        const newWidth = e.clientX - rect.left;
+        if (newWidth > 200 && newWidth < 800) {
+            editorWrapper.style.width = newWidth + 'px';
+        }
+    });
+    document.addEventListener('mouseup', () => {
+        isResizing = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+    });
+}
+
 });
+
+
+// Enhanced template card styling
+const style = document.createElement('style');
+style.textContent = `
+    .template-card {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .template-card:hover {
+        border-color: var(--primary);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .template-card-actions {
+        display: flex;
+        gap: 8px;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    .template-card:hover .template-card-actions {
+        opacity: 1;
+    }
+    .template-tag {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        background: rgba(79, 142, 247, 0.2);
+        color: var(--primary);
+        margin-right: 8px;
+    }
+`;
+document.head.appendChild(style);
+
+// Show keyboard shortcuts
+function showKeyboardShortcuts() {
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:10000; display:flex; align-items:center; justify-content:center;';
+    modal.innerHTML = `
+        <div style="background:var(--bg-dark); padding:24px; border-radius:12px; max-width:400px; width:90%;">
+            <h3 style="margin-bottom:16px;">⌨️ 鍵盤快捷鍵</h3>
+            <div style="display:grid; gap:8px; font-size:14px;">
+                <div style="display:flex; justify-content:space-between;"><span>AI 生成</span><kbd style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px;">Ctrl + Enter</kbd></div>
+                <div style="display:flex; justify-content:space-between;"><span>儲存模板</span><kbd style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px;">Ctrl + S</kbd></div>
+                <div style="display:flex; justify-content:space-between;"><span>復原</span><kbd style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px;">Ctrl + Z</kbd></div>
+                <div style="display:flex; justify-content:space-between;"><span>搜尋</span><kbd style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px;">Ctrl + F</kbd></div>
+            </div>
+            <button onclick="this.closest('[style*=\"position:fixed\"]').remove()" class="btn-secondary" style="margin-top:16px; width:100%;">關閉</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+// Add ? button to header
+const navRight = document.querySelector('.nav-right');
+if (navRight) {
+    const helpBtn = document.createElement('button');
+    helpBtn.innerHTML = '?';
+    helpBtn.title = '鍵盤快捷鍵';
+    helpBtn.style.cssText = 'width:32px; height:32px; border-radius:50%; border:none; background:rgba(255,255,255,0.1); color:#fff; cursor:pointer; font-weight:bold;';
+    helpBtn.onclick = showKeyboardShortcuts;
+    navRight.appendChild(helpBtn);
+}
+
