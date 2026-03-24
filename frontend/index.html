@@ -237,7 +237,7 @@
                         <div class="glass-panel recent-leads-panel">
                             <div class="panel-header">
                                 <h3>客戶列表 <span id="leads-count" style="font-size:12px; color:var(--text-muted); font-weight:normal;">0 筆</span></h3>
-                                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                <div id="filter-bar" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                                     <input type="text" id="search-leads" placeholder="搜尋公司..."
                                         style="padding:6px 10px; border-radius:6px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:#fff; width:120px;">
                                     <select id="filter-status" style="padding:6px; border-radius:6px;">
@@ -275,10 +275,9 @@
                                 <div class="leads-empty" id="leads-empty">
                                     <div style="font-size:48px; margin-bottom:16px;">📭</div>
                                     <div style="font-size:16px; margin-bottom:8px;">尚無客戶資料</div>
-                                    <div style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">點擊「開始自動探勘」取得第一批潛在客戶</div>
-                                    <button class="btn-primary" onclick="document.getElementById('start-scrape-btn')?.click()" style="padding:10px 20px;">
-                                        🚀 開始自動探勘
-                                    </button>
+                                    <div style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">
+                                        在左側設定條件後開始探勘
+                                    </div>
                                 </div>
                             </div>
                         </div>
