@@ -3,6 +3,7 @@ const API_BASE_URL = window.location.origin + '/api';
 // Navigation
 const views = {
     'nav-lead-engine': 'lead-engine-view',
+    'nav-add-lead': 'add-lead-view',
     'nav-templates': 'templates-view',
     'nav-campaigns': 'campaign-logs-view',
     'nav-engagements': 'engagements-view',
