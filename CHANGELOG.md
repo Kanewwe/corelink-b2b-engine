@@ -2,6 +2,67 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v2.3-ux-redesign] - 2026-03-24
+
+### 🎨 Major UX Redesign
+
+#### Navigation
+- **Grouped Sidebar**: 主要功能 / 寄信作業 / 分析 / 設定
+- **Removed**: 新增客戶 nav item (整合進 Lead Engine)
+
+#### Lead Engine
+- **Email Strategy + Mining Mode**: Moved BEFORE CTA button
+- **Empty State**: 引導文字 + 手動新增按鈕
+- **Filter Bar**: 只在有客戶時顯示
+- **Batch Operations**: 全選、補找 Email、批次寄信、批次刪除
+- **Missing Email Warning**: 「X 筆尚未找到 Email」提示
+
+#### Email Templates
+- **Default Tab**: 改為「現有模板」列表
+- **HTML Editor**: min-height 400px
+- **Pill Toggle**: 語言風格/信件語言改為 Pill 按鈕
+- **Variable Preview**: 寄信前預覽變數替換結果
+- **Toast Notifications**: 儲存成功通知
+
+#### Campaign Logs (寄信記錄)
+- **SMTP Warning Card**: 未設定時顯示警告 + CTA
+- **Status Badges**: 已送出/已開信/已點擊/退信
+- **Batch Operations**: 批次重寄、批次刪除
+
+#### Engagements (觸及率)
+- **Removed**: 收費標準設定區塊
+- **KPI Row**: 寄出總數/開信率/點擊率/退信率
+- **Industry Stats**: 各行業統計
+- **Individual Tracking**: 個別追蹤記錄
+
+#### Search Logs → 探勘歷史
+- **Renamed**: 搜尋記錄 → 探勘歷史
+- **Collapsible System Logs**: 系統日誌預設折疊
+
+#### SMTP Settings
+- **Single Button**: 排程按鈕改為單一狀態顯示
+
+### 🆕 New API Endpoints
+
+```
+POST /api/leads/{lead_id}/find-email     # 單一客戶補找 Email
+POST /api/leads/batch-find-emails        # 批次補找 Email
+```
+
+### 🗄️ Database Changes
+
+```sql
+ALTER TABLE leads ADD COLUMN email_source VARCHAR(50);  -- Email 來源記錄
+```
+
+### 🐛 Bug Fixes
+- JavaScript syntax error (missing function opening brace)
+- Duplicate view sections in HTML
+- Navigation click handlers not working
+- Template fetch error handling (empty array vs error)
+
+---
+
 ## [v2.2-manufacturer] - 2026-03-24
 
 ### 🏭 New: Manufacturer Mode (B2B Sourcing Engine)
@@ -9,17 +70,13 @@ All notable changes to this project will be documented in this file.
   - Google Custom Search API (primary)
   - Bing Search (automatic fallback when Google CSE fails)
   - Thomasnet via ScraperAPI (US B2B directory)
-- **Query expansion**: Keywords like `car battery` automatically expanded to B2B variants (`OEM supplier factory`, `manufacturer small medium enterprise`, etc.)
-- **Frontend toggle**: Added Mining Mode selector to Auto-Miner panel (Manufacturer Mode / Yellowpages Mode)
-- **API**: `POST /api/scrape-simple` now accepts `miner_mode` field (`"manufacturer"` or `"yellowpages"`)
+- **Query expansion**: Keywords like `car battery` automatically expanded to B2B variants
+- **Frontend toggle**: Mining Mode selector (Manufacturer / Yellowpages)
+- **API**: `POST /api/scrape-simple` accepts `miner_mode` field
 
 ### 🗄️ Database Migration Reliability Fix
-- `migrations.py`: Upgraded to "force-alter" strategy — directly attempts `ALTER TABLE ADD COLUMN` and gracefully ignores "already exists" errors. Added verbose diagnostic logs.
-- `main.py` `lifespan()`: Now calls `run_migrations()` on every app startup, bypassing `start.sh` execution issues.
-
-### 🚀 Deployment Fixes
-- `start.sh`: Correctly binds to `${PORT}` env var (required by Render)
-- ScraperAPI integrated in Thomasnet scraper to bypass 403 blocks
+- `migrations.py`: Force-alter strategy with graceful error handling
+- `main.py` `lifespan()`: Auto-run migrations on startup
 
 ---
 
@@ -30,82 +87,31 @@ All notable changes to this project will be documented in this file.
 #### Brand & UI Redesign
 - **Brand Rename**: Corelink → Linkora
 - **New Logo**: Connected node icon design
-- **Color System**: Dark SaaS style (Linear/Vercel inspired)
-  - Primary: `#4F8EF7` (Brand Blue)
-  - Accent: `#6EE7B7` (Mint Green)
-  - Background: `#0F1117` / `#161B27`
+- **Color System**: Dark SaaS style
 - **Sidebar Redesign**: SVG icons, user avatar section
-- **Page Transitions**: 150ms fade-in animation
 
 #### Auto-Miner (Lead Engine)
-- **AI Keyword Generator**: Generate 5 related part-focused keywords
-- **Multi-Keyword Scraping**: Scrapes multiple keywords in sequence
-- **Yellowpages integration**: With ScraperAPI premium bypass for geo-blocked regions
+- **AI Keyword Generator**: Generate 5 related keywords
+- **Multi-Keyword Scraping**: Sequential scraping
+- **Yellowpages integration**: With ScraperAPI bypass
 
 #### Email Finder
-- **3-Layer Strategy v2**:
-  - Layer 1: Website scraping (mailto, regex, meta tags)
-  - Layer 2: Pattern guess + SMTP verify (ports 587/465/25)
-  - Layer 3: Google Custom Search API
-- **Bug Fixes**:
-  - EMAIL_REGEX double-escape fixed
-  - SMTP ports (587/465/25 fallback)
-  - Catch-all detection
-  - Real browser User-Agent rotation
-  - Global 30s timeout protection
+- **3-Layer Strategy**: Website → Pattern guess → Google CSE
+- **Bug Fixes**: EMAIL_REGEX, SMTP ports, catch-all detection
 
 #### Email Tracking System
-- **New Model**: `EmailLog` with full engagement tracking
 - **Tracking Pixel**: `/track/open?id=xxx`
 - **Click Redirect**: `/track/click?id=xxx&url=yyy`
-- **漏斗分析**: Sent → Delivered → Opened → Clicked → Replied
 
 #### Subscription System
-- **New Models**:
-  - `Plan`: Plan definitions (Free/Pro/Enterprise)
-  - `User`: User accounts with bcrypt passwords
-  - `Session`: Session-based auth (UUID)
-  - `Subscription`: Subscription records
-  - `UsageLog`: Monthly usage tracking
-- **Auth Endpoints**:
-  - `POST /api/auth/register`
-  - `POST /api/auth/login`
-  - `POST /api/auth/logout`
-  - `GET /api/auth/me`
-  - `GET /api/plans`
-  - `GET /api/subscription`
-- **Permission System**:
-  - Feature flags per plan
-  - Usage limits per month
-  - `check_feature()` dependency
-  - `check_usage_limit()` dependency
+- **Models**: Plan, User, Session, Subscription, UsageLog
+- **Auth**: Session-based with bcrypt
+- **Permission**: Feature flags + usage limits
 
 #### Template System v2
-- **Monaco Editor**: Syntax highlighting, line numbers, auto-indent
-- **3 Tabs**: Create/Edit, Existing Templates, Attachments
+- **Monaco Editor**: Syntax highlighting
 - **AI Generation**: Prompt → GPT → HTML
-- **Split View**: Editor + Live Preview
-- **Variable Chips**: Click to insert `{{company_name}}`, etc.
-- **Test Email**: Send to own email
-
-### 📈 Performance Improvements
-- Rule-based classification (saves GPT tokens)
-- DNS MX verification (free email validation)
-- Background tasks (non-blocking)
-- Deduplication mechanism
-
-### 🐛 Bug Fixes
-- Session token authentication
-- Template view visibility (duplicate elements removed)
-- SMTP verification ports
-- Google search rate limiting
-- Page scroll support
-
-### 📦 Dependencies Added
-- `bcrypt==4.1.2` - Password hashing
-- `httpx==0.25.0` - Async HTTP client
-- `dnspython==2.6.1` - DNS resolution
-- `beautifulsoup4==4.12.2` - HTML parsing
+- **Variable Chips**: Click to insert
 
 ---
 
@@ -117,23 +123,25 @@ All notable changes to this project will be documented in this file.
 - AI classification (GPT-4o-mini)
 - Email template system
 - SMTP scheduler
-- Basic frontend
 
 ---
 
 ## Migration Notes
 
+### v2.2 → v2.3
+
+```sql
+ALTER TABLE leads ADD COLUMN email_source VARCHAR(50);
+```
+
 ### v1.0 → v2.0
 
-#### Database Changes
 ```sql
--- Add user_id to existing tables
 ALTER TABLE leads ADD COLUMN user_id INT;
 ALTER TABLE email_campaigns ADD COLUMN user_id INT;
 ALTER TABLE email_templates ADD COLUMN user_id INT;
 ALTER TABLE email_logs ADD COLUMN user_id INT;
 
--- Create new tables
 CREATE TABLE plans (...);
 CREATE TABLE users (...);
 CREATE TABLE sessions (...);
@@ -142,15 +150,5 @@ CREATE TABLE usage_logs (...);
 ```
 
 #### API Changes
-- Old: `Authorization: Bearer <token>` header
+- Old: `Authorization: Bearer <token>`
 - New: `Cookie: session_id=<uuid>`
-
-#### Environment Variables
-```bash
-# New required variables
-APP_BASE_URL=https://linkoratw.com
-
-# Optional (for Email Finder Layer 3)
-GOOGLE_API_KEY=xxx
-GOOGLE_CSE_ID=xxx
-```
