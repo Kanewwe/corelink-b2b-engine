@@ -761,7 +761,7 @@ def send_test_email(current_user: models.User = Depends(get_current_user_id)):
         }
 
 # --- Email Sent Tracking ---
-@app.post("/api/leads/{lead_id}/mark-sent
+@app.post("/api/leads/{lead_id}/mark-sent", response_model=dict)
 
 # ═══════════════════════════════════════════════════════
 # Lead Email Enrichment API - Find email for existing lead
