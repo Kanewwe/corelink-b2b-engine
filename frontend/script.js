@@ -578,6 +578,7 @@ async function fetchLeads() {
             }
         }
 
+        allLeads = leads;
         renderLeads(leads);
     } catch (error) {
         console.error('Fetch leads error:', error);
@@ -851,6 +852,7 @@ async function generateEmail(leadId) {
     } catch (error) {
         addLog('❌ 生成失敗: ' + error.message, 'error');
     }
+    // */
 }
 
 async function viewEmail(leadId) {
@@ -1127,6 +1129,7 @@ function dropTemplate(e, targetId) {
 
 
 // Template filter function
+let allLeads = [];
 let allTemplates = [];
 
 function filterTemplates() {

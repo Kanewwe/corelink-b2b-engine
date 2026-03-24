@@ -761,7 +761,131 @@ def send_test_email(current_user: models.User = Depends(get_current_user_id)):
         }
 
 # --- Email Sent Tracking ---
-@app.post("/api/leads/{lead_id}/mark-sent")
+@app.post("/api/leads/{lead_id}/mark-sent
+
+# ═══════════════════════════════════════════════════════
+# Lead Email Enrichment API - Find email for existing lead
+# ═══════════════════════════════════════════════════════
+
+@app.post("/api/leads/{lead_id}/find-email", response_model=dict)
+async def find_email_for_lead(
+    lead_id: int,
+    strategy: str = "free",  # "free" or "hunter"
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user_id)
+):
+    """
+    Find/Enrich email for an existing lead that doesn't have one.
+    """
+    # Get lead
+    lead = db.query(models.Lead).filter(
+        models.Lead.id == lead_id,
+        models.Lead.user_id == current_user.id
+    ).first()
+    
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    
+    if lead.email and lead.email.strip():
+        return {
+            "success": True,
+            "message": "Lead already has email",
+            "email": lead.email,
+            "source": getattr(lead, 'email_source', None) or "existing"
+        }
+    
+    # Try to find email
+    try:
+        company_name = lead.company_name or ""
+        
+        if strategy == "hunter" and os.getenv("HUNTER_API_KEY"):
+            # Use Hunter.io
+            from email_hunter import find_company_emails
+            emails = await find_company_emails(company_name, os.getenv("HUNTER_API_KEY"))
+            if emails:
+                lead.email = emails[0]
+                lead.email_source = "hunter_io"
+                db.commit()
+                return {
+                    "success": True,
+                    "message": "Email found via Hunter.io",
+                    "email": lead.email,
+                    "source": "hunter_io"
+                }
+        
+        # Use free method
+        from free_email_hunter import find_emails_free
+        emails = await find_emails_free(company_name)
+        
+        if emails:
+            lead.email = emails[0]
+            lead.email_source = "free_auto"
+            db.commit()
+            return {
+                "success": True,
+                "message": "Email found via free method",
+                "email": lead.email,
+                "source": "free_auto"
+            }
+        
+        return {
+            "success": False,
+            "message": "Could not find email for this company",
+            "email": None,
+            "source": None
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error finding email: {str(e)}")
+
+
+@app.post("/api/leads/batch-find-emails", response_model=dict)
+async def batch_find_emails(
+    lead_ids: List[int],
+    strategy: str = "free",
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user_id)
+):
+    """
+    Batch find emails for multiple leads that don't have emails.
+    """
+    leads = db.query(models.Lead).filter(
+        models.Lead.id.in_(lead_ids),
+        models.Lead.user_id == current_user.id,
+        models.Lead.email.is_(None)
+    ).all()
+    
+    results = []
+    for lead in leads:
+        try:
+            company_name = lead.company_name or ""
+            
+            if strategy == "hunter" and os.getenv("HUNTER_API_KEY"):
+                from email_hunter import find_company_emails
+                emails = await find_company_emails(company_name, os.getenv("HUNTER_API_KEY"))
+            else:
+                from free_email_hunter import find_emails_free
+                emails = await find_emails_free(company_name)
+            
+            if emails:
+                lead.email = emails[0]
+                lead.email_source = strategy
+                results.append({"lead_id": lead.id, "email": lead.email, "success": True})
+            else:
+                results.append({"lead_id": lead.id, "email": None, "success": False})
+                
+        except Exception as e:
+            results.append({"lead_id": lead.id, "error": str(e), "success": False})
+    
+    db.commit()
+    
+    return {
+        "total": len(lead_ids),
+        "found": len([r for r in results if r["success"]]),
+        "results": results
+    }
+
+")
 def mark_email_sent(lead_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
     lead = db.query(models.Lead).filter(
         models.Lead.id == lead_id,
