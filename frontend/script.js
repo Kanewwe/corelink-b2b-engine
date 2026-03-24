@@ -940,6 +940,37 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
+// Show keyboard shortcuts
+function showKeyboardShortcuts() {
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:10000; display:flex; align-items:center; justify-content:center;';
+    modal.innerHTML = `
+        <div style="background:var(--bg-dark); padding:24px; border-radius:12px; max-width:400px; width:90%;">
+            <h3 style="margin-bottom:16px;">⌨️ 鍵盤快捷鍵</h3>
+            <div style="display:grid; gap:8px; font-size:14px;">
+                <div style="display:flex; justify-content:space-between;"><span>AI 生成</span><kbd style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px;">Ctrl + Enter</kbd></div>
+                <div style="display:flex; justify-content:space-between;"><span>儲存模板</span><kbd style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px;">Ctrl + S</kbd></div>
+                <div style="display:flex; justify-content:space-between;"><span>復原</span><kbd style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px;">Ctrl + Z</kbd></div>
+                <div style="display:flex; justify-content:space-between;"><span>搜尋</span><kbd style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px;">Ctrl + F</kbd></div>
+            </div>
+            <button onclick="this.closest('[style*=\"position:fixed\"]').remove()" class="btn-secondary" style="margin-top:16px; width:100%;">關閉</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+// Add ? button to header
+const navRight = document.querySelector('.nav-right');
+if (navRight) {
+    const helpBtn = document.createElement('button');
+    helpBtn.innerHTML = '?';
+    helpBtn.title = '鍵盤快捷鍵';
+    helpBtn.style.cssText = 'width:32px; height:32px; border-radius:50%; border:none; background:rgba(255,255,255,0.1); color:#fff; cursor:pointer; font-weight:bold;';
+    helpBtn.onclick = showKeyboardShortcuts;
+    navRight.appendChild(helpBtn);
+}
+
+
 
 
 // Show upgrade prompt when limit exceeded
@@ -1034,6 +1065,36 @@ async function fetchTemplates() {
 }
 
 
+
+// Drag and drop for templates
+let draggedTemplateId = null;
+
+function dragTemplate(e, id) {
+    draggedTemplateId = id;
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function allowDrop(e) {
+    e.preventDefault();
+}
+
+function dropTemplate(e, targetId) {
+    e.preventDefault();
+    if (draggedTemplateId && draggedTemplateId !== targetId) {
+        // Reorder in array
+        const idx1 = allTemplates.findIndex(t => t.id === draggedTemplateId);
+        const idx2 = allTemplates.findIndex(t => t.id === targetId);
+        if (idx1 !== -1 && idx2 !== -1) {
+            const [moved] = allTemplates.splice(idx1, 1);
+            allTemplates.splice(idx2, 0, moved);
+            renderTemplates(allTemplates);
+            showToast('✅ 模板順序已更新', 'success');
+        }
+    }
+    draggedTemplateId = null;
+}
+
+
 // Template filter function
 let allTemplates = [];
 
@@ -1117,7 +1178,7 @@ function renderTemplates(templates) {
             `;
 
             item.innerHTML = `
-                <div class="template-card" onclick="editTemplate(${t.id})" style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div class="template-card" draggable="true" ondragstart="dragTemplate(event, ${t.id})" ondragover="allowDrop(event)" ondrop="dropTemplate(event, ${t.id})" onclick="editTemplate(${t.id})" style="display:flex; justify-content:space-between; align-items:flex-start; cursor:grab;">
                     <div style="flex:1;">
                         <div style="display:flex; align-items:center; gap:8px;">
                             <strong>${t.name}</strong>
@@ -1924,12 +1985,83 @@ function loadAttachments() {
     }
 }
 
+
+// Auto-save draft to localStorage
+function saveDraft() {
+    const draft = {
+        name: document.getElementById('template-name')?.value,
+        subject: document.getElementById('template-subject')?.value,
+        prompt: document.getElementById('ai-prompt-input')?.value,
+        html: getEditorContent(),
+        tag: document.getElementById('template-tag')?.value,
+        timestamp: Date.now()
+    };
+    localStorage.setItem('template_draft', JSON.stringify(draft));
+}
+
+function loadDraft() {
+    const saved = localStorage.getItem('template_draft');
+    if (saved) {
+        try {
+            const draft = JSON.parse(saved);
+            if (draft.timestamp && Date.now() - draft.timestamp < 7 * 24 * 60 * 60 * 1000) { // 7 days
+                if (confirm('發現上次的草稿，要繼續編輯嗎？')) {
+                    document.getElementById('template-name').value = draft.name || '';
+                    document.getElementById('template-subject').value = draft.subject || '';
+                    document.getElementById('ai-prompt-input').value = draft.prompt || '';
+                    document.getElementById('template-tag').value = draft.tag || '';
+                    if (draft.html) {
+                        setEditorContent(draft.html);
+                        updatePreview();
+                    }
+                    showToast('📝 草稿已恢復', 'info');
+                }
+            }
+        } catch (e) {}
+    }
+}
+
+// Auto-save every 30 seconds
+setInterval(saveDraft, 30000);
+
+// Load draft on template page init
+document.getElementById('nav-templates')?.addEventListener('click', () => {
+    setTimeout(loadDraft, 500);
+    setTimeout(showOnboarding, 1500);
+});
+
+
 // Initialize template page
 document.getElementById('ai-generate-btn')?.addEventListener('click', aiGenerateTemplate);
 document.getElementById('ai-clear-btn')?.addEventListener('click', () => {
     if (confirm('確定要清除輸入內容？')) {
         document.getElementById('ai-prompt-input').value = '';
         document.getElementById('ai-status').classList.add('hidden');
+    }
+});
+
+// Track unsaved changes
+let hasUnsavedChanges = false;
+const templateFields = ['template-name', 'template-subject', 'ai-prompt-input', 'html-editor'];
+templateFields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+        el.addEventListener('input', () => { hasUnsavedChanges = true; });
+    }
+});
+
+// Clear unsaved flag on save
+const originalSaveTemplateV2 = saveTemplateV2;
+saveTemplateV2 = async function() {
+    hasUnsavedChanges = false;
+    return originalSaveTemplateV2.apply(this, arguments);
+};
+
+// Warn on page leave
+window.addEventListener('beforeunload', (e) => {
+    if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '你有未儲存的變更，確定要離開？';
     }
 });
 
@@ -2025,3 +2157,34 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// Show keyboard shortcuts
+function showKeyboardShortcuts() {
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:10000; display:flex; align-items:center; justify-content:center;';
+    modal.innerHTML = `
+        <div style="background:var(--bg-dark); padding:24px; border-radius:12px; max-width:400px; width:90%;">
+            <h3 style="margin-bottom:16px;">⌨️ 鍵盤快捷鍵</h3>
+            <div style="display:grid; gap:8px; font-size:14px;">
+                <div style="display:flex; justify-content:space-between;"><span>AI 生成</span><kbd style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px;">Ctrl + Enter</kbd></div>
+                <div style="display:flex; justify-content:space-between;"><span>儲存模板</span><kbd style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px;">Ctrl + S</kbd></div>
+                <div style="display:flex; justify-content:space-between;"><span>復原</span><kbd style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px;">Ctrl + Z</kbd></div>
+                <div style="display:flex; justify-content:space-between;"><span>搜尋</span><kbd style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px;">Ctrl + F</kbd></div>
+            </div>
+            <button onclick="this.closest('[style*=\"position:fixed\"]').remove()" class="btn-secondary" style="margin-top:16px; width:100%;">關閉</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+// Add ? button to header
+const navRight = document.querySelector('.nav-right');
+if (navRight) {
+    const helpBtn = document.createElement('button');
+    helpBtn.innerHTML = '?';
+    helpBtn.title = '鍵盤快捷鍵';
+    helpBtn.style.cssText = 'width:32px; height:32px; border-radius:50%; border:none; background:rgba(255,255,255,0.1); color:#fff; cursor:pointer; font-weight:bold;';
+    helpBtn.onclick = showKeyboardShortcuts;
+    navRight.appendChild(helpBtn);
+}
+
