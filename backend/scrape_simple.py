@@ -2,6 +2,7 @@
 Simplified scraper - Uses Yellowpages/Yelp direct scraping with multiple keywords.
 """
 
+import os
 import requests
 from bs4 import BeautifulSoup
 import time

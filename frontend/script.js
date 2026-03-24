@@ -161,14 +161,7 @@ async function updateKPIs() {
     }
 }
 
-// Auth
-function getAuthHeaders() {
-    const token = localStorage.getItem('corelink_token');
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-    };
-}
+
 
 // ══════════════════════════════════════════
 // Auth Functions
@@ -2005,30 +1998,7 @@ function handleFiles(files) {
     });
 }
 
-function handleFiles(files) {
-    const list = document.getElementById('uploaded-files-list');
-    list.innerHTML = '';
 
-    Array.from(files).forEach(file => {
-        const item = document.createElement('div');
-        item.className = 'file-item';
-        item.innerHTML = `
-            <div>
-                <span style="margin-right:8px;">📄</span>
-                <strong>${file.name}</strong>
-                <span style="color:var(--text-muted); margin-left:8px;">${(file.size / 1024).toFixed(1)}KB</span>
-            </div>
-            <div>
-                <label style="display:flex; align-items:center; gap:4px; cursor:pointer; margin-right:10px;">
-                    <input type="checkbox" checked>
-                    <span style="font-size:12px;">預設夾帶</span>
-                </label>
-                <button class="btn-secondary" style="padding:2px 8px; font-size:11px;">刪除</button>
-            </div>
-        `;
-        list.appendChild(item);
-    });
-}
 
 function loadAttachments() {
     // Load existing attachments - placeholder
@@ -2271,23 +2241,7 @@ style.textContent = `
 document.head.appendChild(style);
 
 // Show keyboard shortcuts
-function showKeyboardShortcuts() {
-    const modal = document.createElement('div');
-    modal.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:10000; display:flex; align-items:center; justify-content:center;';
-    modal.innerHTML = `
-        <div style="background:var(--bg-dark); padding:24px; border-radius:12px; max-width:400px; width:90%;">
-            <h3 style="margin-bottom:16px;">⌨️ 鍵盤快捷鍵</h3>
-            <div style="display:grid; gap:8px; font-size:14px;">
-                <div style="display:flex; justify-content:space-between;"><span>AI 生成</span><kbd style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px;">Ctrl + Enter</kbd></div>
-                <div style="display:flex; justify-content:space-between;"><span>儲存模板</span><kbd style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px;">Ctrl + S</kbd></div>
-                <div style="display:flex; justify-content:space-between;"><span>復原</span><kbd style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px;">Ctrl + Z</kbd></div>
-                <div style="display:flex; justify-content:space-between;"><span>搜尋</span><kbd style="background:rgba(255,255,255,0.1); padding:2px 8px; border-radius:4px;">Ctrl + F</kbd></div>
-            </div>
-            <button onclick="this.closest('[style*=\"position:fixed\"]').remove()" class="btn-secondary" style="margin-top:16px; width:100%;">關閉</button>
-        </div>
-    `;
-    document.body.appendChild(modal);
-}
+
 
 // Add ? button to header
 const navRight = document.querySelector('.nav-right');
