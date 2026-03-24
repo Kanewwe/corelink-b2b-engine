@@ -14,7 +14,6 @@ def run_migrations():
             "user_id", 
             "email_sent", 
             "email_sent_at", 
-            "email_source",
             "contact_name", 
             "contact_role", 
             "contact_email", 
@@ -73,7 +72,7 @@ def run_migrations():
                     if column in ["user_id", "lead_id", "mx_valid", "contact_confidence"]: col_type = "INTEGER"
                     if column in ["email_sent"]: col_type = "BOOLEAN DEFAULT FALSE"
                     if column in ["email_sent_at", "created_at"]: col_type = "TIMESTAMP"
-                    if column in ["email_source", "company_name", "domain", "status", "assigned_bd", "contact_name", "contact_role", "contact_email", "phone", "address", "city", "state", "zip_code", "categories", "source_domain", "scrape_location", "employee_count", "revenue_range", "website_url", "email_candidates", "extracted_keywords", "ai_tag", "description"]: col_type = "TEXT"
+                    if column in ["company_name", "domain", "status", "assigned_bd", "contact_name", "contact_role", "contact_email", "phone", "address", "city", "state", "zip_code", "categories", "source_domain", "scrape_location", "employee_count", "revenue_range", "website_url", "email_candidates", "extracted_keywords", "ai_tag", "description"]: col_type = "TEXT"
                     
                     # More aggressive check
                     has_column = False
