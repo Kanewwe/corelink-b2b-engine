@@ -12,6 +12,7 @@ interface Vendor {
   contact_phone: string;
   pricing_config: any;
   is_active: boolean;
+  is_approved: boolean;  // 審核狀態
   created_at: string;
 }
 
