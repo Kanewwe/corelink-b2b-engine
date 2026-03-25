@@ -3,8 +3,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 export interface User {
   id: string;
   email: string;
-  role: 'admin' | 'partner' | 'member';
-  partner_id?: string;
+  role: 'admin' | 'vendor' | 'member';
+  vendor_id?: string;
   username?: string;
 }
 

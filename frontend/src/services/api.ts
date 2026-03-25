@@ -30,3 +30,23 @@ export const fetchWithAuth = async (endpoint: string, options: RequestInit = {})
 
   return response;
 };
+
+export const getSearchHistory = () => fetchWithAuth('/search-history');
+
+// Admin - Vendors
+export const getEngagements = (vendorId?: number) => {
+  const query = vendorId ? `?vendor_id=${vendorId}` : '';
+  return fetchWithAuth(`/engagements${query}`);
+};
+export const getAdminVendors = () => fetchWithAuth('/admin/vendors');
+export const createAdminVendor = (data: any) => fetchWithAuth('/admin/vendors', {
+  method: 'POST',
+  body: JSON.stringify(data)
+});
+export const updateAdminVendor = (id: number, data: any) => fetchWithAuth(`/admin/vendors/${id}`, {
+  method: 'PATCH',
+  body: JSON.stringify(data)
+});
+export const deleteAdminVendor = (id: number) => fetchWithAuth(`/admin/vendors/${id}`, {
+  method: 'DELETE'
+});

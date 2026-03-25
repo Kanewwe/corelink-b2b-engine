@@ -21,6 +21,20 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
         keywords = ["manufacturer"]
     
     db = SessionLocal()
+    
+    # Create Task Record
+    task_record = models.ScrapeTask(
+        user_id=user_id,
+        market=market,
+        keywords=",".join(keywords) if keywords else "manufacturer",
+        miner_mode="yellowpages",
+        pages_requested=pages,
+        status="Running"
+    )
+    db.add(task_record)
+    db.commit()
+    db.refresh(task_record)
+
     stats = {"saved": 0, "skipped": 0, "errors": 0}
     
     add_log(f"🔍 [多關鍵字爬蟲] 開始任務")
@@ -74,6 +88,13 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
                 stats["errors"] += 1
                 add_log(f"❌ 爬取第 {page} 頁失敗: {str(e)}", level="error")
     
+    # Update Task Record
+    task_record.status = "Completed"
+    task_record.leads_found = stats["saved"]
+    from datetime import datetime
+    task_record.completed_at = datetime.utcnow()
+    db.commit()
+
     db.close()
     add_log(f"🏁 [完成] 新增:{stats['saved']} 跳過:{stats['skipped']} 錯誤:{stats['errors']}")
     return stats

@@ -10,6 +10,8 @@ def run_migrations():
     import sqlalchemy
     
     tables_to_patch = {
+        "users": ["role", "vendor_id"],
+        "vendors": ["user_id", "company_name", "pricing_config"],
         "leads": ["user_id", "email_sent", "email_sent_at"],
         "email_campaigns": ["user_id"],
         "email_templates": ["user_id"],

@@ -1,0 +1,19 @@
+# Linkora 2.0 AI Agent Rules
+
+Always refer to docs/AGENT_SKILL_BOOK.md for full context.
+
+## Coding Standards
+- Backend: FastAPI, SQLAlchemy, Pydantic. Use 4-space indentation.
+- Frontend: React 18 (Vite), TypeScript, Tailwind CSS. Functional components with Hooks.
+- RBAC: Roles are 'admin', 'vendor', 'member'. Always check role in both BE/FE.
+
+## Critical Files
+- Backend Logic: backend/main.py
+- Database Models: backend/models.py
+- Frontend API: frontend/src/services/api.ts
+- Routing: frontend/src/App.tsx
+
+## Token-Saving Instructions
+- Do not read node_modules, dist, or .venv.
+- Prefer reading specific files over listing directories recursively.
+- When modifying the UI, prioritize existing Tailwind utility classes.

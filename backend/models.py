@@ -77,7 +77,8 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     name = Column(String(100))
     company_name = Column(String(200))
-    role = Column(String(20), default='user')  # 'user', 'admin'
+    role = Column(String(20), default='member')  # 'admin', 'vendor', 'member'
+    vendor_id = Column(Integer, nullable=True)  # References another User.id who is the vendor (org owner)
     
     # 狀態
     is_active = Column(Boolean, default=True)
@@ -118,6 +119,7 @@ class User(Base):
             "name": self.name,
             "company_name": self.company_name,
             "role": self.role,
+            "vendor_id": self.vendor_id,
             "is_active": self.is_active,
             "is_verified": self.is_verified,
             "created_at": self.created_at.isoformat() if self.created_at else None
@@ -302,6 +304,65 @@ pricing_config = {
     "email_click_track": 15,
     "per_lead_usd": 1.5,
 }
+
+class ScrapeTask(Base):
+    """Tracks background scraping jobs for Search History UI"""
+    __tablename__ = "scrape_tasks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    
+    market = Column(String(50))
+    keywords = Column(String(255))
+    miner_mode = Column(String(50))
+    pages_requested = Column(Integer)
+    
+    status = Column(String(50), default="Running") # Running, Completed, Failed
+    leads_found = Column(Integer, default=0)
+    
+    started_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+
+
+
+    completed_at = Column(DateTime, nullable=True)
+
+
+class Vendor(Base):
+    """Business Vendors (Outsourcing Partners) managed by Admin"""
+    __tablename__ = "vendors"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    
+    company_name = Column(String(200))
+    contact_name = Column(String(100))
+    contact_phone = Column(String(50))
+    
+    # 定價結構 (JSON) - 批發價 (Wholesale Price)
+    # 格式: {"per_lead": 50, ...}
+    pricing_config = Column(Text, default='{}')
+    
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # 關聯到使用者帳號
+    user = relationship("User")
+
+    def to_dict(self):
+        import json
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "email": self.user.email if self.user else None,
+            "company_name": self.company_name,
+            "contact_name": self.contact_name,
+            "contact_phone": self.contact_phone,
+            "pricing_config": json.loads(self.pricing_config or '{}'),
+            "is_active": self.is_active,
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }
 
 
 class Lead(Base):

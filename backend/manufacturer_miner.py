@@ -339,6 +339,19 @@ async def manufacturer_mine(
     db = SessionLocal()
     add_log(f"🏭 [製造商模式] 開始探勘：{keyword} | 市場：{market}")
     
+    # ── Create Scrape Task Tracking Record ───
+    task_record = models.ScrapeTask(
+        user_id=user_id,
+        market=market,
+        keywords=keyword,
+        miner_mode="manufacturer",
+        pages_requested=pages,
+        status="Running"
+    )
+    db.add(task_record)
+    db.commit()
+    db.refresh(task_record)
+
     # ── Step 1：建立搜尋查詢 ──────────────────
     queries = build_manufacturer_queries(keyword, market)
     
@@ -463,6 +476,13 @@ async def manufacturer_mine(
         
         await asyncio.sleep(random.uniform(1.0, 2.0))
     
+    # ── Update Scrape Task Record ───
+    task_record.status = "Completed"
+    task_record.leads_found = stats["added"]
+    from datetime import datetime
+    task_record.completed_at = datetime.utcnow()
+    db.commit()
+
     db.close()
     add_log(f"\n🏁 製造商模式完成：新增 {stats['added']} | 跳過 {stats['skipped']} | 失敗 {stats['failed']}")
     return stats

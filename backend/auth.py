@@ -129,6 +129,31 @@ def get_user_full_info(db: Session, user: User) -> dict:
 # 權限檢查函數
 # ══════════════════════════════════════════
 
+def require_role(allowed_roles: list):
+    """
+    工廠函數：檢查用戶角色權限
+    用法：@app.get("/admin", dependencies=[Depends(require_role(["admin"]))])
+    """
+    def checker(
+        session_id: Optional[str] = Cookie(None),
+        request: Request = None,
+        db: Session = Depends(get_db)
+    ):
+        if not session_id:
+            raise HTTPException(status_code=401, detail="請先登入")
+        
+        from models import Session as SessionModel # Lazy import to avoid circular dep if any
+        session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+        if not session or session.expires_at < datetime.utcnow() or not session.user:
+            raise HTTPException(status_code=401, detail="登入已過期或無效")
+            
+        if session.user.role not in allowed_roles:
+            raise HTTPException(status_code=403, detail="權限不足，拒絕訪問")
+            
+        return session.user
+    return checker
+
+
 def check_feature(feature_name: str):
     """
     工廠函數：生成檢查特定功能的 Dependency

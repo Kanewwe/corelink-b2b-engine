@@ -556,6 +556,28 @@ def trigger_scrape_simple(req: ScrapeSimpleRequest, background_tasks: Background
         background_tasks.add_task(scrape_mod.scrape_simple, req.market, req.pages, keywords, current_user.id)
         return {"message": f"Yellowpages Mode mining started for {req.market} with {len(keywords)} keywords"}
 
+@app.get("/api/search-history")
+def get_search_history(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
+    """獲取用戶的所有探勘歷史記錄"""
+    tasks = db.query(models.ScrapeTask).filter(
+        models.ScrapeTask.user_id == current_user.id
+    ).order_by(models.ScrapeTask.id.desc()).all()
+    
+    return [
+        {
+            "id": t.id,
+            "market": t.market,
+            "keywords": t.keywords,
+            "miner_mode": t.miner_mode,
+            "pages_requested": t.pages_requested,
+            "status": t.status,
+            "leads_found": t.leads_found,
+            "started_at": t.started_at.strftime("%Y-%m-%d %H:%M:%S") if t.started_at else "",
+            "completed_at": t.completed_at.strftime("%Y-%m-%d %H:%M:%S") if t.completed_at else ""
+        }
+        for t in tasks
+    ]
+
 # ══════════════════════════════════════════
 # AI Keyword Generator
 # ══════════════════════════════════════════
@@ -597,6 +619,103 @@ def create_template(template: EmailTemplateCreate, db: Session = Depends(get_db)
     db.refresh(db_template)
     add_log(f"✉️ [模板] 新增模板: {template.name} ({template.tag})")
     return db_template
+
+# ══════════════════════════════════════════
+# Vendor (委外廠商) Admin Endpoints (Admin Only)
+# ══════════════════════════════════════════
+
+class VendorCreateReq(BaseModel):
+    email: str
+    password: str
+    company_name: str
+    contact_name: Optional[str] = None
+    contact_phone: Optional[str] = None
+    pricing_config: Optional[dict] = None
+
+@app.get("/api/admin/vendors")
+def list_vendors(db: Session = Depends(get_db), current_user: models.User = Depends(auth_module.require_role(["admin"]))):
+    """管理員：列出所有委外廠商"""
+    vendors = db.query(models.Vendor).all()
+    return [v.to_dict() for v in vendors]
+
+@app.post("/api/admin/vendors")
+def create_vendor(req: VendorCreateReq, db: Session = Depends(get_db), current_user: models.User = Depends(auth_module.require_role(["admin"]))):
+    """管理員：建立新委外廠商帳號"""
+    import json
+    
+    # 1. 檢查帳號是否存在
+    existing = db.query(models.User).filter(models.User.email == req.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="此 Email 帳號已存在")
+    
+    # 2. 建立 User 帳號
+    user = models.User(
+        email=req.email,
+        name=req.contact_name or req.company_name,
+        company_name=req.company_name,
+        role='vendor'
+    )
+    user.set_password(req.password)
+    db.add(user)
+    db.flush() 
+    
+    # 3. 建立 Vendor 管理資料
+    vendor = models.Vendor(
+        user_id=user.id,
+        company_name=req.company_name,
+        contact_name=req.contact_name,
+        contact_phone=req.contact_phone,
+        pricing_config=json.dumps(req.pricing_config or {})
+    )
+    db.add(vendor)
+    
+    # 4. 建立預設訂閱 (Enterprise for Vendors)
+    ent_plan = db.query(models.Plan).filter(models.Plan.name == "enterprise").first()
+    if ent_plan:
+        from datetime import timedelta
+        sub = models.Subscription(
+            user_id=user.id,
+            plan_id=ent_plan.id,
+            status="active",
+            current_period_start=datetime.utcnow(),
+            current_period_end=datetime.utcnow() + timedelta(days=365 * 100)
+        )
+        db.add(sub)
+    
+    db.commit()
+    return vendor.to_dict()
+
+@app.patch("/api/admin/vendors/{vendor_id}")
+def update_vendor(vendor_id: int, updates: dict, db: Session = Depends(get_db), current_user: models.User = Depends(auth_module.require_role(["admin"]))):
+    """管理員：更新廠商資訊"""
+    import json
+    vendor = db.query(models.Vendor).filter(models.Vendor.id == vendor_id).first()
+    if not vendor:
+        raise HTTPException(status_code=404, detail="找不到該廠商")
+        
+    for key, value in updates.items():
+        if key == "pricing_config" and isinstance(value, dict):
+            vendor.pricing_config = json.dumps(value)
+        elif hasattr(vendor, key):
+            setattr(vendor, key, value)
+            
+    db.commit()
+    return vendor.to_dict()
+
+@app.delete("/api/admin/vendors/{vendor_id}")
+def delete_vendor(vendor_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(auth_module.require_role(["admin"]))):
+    """管理員：刪除廠商"""
+    vendor = db.query(models.Vendor).filter(models.Vendor.id == vendor_id).first()
+    if not vendor:
+        raise HTTPException(status_code=404, detail="找不到該廠商")
+    
+    user = vendor.user
+    if user:
+        user.is_active = False 
+        
+    db.delete(vendor)
+    db.commit()
+    return {"message": "廠商已刪除"}
 
 @app.put("/api/templates/{template_id}", response_model=EmailTemplateResponse)
 def update_template(template_id: int, template: EmailTemplateCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
@@ -924,60 +1043,99 @@ async def track_email_click(id: str, url: str):
 # ══════════════════════════════════════════
 
 @app.get("/api/engagements")
-def get_engagements(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
-    """取得所有追蹤資料，含標籤維度的統計"""
+def get_engagements(
+    vendor_id: Optional[int] = None, 
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user_id)
+):
+    """取得追蹤資料，含角色維度的權限過濾與批發計費統計"""
+    import json
+
+    # 1. 決定資料權限範圍 (User Scope)
+    user_ids = [current_user.id]
+    is_vendor_view = False
+    vendor_pricing = 0
+
+    if current_user.role == 'admin':
+        if vendor_id:
+            # 管理員查看特定廠商及其旗下成員
+            vendor_record = db.query(models.Vendor).filter(models.Vendor.id == vendor_id).first()
+            if vendor_record:
+                members = db.query(models.User).filter(models.User.vendor_id == vendor_record.user_id).all()
+                user_ids = [vendor_record.user_id] + [m.id for m in members]
+                is_vendor_view = True
+                vendor_pricing = json.loads(vendor_record.pricing_config or '{}').get('per_lead', 0)
+        else:
+            # 管理員查看全系統數據 (不限 user_ids)
+            user_ids = None 
+    elif current_user.role == 'vendor':
+        # 廠商查看自己及旗下所有 Member
+        members = db.query(models.User).filter(models.User.vendor_id == current_user.id).all()
+        user_ids = [current_user.id] + [m.id for m in members]
+        is_vendor_view = True
+        # 取得自己的批發單價
+        vendor_record = db.query(models.Vendor).filter(models.Vendor.user_id == current_user.id).first()
+        if vendor_record:
+            vendor_pricing = json.loads(vendor_record.pricing_config or '{}').get('per_lead', 0)
     
-    # Get all email logs with related data
-    email_logs = db.query(models.EmailLog).filter(
-        models.EmailLog.user_id == current_user.id
-    ).all()
-    leads = db.query(models.Lead).filter(
-        models.Lead.user_id == current_user.id
-    ).all()
+    # 2. 執行查詢
+    query_logs = db.query(models.EmailLog)
+    query_leads = db.query(models.Lead)
+    
+    if user_ids is not None:
+        query_logs = query_logs.filter(models.EmailLog.user_id.in_(user_ids))
+        query_leads = query_leads.filter(models.Lead.user_id.in_(user_ids))
+    
+    email_logs = query_logs.all()
+    leads = query_leads.all()
     lead_map = {l.id: l for l in leads}
     
-    # Build tag stats
+    # 3. 統計標籤與成效
     tag_stats = {}
     for log in email_logs:
         lead = lead_map.get(log.lead_id)
         tag = lead.ai_tag if lead and lead.ai_tag else "UNKNOWN"
-        
         if tag not in tag_stats:
             tag_stats[tag] = {"total": 0, "delivered": 0, "opened": 0, "clicked": 0, "replied": 0}
-        
         tag_stats[tag]["total"] += 1
-        if log.status == "delivered":
-            tag_stats[tag]["delivered"] += 1
-        if log.opened:
-            tag_stats[tag]["opened"] += 1
-        if log.clicked:
-            tag_stats[tag]["clicked"] += 1
-        if log.replied:
-            tag_stats[tag]["replied"] += 1
+        if log.status == "delivered": tag_stats[tag]["delivered"] += 1
+        if log.opened: tag_stats[tag]["opened"] += 1
+        if log.clicked: tag_stats[tag]["clicked"] += 1
+        if log.replied: tag_stats[tag]["replied"] += 1
     
-    # Build records
+    # 4. 建立明細
     records = []
-    for log in email_logs:
+    for log in email_logs[:500]: # 限制回傳數量避免前端卡頓
         lead = lead_map.get(log.lead_id)
         records.append({
             "id": log.id,
-            "log_uuid": log.log_uuid,
             "company_name": lead.company_name if lead else "N/A",
             "ai_tag": lead.ai_tag if lead else "UNKNOWN",
             "recipient": log.recipient,
-            "subject": log.subject,
             "status": log.status,
             "sent_at": log.sent_at.strftime("%Y-%m-%d %H:%M") if log.sent_at else "",
             "opened": log.opened,
-            "clicked": log.clicked,
-            "replied": log.replied
+            "clicked": log.clicked
         })
+
+    # 5. 計算批發計費 (Wholesale Billing)
+    billing_info = None
+    if is_vendor_view:
+        # 僅統計有效的 leads (狀態為 Scraped 或更高)
+        total_leads = len(leads)
+        billing_info = {
+            "total_leads": total_leads,
+            "unit_price": vendor_pricing,
+            "total_amount": total_leads * vendor_pricing,
+            "currency": "TWD",
+            "period": datetime.utcnow().strftime("%Y-%m")
+        }
     
     return {
         "records": records,
         "tag_stats": tag_stats,
-        "stats": email_tracker.get_engagement_stats(),
-        "total_leads": len(leads)
+        "total_leads": len(leads),
+        "billing": billing_info
     }
 
 @app.post("/api/engagements/{log_uuid}/reply")
