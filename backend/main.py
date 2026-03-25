@@ -442,7 +442,7 @@ def get_current_user_id(session_id: str = Cookie(None), db: Session = Depends(ge
     session = auth_module.get_session(db, session_id)
     if not session:
         raise HTTPException(status_code=401, detail="Session 已過期，請重新登入")
-    return session.user.to_dict()
+    return session.user
 
 @app.get("/api/settings/smtp")
 def get_smtp_settings(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
