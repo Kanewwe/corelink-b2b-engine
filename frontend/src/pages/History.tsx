@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getSearchHistory } from '../services/api';
-import { Search, RotateCw, Download, ChevronDown, ChevronUp, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { RotateCw, Download, ChevronDown, ChevronUp, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 interface ScrapeTask {
@@ -32,11 +32,11 @@ const History: React.FC = () => {
 
   useEffect(() => { fetchHistory(); }, []);
 
-  const handleReimport = (task: ScrapeTask) => {
+  const handleReimport = (_task: ScrapeTask) => {
     toast('重新匯入功能開發中', { icon: '🔄' });
   };
 
-  const handleDownloadCsv = (task: ScrapeTask) => {
+  const handleDownloadCsv = (_task: ScrapeTask) => {
     toast('CSV 下載功能開發中', { icon: '📥' });
   };
 

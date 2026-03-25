@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Shield, Cpu, Database, Sparkles, Save, Info, RefreshCw, Trash2, Plus } from 'lucide-react';
+import { Shield, Cpu, Database, Sparkles, Save, Info, RefreshCw, Trash2, Plus } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { getSystemSettings, updateSystemSetting } from '../services/api';
+import { getSystemupdateSystemSetting } from '../services/api';
 
 const SystemSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'apis' | 'mapping' | 'general'>('apis');

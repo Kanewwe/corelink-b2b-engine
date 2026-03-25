@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Users, Search, Shield, UserCheck, UserX, RefreshCw,
+  Users, Search, UserCheck, UserX, RefreshCw,
   ChevronDown, MoreVertical, Eye, Trash2, KeyRound,
   CheckCircle, XCircle, Crown, User, Building2, Mail,
   TrendingUp, BarChart2, AlertTriangle, X
