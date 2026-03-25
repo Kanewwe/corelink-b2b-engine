@@ -85,6 +85,17 @@ const Analytics: React.FC = () => {
         )}
       </div>
 
+      {/* ── 無資料時的空狀態 ── */}
+      {!billing && !data?.tag_stats && (
+        <div className="card">
+          <div className="empty-state" style={{ padding: '60px 20px' }}>
+            <div className="empty-state__icon">📊</div>
+            <p className="empty-state__title">尚無分析資料</p>
+            <p className="empty-state__desc">完成第一次探勘並發送開發信後，成效數據將自動顯示於此。</p>
+          </div>
+        </div>
+      )}
+
       {/* ── Billing Stats ── */}
       {billing && (
         <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 24 }}>
@@ -129,7 +140,7 @@ const Analytics: React.FC = () => {
       )}
 
       {/* ── Charts ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      <div className="analytics-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
         {/* 行業分佈 */}
         <div className="card">
           <div className="card__header">

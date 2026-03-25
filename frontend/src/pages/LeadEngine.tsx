@@ -177,7 +177,7 @@ const LeadEngine: React.FC = () => {
         })}
       </div>
 
-      <div className="grid grid-cols-2 gap-6 flex-1 min-h-[500px]">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 min-h-[500px] lead-engine-grid">
         {/* Left Column: Miner Form */}
         <section className="card" style={{ overflowY: 'auto' }}>
           <div className="card__header">

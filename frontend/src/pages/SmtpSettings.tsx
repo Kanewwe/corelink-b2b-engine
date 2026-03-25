@@ -76,7 +76,7 @@ const SmtpSettings: React.FC = () => {
       </div>
 
       {/* ── Main Content ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24 }}>
+      <div className="smtp-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24 }}>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 

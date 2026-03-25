@@ -129,12 +129,12 @@ const Campaigns: React.FC = () => {
               </td></tr>
             ) : filtered.map((c, i) => (
               <tr key={i}>
-                <td><input type="checkbox" style={{ accentColor: 'var(--color-primary)' }} /></td>
-                <td style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{c.sent_at}</td>
-                <td style={{ fontWeight: 600 }}>{c.company}</td>
-                <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{c.email}</td>
-                <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.subject}</td>
-                <td><span className={`badge ${STATUS_BADGE[c.status] || 'badge--neutral'}`}>{c.status}</span></td>
+                <td data-label="選取"><input type="checkbox" style={{ accentColor: 'var(--color-primary)' }} /></td>
+                <td data-label="時間" style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{c.sent_at}</td>
+                <td data-label="目標公司" style={{ fontWeight: 600 }}>{c.company}</td>
+                <td data-label="Email" style={{ fontFamily: 'monospace', fontSize: 12 }}>{c.email}</td>
+                <td data-label="主旨" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.subject}</td>
+                <td data-label="狀態"><span className={`badge ${STATUS_BADGE[c.status] || 'badge--neutral'}`}>{c.status}</span></td>
                 <td>
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button className="btn-icon-sm" title="查看">👁</button>

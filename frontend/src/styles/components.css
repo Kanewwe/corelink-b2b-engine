@@ -517,3 +517,187 @@
 .page-wrapper::-webkit-scrollbar { width: 4px; }
 .page-wrapper::-webkit-scrollbar-track { background: transparent; }
 .page-wrapper::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
+
+/* ══════════════════════════════════════════
+   📱 手機版 RWD (M1-M10)
+   Breakpoints: 768px (tablet), 640px (mobile)
+   ══════════════════════════════════════════ */
+
+/* M1: Sidebar → Drawer on mobile */
+@media (max-width: 768px) {
+  /* Layout root */
+  .layout-root {
+    flex-direction: column;
+    padding: 0;
+    gap: 0;
+  }
+
+  /* Sidebar hidden by default, shown via .sidebar-open */
+  .sidebar-drawer {
+    position: fixed;
+    top: 0; left: 0;
+    width: 260px;
+    height: 100vh;
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    background: var(--color-bg-dark);
+    border-right: 1px solid var(--color-border);
+    overflow-y: auto;
+  }
+  .sidebar-drawer.open {
+    transform: translateX(0);
+  }
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 199;
+  }
+  .sidebar-overlay.open {
+    display: block;
+  }
+
+  /* Main content full width */
+  .layout-main {
+    width: 100%;
+    padding: 0 12px 80px 12px; /* bottom padding for TabBar */
+  }
+
+  /* M2: Bottom TabBar */
+  .bottom-tabbar {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 60px;
+    background: var(--color-bg-dark);
+    border-top: 1px solid var(--color-border);
+    z-index: 100;
+    align-items: stretch;
+  }
+  .bottom-tabbar__item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    font-size: 10px;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    transition: color 0.2s;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+  }
+  .bottom-tabbar__item.active,
+  .bottom-tabbar__item:hover {
+    color: var(--color-primary);
+  }
+
+  /* M3: Stats cards 2-col on tablet */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* M4: Lead Engine dual-col → stack */
+  .lead-engine-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* M5: SMTP dual-col → stack */
+  .smtp-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* M6: Analytics dual-col → stack */
+  .analytics-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* M7: Tab nav wrap + smaller text */
+  .tab-nav {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .tab-nav__item {
+    font-size: 11px;
+    padding: 6px 12px;
+  }
+
+  /* M8: Filter bar wrap */
+  .filter-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .filter-bar > * {
+    min-width: 0;
+  }
+
+  /* Page header stack */
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .page-header__right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  /* Card padding reduce */
+  .card {
+    padding: 14px;
+  }
+}
+
+/* M3: Stats 1-col on small mobile */
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* M9: Table → Card mode */
+  .data-table thead {
+    display: none;
+  }
+  .data-table tbody tr {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    margin-bottom: 10px;
+    padding: 12px;
+    background: var(--color-bg-card);
+  }
+  .data-table tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    border: none;
+    font-size: 12px;
+  }
+  .data-table tbody td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--color-text-muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: 8px;
+    flex-shrink: 0;
+  }
+
+  /* M10: Monaco Editor min-height on mobile */
+  .monaco-editor-wrapper {
+    min-height: 200px !important;
+  }
+}
+
+/* Desktop: hide bottom tabbar */
+@media (min-width: 769px) {
+  .bottom-tabbar { display: none; }
+  .sidebar-overlay { display: none !important; }
+}

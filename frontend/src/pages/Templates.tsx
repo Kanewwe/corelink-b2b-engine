@@ -389,13 +389,13 @@ const Templates: React.FC = () => {
               {/* Editor / Preview Area */}
               <div className={`grid gap-4 ${editorMode === 'split' ? 'grid-cols-2' : 'grid-cols-1'}`}>
                  {(editorMode === 'html' || editorMode === 'split') && (
-                    <div className="flex flex-col gap-2" style={{ minHeight: 350 }}>
+                    <div className="flex flex-col gap-2" style={{ minHeight: 400 }}>
                        <div className="text-[10px] text-text-muted uppercase tracking-widest flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-t-lg w-fit">
                           <FileCode className="w-3 h-3" /> HTML 編輯器
                        </div>
-                       <div className="flex-1 border border-white/10 rounded-xl overflow-hidden shadow-2xl" style={{ minHeight: 350 }}>
+                       <div className="flex-1 border border-white/10 rounded-xl overflow-hidden shadow-2xl" style={{ minHeight: 400 }}>
                           <Editor
-                             height="350px"
+                             height="400px"
                              defaultLanguage="html"
                              theme="vs-dark"
                              value={form.body}
