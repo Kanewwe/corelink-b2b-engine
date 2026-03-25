@@ -155,6 +155,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- Health Check ---
+@app.get("/api/health")
+def health_check():
+    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+
 # --- Pydantic Schemas ---
 class LeadCreateReq(BaseModel):
     company_name: str
