@@ -494,10 +494,21 @@ async def manufacturer_mine(
     task_record.leads_found = stats["added"]
     from datetime import datetime
     task_record.completed_at = datetime.utcnow()
-    db.commit()
-
-    db.close()
-    add_log(f"\n🏁 製造商模式完成：新增 {stats['added']} | 跳過 {stats['skipped']} | 失敗 {stats['failed']}")
+    try:
+        db.commit()
+        add_log(f"\n🏁 製造商模式完成：新增 {stats['added']} | 跳過 {stats['skipped']} | 失敗 {stats['failed']}")
+    except Exception as e:
+        add_log(f"❌ [製造商模式失敗] {str(e)}", level="error")
+        try:
+            task_record.status = "Failed"
+            from datetime import datetime
+            task_record.completed_at = datetime.utcnow()
+            db.commit()
+        except:
+            pass
+        raise
+    finally:
+        db.close()
     return stats
 
 

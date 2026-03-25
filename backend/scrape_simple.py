@@ -93,11 +93,22 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
     task_record.leads_found = stats["saved"]
     from datetime import datetime
     task_record.completed_at = datetime.utcnow()
-    db.commit()
-
-    db.close()
-    add_log(f"🏁 [完成] 新增:{stats['saved']} 跳過:{stats['skipped']} 錯誤:{stats['errors']}")
-    return stats
+    try:
+        db.commit()
+        add_log(f"🏁 [完成] 新增:{stats['saved']} 跳過:{stats['skipped']} 錯誤:{stats['errors']}")
+        return stats
+    except Exception as e:
+        add_log(f"❌ [任務失敗] {str(e)}", level="error")
+        try:
+            task_record.status = "Failed"
+            from datetime import datetime
+            task_record.completed_at = datetime.utcnow()
+            db.commit()
+        except:
+            pass
+        raise
+    finally:
+        db.close()
 
 
 def scrape_keyword_page(keyword: str, page: int, market: str = "US") -> list:
