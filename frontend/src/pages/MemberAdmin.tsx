@@ -230,6 +230,39 @@ const DetailModal: React.FC<{ memberId: number; onClose: () => void; onUpdated: 
                 ? <span className="text-white font-bold">{detail.subscription.plan.display_name} <span className="text-text-muted text-xs">({detail.subscription.status})</span></span>
                 : <span className="text-text-muted text-sm">無訂閱</span>
               }
+              
+              {/* 調整方案 */}
+              {detail.role === 'member' && (
+                <div className="mt-3 pt-3 border-t border-white/5">
+                  <span className="text-[10px] text-text-muted block mb-2">調整方案</span>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={detail.subscription?.plan.name || 'free'}
+                      onChange={async (e) => {
+                        const newPlan = e.target.value;
+                        if (!confirm(`確定要將此會員方案調整為「${newPlan}」嗎？`)) return;
+                        try {
+                          const resp = await updateAdminMember(detail.id, { plan: newPlan });
+                          if (resp.ok) {
+                            toast.success('方案已更新');
+                            fetchDetail(detail.id);
+                            fetchMembers();
+                          } else {
+                            toast.error('更新失敗');
+                          }
+                        } catch (err) {
+                          toast.error('連線錯誤');
+                        }
+                      }}
+                      className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
+                    >
+                      <option value="free">免費版</option>
+                      <option value="pro">專業版</option>
+                      <option value="enterprise">企業版</option>
+                    </select>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Actions */}

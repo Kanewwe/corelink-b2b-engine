@@ -861,6 +861,7 @@ class MemberUpdateReq(BaseModel):
     role: Optional[str] = None  # 'admin', 'vendor', 'member'
     is_active: Optional[bool] = None
     is_verified: Optional[bool] = None
+    plan: Optional[str] = None  # 'free', 'pro', 'enterprise'
 
 @app.get("/api/admin/members")
 def list_members(
@@ -959,6 +960,25 @@ def update_member(member_id: int, updates: MemberUpdateReq, db: Session = Depend
         user.is_active = updates.is_active
     if updates.is_verified is not None:
         user.is_verified = updates.is_verified
+    
+    # 調整方案
+    if updates.plan is not None and user.role == 'member':
+        plan = db.query(models.Plan).filter(models.Plan.name == updates.plan).first()
+        if not plan:
+            raise HTTPException(status_code=400, detail=f"找不到方案: {updates.plan}")
+        
+        # 更新或建立 Subscription
+        sub = db.query(models.Subscription).filter(models.Subscription.user_id == user.id).first()
+        if sub:
+            sub.plan_id = plan.id
+            sub.status = 'active'
+        else:
+            sub = models.Subscription(
+                user_id=user.id,
+                plan_id=plan.id,
+                status='active'
+            )
+            db.add(sub)
     
     db.commit()
     db.refresh(user)
