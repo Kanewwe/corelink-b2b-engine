@@ -94,7 +94,7 @@ const VendorAdmin: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('確定要刪除此委外廠商嗎？這將會停用該用戶帳號。')) return;
+    if (!confirm('確定要刪除此廠商嗎？這將會停用該用戶帳號。')) return;
     try {
       const resp = await deleteAdminVendor(id);
       if (resp.ok) { fetchVendors(); toast.success('廠商已刪除'); }
@@ -114,7 +114,7 @@ const VendorAdmin: React.FC = () => {
             </h1>
             <span className="version-badge">LINKORA V2</span>
           </div>
-          <p className="page-subtitle">管理全國委外接案廠商、批發定價與帳務。</p>
+          <p className="page-subtitle">管理簽約合作廠商帳號與權限設定。</p>
         </div>
         <div className="page-header__right">
           <button
