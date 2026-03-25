@@ -78,7 +78,7 @@ class User(Base):
     name = Column(String(100))
     company_name = Column(String(200))
     role = Column(String(20), default='member')  # 'admin', 'vendor', 'member'
-    vendor_id = Column(Integer, nullable=True)  # References another User.id who is the vendor (org owner)
+    # vendor_id removed - Vendor is now a separate role, not a manager of members
     
     # 狀態
     is_active = Column(Boolean, default=True)
@@ -120,7 +120,6 @@ class User(Base):
             "name": self.name,
             "company_name": self.company_name,
             "role": self.role,
-            "vendor_id": self.vendor_id,
             "is_active": self.is_active,
             "is_verified": self.is_verified,
             "created_at": self.created_at.isoformat() if self.created_at else None

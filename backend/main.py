@@ -1364,105 +1364,30 @@ async def track_email_click(id: str, url: str):
 
 @app.get("/api/engagements")
 def get_engagements(
-    vendor_id: Optional[int] = None, 
     db: Session = Depends(get_db), 
     current_user: models.User = Depends(get_current_user_id)
 ):
-    """取得追蹤資料，含角色維度的權限過濾與批發計費統計"""
-    import json
-
-    # 1. 決定資料權限範圍 (User Scope)
-    user_ids = [current_user.id]
-    is_vendor_view = False
-    vendor_pricing = 0
-
+    """取得追蹤資料 (簡化版 - 移除 vendor_id 關係)"""
+    # 權限檢查：Admin 看全部，其他看自己
     if current_user.role == 'admin':
-        if vendor_id:
-            # 管理員查看特定廠商及其旗下成員
-            vendor_record = db.query(models.Vendor).filter(models.Vendor.id == vendor_id).first()
-            if vendor_record:
-                members = db.query(models.User).filter(models.User.vendor_id == vendor_record.user_id).all()
-                user_ids = [vendor_record.user_id] + [m.id for m in members]
-                is_vendor_view = True
-                vendor_pricing = json.loads(vendor_record.pricing_config or '{}').get('per_lead', 0)
-        else:
-            # 管理員查看全系統數據 (不限 user_ids)
-            user_ids = None 
-    elif current_user.role == 'vendor':
-        # 廠商查看自己及旗下所有 Member
-        members = db.query(models.User).filter(models.User.vendor_id == current_user.id).all()
-        user_ids = [current_user.id] + [m.id for m in members]
-        is_vendor_view = True
-        # 取得自己的批發單價
-        vendor_record = db.query(models.Vendor).filter(models.Vendor.user_id == current_user.id).first()
-        if vendor_record:
-            vendor_pricing = json.loads(vendor_record.pricing_config or '{}').get('per_lead', 0)
-    
-    # 2. 執行查詢
-    query_logs = db.query(models.EmailLog)
-    query_leads = db.query(models.Lead)
-    
-    if user_ids is not None:
-        query_logs = query_logs.filter(models.EmailLog.user_id.in_(user_ids))
-        query_leads = query_leads.filter(models.Lead.user_id.in_(user_ids))
+        query_logs = db.query(models.EmailLog)
+        query_leads = db.query(models.Lead)
+    else:
+        query_logs = db.query(models.EmailLog).filter(models.EmailLog.user_id == current_user.id)
+        query_leads = db.query(models.Lead).filter(models.Lead.user_id == current_user.id)
     
     email_logs = query_logs.all()
     leads = query_leads.all()
-    lead_map = {l.id: l for l in leads}
     
-    # 3. 統計標籤與成效 (不論是否有寄信，先從 Leads 建立基礎分佈)
-    tag_stats = {}
-    for lead in leads:
-        tag = lead.ai_tag if lead.ai_tag else "UNKNOWN"
-        if tag not in tag_stats:
-            tag_stats[tag] = {"total": 0, "delivered": 0, "opened": 0, "clicked": 0, "replied": 0}
-        tag_stats[tag]["total"] += 1
-
-    # 4. 加入寄信與追蹤數據
-    for log in email_logs:
-        lead = lead_map.get(log.lead_id)
-        if not lead: continue
-        tag = lead.ai_tag if lead.ai_tag else "UNKNOWN"
-        
-        if log.status == "delivered": tag_stats[tag]["delivered"] += 1
-        if log.opened: tag_stats[tag]["opened"] += 1
-        if log.clicked: tag_stats[tag]["clicked"] += 1
-        if log.replied: tag_stats[tag]["replied"] += 1
-    
-    # 4. 建立明細
-    records = []
-    for log in email_logs[:500]: # 限制回傳數量避免前端卡頓
-        lead = lead_map.get(log.lead_id)
-        records.append({
-            "id": log.id,
-            "company_name": lead.company_name if lead else "N/A",
-            "ai_tag": lead.ai_tag if lead else "UNKNOWN",
-            "recipient": log.recipient,
-            "status": log.status,
-            "sent_at": log.sent_at.strftime("%Y-%m-%d %H:%M") if log.sent_at else "",
-            "opened": log.opened,
-            "clicked": log.clicked
-        })
-
-    # 5. 計算批發計費 (Wholesale Billing)
-    billing_info = None
-    if is_vendor_view:
-        # 僅統計有效的 leads (狀態為 Scraped 或更高)
-        total_leads = len(leads)
-        billing_info = {
-            "total_leads": total_leads,
-            "unit_price": vendor_pricing,
-            "total_amount": total_leads * vendor_pricing,
-            "currency": "TWD",
-            "period": datetime.utcnow().strftime("%Y-%m")
-        }
-    
+    # 簡化回傳
     return {
-        "records": records,
-        "tag_stats": tag_stats,
-        "total_leads": len(leads),
-        "billing": billing_info
+        "email_logs": [log.to_dict() for log in email_logs],
+        "leads": [lead.to_dict() for lead in leads],
+        "total_logs": len(email_logs),
+        "total_leads": len(leads)
     }
+
+
 
 @app.post("/api/engagements/{log_uuid}/reply")
 def mark_email_replied(log_uuid: str, current_user: models.User = Depends(get_current_user_id)):
