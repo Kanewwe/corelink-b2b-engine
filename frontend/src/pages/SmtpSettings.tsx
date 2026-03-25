@@ -73,7 +73,7 @@ const SmtpSettings: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-full gap-6 animate-in fade-in duration-500">
+    <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-20">
       <div className="flex items-center justify-between bg-glass-panel p-6 rounded-2xl border border-white/5">
         <div>
           <h2 className="text-2xl font-bold text-white flex items-center gap-3">
@@ -89,8 +89,8 @@ const SmtpSettings: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 overflow-hidden">
-        <form onSubmit={handleSubmit} className="lg:col-span-2 flex flex-col gap-6 overflow-y-auto pr-2 custom-scrollbar">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <form onSubmit={handleSubmit} className="lg:col-span-2 flex flex-col gap-6">
           
           {/* Section 1: Server Config */}
           <div className="glass-panel p-8 relative overflow-hidden group">

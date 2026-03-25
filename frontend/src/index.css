@@ -36,6 +36,15 @@
   .input-field {
     @apply w-full px-5 py-3.5 bg-[#1A1F2B]/80 border border-white/10 rounded-2xl text-sm text-white focus:border-primary/40 focus:bg-[#1A1F2B] outline-none transition-all placeholder:text-slate-500/70 shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)];
   }
+
+  /* Browser Autofill Overrides */
+  input.input-field:-webkit-autofill,
+  input.input-field:-webkit-autofill:hover, 
+  input.input-field:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 50px #1A1F2B inset !important;
+    -webkit-text-fill-color: white !important;
+    transition: background-color 5000s ease-in-out 0s;
+  }
 }
 
 /* Scrollbar styling */
