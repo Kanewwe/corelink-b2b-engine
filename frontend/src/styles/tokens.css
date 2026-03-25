@@ -1,0 +1,65 @@
+/* ═══════════════════════════════════════════════════════
+   Linkora V2 — Design Tokens (全域設計變數)
+   所有頁面共用，禁止在元件中硬編碼色碼/間距/字型
+   ═══════════════════════════════════════════════════════ */
+
+:root {
+  /* ── 色彩系統 ── */
+  --color-bg-base:        #0d0f1e;
+  --color-bg-sidebar:     #13152a;
+  --color-bg-card:        #181b2e;
+  --color-bg-card-hover:  #1e2240;
+  --color-bg-input:       #12142a;
+  --color-bg-table-head:  #1a1d30;
+  --color-border:         #252840;
+  --color-border-light:   #1e2138;
+
+  /* ── 品牌色 ── */
+  --color-primary:        #5b7fff;
+  --color-primary-hover:  #7b96ff;
+  --color-primary-glow:   rgba(91,127,255,0.15);
+  --color-accent-teal:    #4ecdc4;
+
+  /* ── 狀態色 ── */
+  --color-success:        #22c55e;
+  --color-warning:        #f59e0b;
+  --color-danger:         #ef4444;
+  --color-info:           #3b82f6;
+
+  /* ── 文字色 ── */
+  --color-text-primary:   #f0f2ff;
+  --color-text-secondary: #8b8fa8;
+  --color-text-muted:     #4a4f6a;
+  --color-text-label:     #6b7280;
+
+  /* ── 間距 ── */
+  --space-page-x:   32px;
+  --space-page-y:   28px;
+  --space-section:  24px;
+  --space-card:     20px;
+  --space-card-sm:  14px;
+
+  /* ── 圓角 ── */
+  --radius-card:    12px;
+  --radius-input:   8px;
+  --radius-badge:   6px;
+  --radius-btn:     8px;
+  --radius-pill:    20px;
+
+  /* ── 字型 ── */
+  --font-size-page-title:    22px;
+  --font-size-section-title: 16px;
+  --font-size-card-title:    14px;
+  --font-size-label:         11px;
+  --font-size-body:          14px;
+  --font-size-small:         12px;
+  --font-weight-title:       700;
+  --font-weight-semi:        600;
+
+  /* ── 陰影 ── */
+  --shadow-card:   0 2px 16px rgba(0,0,0,0.3);
+  --shadow-modal:  0 8px 40px rgba(0,0,0,0.6);
+
+  /* ── 動畫 ── */
+  --transition-base: 0.2s ease;
+}

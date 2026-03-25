@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getAdminVendors, createAdminVendor, updateAdminVendor, deleteAdminVendor } from '../services/api';
-import { UserPlus, Edit, Trash2, Building2, X, Save } from 'lucide-react';
+import { UserPlus, Edit, Trash2, X, Save } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface Vendor {
   id: number;
@@ -69,12 +70,13 @@ const VendorAdmin: React.FC = () => {
         setEditingVendor(null);
         setForm({ email: '', password: '', company_name: '', contact_name: '', contact_phone: '', per_lead: 50 });
         fetchVendors();
+        toast.success(editingVendor ? '廠商資料已更新' : '廠商已建立');
       } else {
         const err = await resp.json();
-        alert(err.detail || "操作失敗");
+        toast.error(err.detail || '操作失敗');
       }
-    } catch (e) {
-      alert("網路錯誤");
+    } catch {
+      toast.error('網路錯誤');
     }
   };
 
@@ -92,199 +94,147 @@ const VendorAdmin: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("確定要刪除此委外廠商嗎？這將會停用該用戶帳號。")) return;
+    if (!confirm('確定要刪除此委外廠商嗎？這將會停用該用戶帳號。')) return;
     try {
       const resp = await deleteAdminVendor(id);
-      if (resp.ok) fetchVendors();
-    } catch (e) {
-      console.error(e);
-    }
+      if (resp.ok) { fetchVendors(); toast.success('廠商已刪除'); }
+    } catch { toast.error('刪除失敗'); }
   };
 
   return (
-    <div className="flex flex-col h-full gap-6">
-      <header className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Building2 className="w-7 h-7 text-primary" />
-            委外廠商 (Vendor) 管理中心
-          </h2>
-          <p className="text-text-muted text-sm mt-1">管理全國委外接案廠商、批發定價與帳務</p>
-        </div>
-        <button 
-          onClick={() => { setEditingVendor(null); setForm({ email: '', password: '', company_name: '', contact_name: '', contact_phone: '', per_lead: 50 }); setShowModal(true); }}
-          className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg transition-all shadow-lg shadow-primary/20"
-        >
-          <UserPlus className="w-5 h-5" />
-          新增委外廠商
-        </button>
-      </header>
+    <div className="page-wrapper">
 
-      <section className="glass-panel overflow-hidden border border-white/10">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+      {/* ── Page Header ── */}
+      <div className="page-header">
+        <div>
+          <div className="page-header__title-row">
+            <h1 className="page-title">
+              廠商管理
+              <span className="page-title__en">Vendor Management</span>
+            </h1>
+            <span className="version-badge">LINKORA V2</span>
+          </div>
+          <p className="page-subtitle">管理全國委外接案廠商、批發定價與帳務。</p>
+        </div>
+        <div className="page-header__right">
+          <button
+            onClick={() => { setEditingVendor(null); setForm({ email: '', password: '', company_name: '', contact_name: '', contact_phone: '', per_lead: 50 }); setShowModal(true); }}
+            className="btn-primary"
+          >
+            <UserPlus size={15} />
+            新增委外廠商
+          </button>
+        </div>
+      </div>
+
+      {/* ── Table ── */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table className="data-table">
             <thead>
-              <tr className="bg-white/5 text-text-muted text-sm uppercase tracking-wider">
-                <th className="px-6 py-4 font-semibold">廠商名稱 / ID</th>
-                <th className="px-6 py-4 font-semibold">聯絡人</th>
-                <th className="px-6 py-4 font-semibold">帳號 (Email)</th>
-                <th className="px-6 py-4 font-semibold">批發單價</th>
-                <th className="px-6 py-4 font-semibold">狀態</th>
-                <th className="px-6 py-4 font-semibold text-right">操作</th>
+              <tr>
+                <th>廠商名稱 / ID</th>
+                <th>聯絡人</th>
+                <th>帳號 (Email)</th>
+                <th>批發單價</th>
+                <th>狀態</th>
+                <th style={{ textAlign: 'right' }}>操作</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-text-muted">載入中...</td>
-                </tr>
+                <tr className="empty-row"><td colSpan={6}>載入中...</td></tr>
               ) : vendors.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-text-muted">尚無廠商資料</td>
+                <tr><td colSpan={6}>
+                  <div className="empty-state">
+                    <div className="empty-state__icon">🏭</div>
+                    <p className="empty-state__title">尚無廠商資料</p>
+                    <p className="empty-state__desc">點擊右上角「新增委外廠商」開始建立合作關係</p>
+                  </div>
+                </td></tr>
+              ) : vendors.map(v => (
+                <tr key={v.id} className="group">
+                  <td>
+                    <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{v.company_name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>#{v.id}</div>
+                  </td>
+                  <td>
+                    <div>{v.contact_name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{v.contact_phone}</div>
+                  </td>
+                  <td style={{ fontFamily: 'monospace', color: 'var(--color-primary)', fontSize: 13 }}>{v.email}</td>
+                  <td>
+                    <span className="badge badge--neutral">${v.pricing_config?.per_lead || 50} / lead</span>
+                  </td>
+                  <td>
+                    {v.is_active
+                      ? <span className="badge badge--success">合作中</span>
+                      : <span className="badge badge--danger">已終止</span>
+                    }
+                  </td>
+                  <td style={{ textAlign: 'right' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+                      <button onClick={() => handleEdit(v)} className="btn-icon-sm" title="編輯"><Edit size={14} /></button>
+                      <button onClick={() => handleDelete(v.id)} className="btn-icon-sm danger" title="刪除"><Trash2 size={14} /></button>
+                    </div>
+                  </td>
                 </tr>
-              ) : (
-                vendors.map(v => (
-                  <tr key={v.id} className="hover:bg-white/[0.02] transition-colors group">
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-white">{v.company_name}</div>
-                      <div className="text-xs text-text-muted">#{v.id}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm">{v.contact_name}</div>
-                      <div className="text-xs text-text-muted">{v.contact_phone}</div>
-                    </td>
-                    <td className="px-6 py-4 text-sm font-mono text-primary-light">{v.email}</td>
-                    <td className="px-6 py-4 text-sm">
-                      <span className="bg-white/10 px-2 py-1 rounded text-xs">
-                        ${v.pricing_config?.per_lead || 50} / lead
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {v.is_active ? (
-                        <span className="flex items-center gap-1.5 text-xs text-green-400">
-                          <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
-                          合作中
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1.5 text-xs text-red-400">
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
-                          已終止
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => handleEdit(v)} className="p-2 hover:bg-white/10 rounded-lg text-blue-400 transition-colors">
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleDelete(v.id)} className="p-2 hover:bg-white/10 rounded-lg text-red-400 transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>
-      </section>
+      </div>
 
-      {/* Modal */}
+      {/* ── Modal ── */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="glass-panel w-full max-w-lg shadow-2xl border border-white/20 animate-in fade-in zoom-in duration-200">
-            <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
-              <h3 className="text-xl font-bold flex items-center gap-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)}>
+          <div style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 16, width: '100%', maxWidth: 520, boxShadow: 'var(--shadow-modal)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid var(--color-border-light)' }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary)' }}>
                 {editingVendor ? '編輯廠商資料' : '新增委外廠商'}
               </h3>
-              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                <X className="w-5 h-5" />
-              </button>
+              <button onClick={() => setShowModal(false)} className="btn-icon-sm"><X size={16} /></button>
             </div>
-            
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs text-text-muted ml-1">廠商/公司名稱</label>
-                  <input 
-                    required
-                    value={form.company_name}
-                    onChange={e => setForm({...form, company_name: e.target.value})}
-                    placeholder="廠商名稱"
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 focus:border-primary outline-none transition-all"
-                  />
+
+            <form onSubmit={handleSubmit} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <label className="form-label">廠商/公司名稱</label>
+                  <input required value={form.company_name} onChange={e => setForm({ ...form, company_name: e.target.value })} placeholder="廠商名稱" className="form-input" />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-text-muted ml-1">窗口姓名</label>
-                  <input 
-                    value={form.contact_name}
-                    onChange={e => setForm({...form, contact_name: e.target.value})}
-                    placeholder="王小明"
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 focus:border-primary outline-none transition-all"
-                  />
+                <div>
+                  <label className="form-label">窗口姓名</label>
+                  <input value={form.contact_name} onChange={e => setForm({ ...form, contact_name: e.target.value })} placeholder="王小明" className="form-input" />
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs text-text-muted ml-1">登入帳號 (Email)</label>
-                <input 
-                  required
-                  type="email"
-                  disabled={!!editingVendor}
-                  value={form.email}
-                  onChange={e => setForm({...form, email: e.target.value})}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 focus:border-primary outline-none transition-all disabled:opacity-50"
-                />
+              <div>
+                <label className="form-label">登入帳號 (Email)</label>
+                <input required type="email" disabled={!!editingVendor} value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="form-input" style={editingVendor ? { opacity: 0.5 } : {}} />
               </div>
 
               {!editingVendor && (
-                <div className="space-y-1">
-                  <label className="text-xs text-text-muted ml-1">初始密碼</label>
-                  <input 
-                    required
-                    type="password"
-                    value={form.password}
-                    onChange={e => setForm({...form, password: e.target.value})}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 focus:border-primary outline-none transition-all"
-                  />
+                <div>
+                  <label className="form-label">初始密碼</label>
+                  <input required type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} className="form-input" />
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs text-text-muted ml-1">聯絡電話</label>
-                  <input 
-                    value={form.contact_phone}
-                    onChange={e => setForm({...form, contact_phone: e.target.value})}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 focus:border-primary outline-none transition-all"
-                  />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <label className="form-label">聯絡電話</label>
+                  <input value={form.contact_phone} onChange={e => setForm({ ...form, contact_phone: e.target.value })} className="form-input" />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-text-muted ml-1">批發單價 (TWD)</label>
-                  <input 
-                    type="number"
-                    value={form.per_lead}
-                    onChange={e => setForm({...form, per_lead: parseInt(e.target.value)})}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 focus:border-primary outline-none transition-all"
-                  />
+                <div>
+                  <label className="form-label">批發單價 (TWD)</label>
+                  <input type="number" value={form.per_lead} onChange={e => setForm({ ...form, per_lead: parseInt(e.target.value) })} className="form-input" />
                 </div>
               </div>
 
-              <div className="pt-4 flex gap-3">
-                <button 
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 border border-white/10 rounded-lg hover:bg-white/5 transition-all text-sm"
-                >
-                  取消
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2 text-sm font-bold"
-                >
-                  <Save className="w-4 h-4" />
-                  {editingVendor ? '儲存變更' : '確認建立'}
+              <div style={{ display: 'flex', gap: 10, paddingTop: 8 }}>
+                <button type="button" onClick={() => setShowModal(false)} className="btn-outline" style={{ flex: 1, justifyContent: 'center' }}>取消</button>
+                <button type="submit" className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}>
+                  <Save size={14} />{editingVendor ? '儲存變更' : '確認建立'}
                 </button>
               </div>
             </form>
