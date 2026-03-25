@@ -116,7 +116,7 @@ def ensure_admin_exists():
         admin.set_password("admin123")
         admin.role = "admin" # Ensure role is also correct
         db.commit()
-            print("✅ Admin user created successfully!")
+        print("✅ Admin credentials ensured.")
     except Exception as e:
         print(f"⚠️ Admin bootstrap failed: {e}")
     finally:
