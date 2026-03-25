@@ -158,3 +158,51 @@ Return ONLY a JSON array of {count} strings, nothing else."""
             seed_keyword + " supplier",
             seed_keyword + " manufacturer"
         ][:count]
+def generate_html_template(prompt: str, style: str = "formal", language: str = "English") -> dict:
+    """
+    Generate a professional HTML email template based on user prompt.
+    """
+    style_hints = {
+        "formal": "Professional, corporate, respectfull, B2B focused. Use clear headings.",
+        "friendly": "Warm, welcoming, personal, approachable. Use conversational tone.",
+        "urgent": "Time-sensitive, high-impact, direct call-to-action. Focus on benefits of immediate response.",
+        "followup": "Gentle reminder, providing value, keeping the door open. Refer to previous contact."
+    }
+    
+    system_prompt = f"""You are a world-class B2B email marketing expert. Your goal is to write a highly converting HTML email template in {language} language.
+    
+The template MUST be:
+1. Professional and modern HTML (inline CSS only).
+2. Fully responsive and visually appealing.
+3. Include placeholders like {{company_name}}, {{bd_name}}, {{contact_name}}, {{keywords}}, {{description}}.
+4. Tone should be: {style_hints.get(style, "Formal")}.
+
+Output ONLY JSON format:
+{{
+  "subject": "A compelling email subject",
+  "html": "<html>...</html>"
+}}"""
+
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Generate a template for: {prompt}"}
+            ],
+            temperature=0.7
+        )
+        content = response.choices[0].message.content.strip()
+        # Handle cases where GPT might wrap in ```json
+        if content.startswith("```"):
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
+        
+        return json.loads(content)
+    except Exception as e:
+        print(f"Error generating HTML template: {e}")
+        return {
+            "subject": "Special Offer for {{company_name}}",
+            "html": f"<html><body><h1>Hello!</h1><p>We are interested in your business activities. (Error: {str(e)})</p></body></html>"
+        }

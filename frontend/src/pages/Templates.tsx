@@ -1,5 +1,8 @@
-import { Plus, Folder, Paperclip, Save, Trash2, Edit, Check, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Folder, Paperclip, Save, Trash2, Edit, Check, Sparkles, ChevronDown, ChevronUp, Zap, RotateCcw, FileCode, Eye, Layout, Languages, Type } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { getTemplates, createTemplate, updateTemplate, deleteTemplate, generateAiTemplate } from '../services/api';
+import Editor from "@monaco-editor/react";
+import React, { useState, useEffect } from 'react';
 
 interface Template {
   id: number;
@@ -18,7 +21,13 @@ const Templates: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
-  const [aiExpanded, setAiExpanded] = useState(false);
+  const [editorMode, setEditorMode] = useState<'html' | 'preview' | 'split'>('html');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiStyle, setAiStyle] = useState('formal');
+  const [aiLanguage, setAiLanguage] = useState('English');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  
   const [form, setForm] = useState({
     name: '',
     tag: 'GENERAL',
@@ -44,6 +53,42 @@ const Templates: React.FC = () => {
   useEffect(() => {
     fetchTemplates();
   }, []);
+
+  const handleAiGenerate = async () => {
+    if (!aiPrompt) {
+      toast.error("請描述您想生成的信件內容");
+      return;
+    }
+    
+    setIsGenerating(true);
+    const loadingToast = toast.loading("AI 正在為您排版專業開發信...");
+    
+    try {
+      const resp = await generateAiTemplate({
+        prompt: aiPrompt,
+        style: aiStyle,
+        language: aiLanguage
+      });
+      
+      const data = await resp.json();
+      if (resp.ok && data.html) {
+        toast.success("AI 生成成功！已套用至編輯器。", { id: loadingToast });
+        setForm(prev => ({ ...prev, body: data.html, subject: data.subject || prev.subject }));
+        setEditorMode('split');
+      } else {
+        toast.error(data.detail || "AI 服務暫時無法回應", { id: loadingToast });
+      }
+    } catch (e) {
+      toast.error("網路通訊錯誤", { id: loadingToast });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const insertVariable = (v: string) => {
+    setForm(prev => ({ ...prev, body: prev.body + ` {{${v}}}` }));
+    toast.success(`已插入變數: {{${v}}}`);
+  };
 
   const handleSave = async () => {
     if (!form.name || !form.subject) {
@@ -201,80 +246,181 @@ const Templates: React.FC = () => {
               </div>
             </section>
 
-            {/* Middle Section: Monaco Editor (Main Work Area) */}
-            <section className="glass-panel p-0 overflow-hidden border border-white/10 shadow-2xl">
-              <div className="bg-white/[0.03] px-5 py-3 border-b border-white/5 flex justify-between items-center">
-                <span className="text-[11px] font-bold text-text-muted uppercase tracking-widest flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-                  HTML Source Code Editor (Monaco)
-                </span>
-                <span className="text-[10px] text-text-muted italic opacity-50">Auto-layout enabled</span>
+            {/* Middle Section: Advanced Controller & Monaco Editor */}
+            <section className="glass-panel p-5 border border-white/10 shadow-2xl flex flex-col gap-5">
+              {/* AI Generation Box (The Advanced One) */}
+              <div className="bg-[#1e2330] rounded-2xl border border-white/5 p-6 shadow-inner">
+                 <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center">
+                       <Sparkles className="w-4 h-4 text-primary fill-primary/30" />
+                    </div>
+                    <div>
+                       <h4 className="text-sm font-bold text-white">AI 智慧生成信件排版</h4>
+                       <p className="text-[10px] text-text-muted">描述您的信件目的，AI 自動排版為專業 HTML 開發信</p>
+                    </div>
+                 </div>
+
+                 <textarea 
+                    value={aiPrompt}
+                    onChange={e => setAiPrompt(e.target.value)}
+                    placeholder="例如：我要寫一封針對美國汽車零件採購商的開發信，強調我們的 Cable 產品品質與交期..."
+                    className="w-full h-24 bg-black/30 border border-white/10 rounded-xl p-4 text-sm text-white focus:border-primary/50 outline-none transition-all resize-none mb-4 placeholder:text-text-muted/30"
+                 />
+
+                 <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex gap-4">
+                       <div className="flex flex-col gap-1.5">
+                          <label className="text-[10px] text-text-muted font-bold ml-1">語言風格：</label>
+                          <div className="relative">
+                             <Type className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-text-muted" />
+                             <select 
+                                value={aiStyle}
+                                onChange={e => setAiStyle(e.target.value)}
+                                className="bg-white/5 border border-white/10 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white outline-none focus:border-primary/50 capitalize appearance-none"
+                             >
+                                <option value="formal">正式商務</option>
+                                <option value="friendly">親切隨和</option>
+                                <option value="urgent">急迫感行銷</option>
+                                <option value="followup">後續追蹤</option>
+                             </select>
+                          </div>
+                       </div>
+                       <div className="flex flex-col gap-1.5">
+                          <label className="text-[10px] text-text-muted font-bold ml-1">信件語言：</label>
+                          <div className="relative">
+                             <Languages className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-text-muted" />
+                             <select 
+                                value={aiLanguage}
+                                onChange={e => setAiLanguage(e.target.value)}
+                                className="bg-white/5 border border-white/10 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white outline-none focus:border-primary/50 appearance-none"
+                             >
+                                <option value="English">English</option>
+                                <option value="Traditional Chinese">繁體中文</option>
+                                <option value="Spanish">Spanish</option>
+                                <option value="Japanese">日本語</option>
+                             </select>
+                          </div>
+                       </div>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                       <button 
+                          onClick={handleAiGenerate}
+                          disabled={isGenerating}
+                          className="bg-primary hover:bg-primary-dark text-white px-6 py-2 rounded-xl text-xs font-black transition-all shadow-lg shadow-primary/20 flex items-center gap-2 disabled:opacity-50"
+                       >
+                          {isGenerating ? <RotateCcw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                          讓 AI 生成 HTML
+                       </button>
+                       <button 
+                          onClick={() => {setAiPrompt(''); setAiStyle('formal');}}
+                          className="bg-white/5 hover:bg-white/10 text-text-muted px-4 py-2 rounded-xl text-xs font-bold transition-all"
+                       >
+                          清除
+                       </button>
+                    </div>
+                 </div>
               </div>
-              <div className="h-[450px] relative">
-                <Editor
-                  height="100%"
-                  defaultLanguage="html"
-                  theme="vs-dark"
-                  value={form.body}
-                  onChange={(val) => setForm({...form, body: val || ''})}
-                  options={{
-                    minimap: { enabled: false },
-                    fontSize: 14,
-                    lineNumbers: 'on',
-                    scrollBeyondLastLine: false,
-                    automaticLayout: true,
-                    padding: { top: 16, bottom: 16 },
-                    renderLineHighlight: 'all',
-                    fontFamily: 'JetBrains Mono, Menlo, Monaco, Courier New, monospace',
-                  }}
-                />
+
+              {/* Mode Switcher & Tools */}
+              <div className="flex flex-wrap items-center justify-between gap-4 py-2 border-y border-white/5">
+                 <div className="flex items-center gap-3">
+                    <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider">模式切換：</span>
+                    <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
+                       <button 
+                          onClick={() => setEditorMode('html')}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${editorMode === 'html' ? 'bg-white/10 text-white' : 'text-text-muted hover:text-white'}`}
+                       >
+                          <FileCode className="w-3.5 h-3.5" /> HTML 編輯
+                       </button>
+                       <button 
+                          onClick={() => setEditorMode('preview')}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${editorMode === 'preview' ? 'bg-white/10 text-white' : 'text-text-muted hover:text-white'}`}
+                       >
+                          <Eye className="w-3.5 h-3.5" /> 預覽
+                       </button>
+                       <button 
+                          onClick={() => setEditorMode('split')}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${editorMode === 'split' ? 'bg-white/10 text-white' : 'text-text-muted hover:text-white'}`}
+                       >
+                          <Layout className="w-3.5 h-3.5" /> 分割視圖
+                       </button>
+                    </div>
+                 </div>
+
+                 <div className="flex gap-2">
+                    <button className="text-[10px] bg-white/5 hover:bg-white/10 text-text-muted px-3 py-1.5 rounded-lg transition-colors">格式化</button>
+                    <button className="text-[10px] bg-white/5 hover:bg-white/10 text-text-muted px-3 py-1.5 rounded-lg transition-colors">復原</button>
+                 </div>
+              </div>
+
+              {/* Variable Insertion Chips */}
+              <div className="flex flex-wrap items-center gap-2">
+                 <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider mr-1">變數插入：</span>
+                 {['company_name', 'bd_name', 'keywords', 'description'].map(v => (
+                    <button 
+                       key={v}
+                       onClick={() => insertVariable(v)}
+                       className="bg-primary/10 border border-primary/20 text-primary-light text-[10px] px-2.5 py-1 rounded-md hover:bg-primary/20 transition-colors font-mono"
+                    >
+                       `{`{{${v}}}`}`
+                    </button>
+                 ))}
+              </div>
+
+              {/* Editor / Preview Area */}
+              <div className={`grid gap-4 ${editorMode === 'split' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                 {(editorMode === 'html' || editorMode === 'split') && (
+                    <div className="flex flex-col gap-2 min-h-[400px]">
+                       <div className="text-[10px] text-text-muted uppercase tracking-widest flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-t-lg w-fit">
+                          <FileCode className="w-3 h-3" /> HTML 編輯器
+                       </div>
+                       <div className="flex-1 border border-white/10 rounded-xl overflow-hidden shadow-2xl">
+                          <Editor
+                             height="100%"
+                             defaultLanguage="html"
+                             theme="vs-dark"
+                             value={form.body}
+                             onChange={(val) => setForm({...form, body: val || ''})}
+                             options={{
+                               minimap: { enabled: false },
+                               fontSize: 14,
+                               lineNumbers: 'on',
+                               scrollBeyondLastLine: false,
+                               automaticLayout: true,
+                               padding: { top: 16, bottom: 16 },
+                               renderLineHighlight: 'all',
+                               fontFamily: 'JetBrains Mono, Menlo, Monaco, Courier New, monospace',
+                             }}
+                          />
+                       </div>
+                    </div>
+                 )}
+
+                 {(editorMode === 'preview' || editorMode === 'split') && (
+                    <div className="flex flex-col gap-2 min-h-[400px]">
+                       <div className="text-[10px] text-text-muted uppercase tracking-widest flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-t-lg w-fit">
+                          <Eye className="w-3 h-3" /> 即時預覽
+                       </div>
+                       <div className="flex-1 bg-white rounded-xl overflow-hidden border border-white/10 shadow-2xl p-4">
+                          <iframe 
+                             title="Email Preview"
+                             srcDoc={form.body}
+                             className="w-full h-full border-none"
+                          />
+                       </div>
+                    </div>
+                 )}
               </div>
             </section>
 
-            {/* Bottom Section: AI Assistant & Save */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-              <section className="lg:col-span-2 glass-panel p-5 border border-white/10">
-                <button 
-                  onClick={() => setAiExpanded(!aiExpanded)}
-                  className="w-full flex justify-between items-center group"
-                >
-                  <div className="text-left">
-                    <h4 className="font-bold text-sm text-white flex items-center gap-2 group-hover:text-primary transition-colors">
-                      <Sparkles className="w-4 h-4 text-primary" /> AI 智慧輔助生成工具
-                    </h4>
-                    <p className="text-[10px] text-text-muted mt-0.5">快速產生專業的開發信內文範本</p>
-                  </div>
-                  {aiExpanded ? <ChevronUp className="w-5 h-5 text-text-muted" /> : <ChevronDown className="w-5 h-5 text-text-muted" />}
-                </button>
-
-                {aiExpanded && (
-                  <div className="mt-5 animate-in slide-in-from-top-2 duration-300">
-                    <div className="flex gap-3">
-                      <input 
-                        placeholder="請輸入產品類型或信件目的，例如：AI 客服外包、北美市場開發..."
-                        className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:border-primary/50 transition-all outline-none"
-                      />
-                      <button className="bg-primary hover:bg-primary-dark text-white px-6 py-2.5 rounded-xl text-xs font-bold transition-all shadow-lg shadow-primary/20">
-                        立即生成
-                      </button>
-                    </div>
-                    <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-                      {['正式商務', '親切感隨和', '急迫感行銷', '後續追蹤'].map(tag => (
-                        <span key={tag} className="flex-shrink-0 text-[10px] bg-white/5 border border-white/5 px-2 py-1 rounded-md text-text-muted cursor-pointer hover:bg-white/10 transition-colors">
-                          # {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </section>
-
-              <section className="flex flex-col gap-4">
-                <button 
+            {/* Bottom Save Section */}
+            <div className="flex justify-end pt-4">
+               <button 
                   onClick={handleSave}
                   disabled={saving}
-                  className="w-full h-[68px] flex items-center justify-center gap-3 bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white rounded-2xl font-black text-lg transition-all shadow-2xl shadow-primary/30 disabled:opacity-50 group active:scale-[0.98]"
-                >
+                  className="px-12 h-16 flex items-center justify-center gap-3 bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white rounded-2xl font-black text-lg transition-all shadow-2xl shadow-primary/30 disabled:opacity-50 group active:scale-[0.98]"
+               >
                   {saving ? (
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
                   ) : (
@@ -283,17 +429,7 @@ const Templates: React.FC = () => {
                       {editingId ? '更新模板內容' : '確認儲存模板'}
                     </>
                   )}
-                </button>
-                <button 
-                  onClick={() => {
-                    setActiveTab('list');
-                    setEditingId(null);
-                  }}
-                  className="w-full py-3 text-xs text-text-muted hover:text-white transition-colors text-center"
-                >
-                  取消並回到列表
-                </button>
-              </section>
+               </button>
             </div>
           </div>
         )}

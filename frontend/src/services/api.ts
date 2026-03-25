@@ -33,6 +33,16 @@ export const fetchWithAuth = async (endpoint: string, options: RequestInit = {})
 
 export const getSearchHistory = () => fetchWithAuth('/search-history');
 
+// Scraper
+export const triggerScrape = (data: any) => fetchWithAuth('/scrape', {
+  method: 'POST',
+  body: JSON.stringify(data)
+});
+export const triggerScrapeSimple = (data: any) => fetchWithAuth('/scrape-simple', {
+  method: 'POST',
+  body: JSON.stringify(data)
+});
+
 // Admin - Vendors
 export const getEngagements = (vendorId?: number) => {
   const query = vendorId ? `?vendor_id=${vendorId}` : '';
@@ -59,19 +69,36 @@ export const saveSmtpSettings = (data: any) => fetchWithAuth('/settings/smtp', {
 });
 
 // Templates
-export const getTemplates = () => fetchWithAuth('/email-templates');
-export const createTemplate = (data: any) => fetchWithAuth('/email-templates', {
+export const getTemplates = () => fetchWithAuth('/templates');
+export const createTemplate = (data: any) => fetchWithAuth('/templates', {
   method: 'POST',
   body: JSON.stringify(data)
 });
-export const updateTemplate = (id: number, data: any) => fetchWithAuth(`/email-templates/${id}`, {
+export const updateTemplate = (id: number, data: any) => fetchWithAuth(`/templates/${id}`, {
   method: 'PUT',
   body: JSON.stringify(data)
 });
-export const deleteTemplate = (id: number) => fetchWithAuth(`/email-templates/${id}`, {
+export const deleteTemplate = (id: number) => fetchWithAuth(`/templates/${id}`, {
   method: 'DELETE'
 });
+export const generateAiTemplate = (data: any) => fetchWithAuth('/templates/ai-generate', {
+  method: 'POST',
+  body: JSON.stringify(data)
+});
 
-// Dashboard
+// Dashboard & Leads
 export const getDashboardStats = () => fetchWithAuth('/dashboard/stats');
 export const getLeads = () => fetchWithAuth('/leads');
+export const findEmail = (leadId: number) => fetchWithAuth(`/leads/${leadId}/find-email`, {
+  method: 'POST'
+});
+export const batchFindEmails = (data: any) => fetchWithAuth('/leads/batch-find-emails', {
+  method: 'POST',
+  body: JSON.stringify(data)
+});
+
+// Keywords
+export const generateAiKeywords = (keyword: string, count: number = 5) => fetchWithAuth('/keywords/generate', {
+  method: 'POST',
+  body: JSON.stringify({ keyword, count })
+});
