@@ -398,6 +398,13 @@ def debug():
         "database_url": os.getenv("DATABASE_URL", "NOT SET"),
     }
 
+@app.get("/api/debug/check-admin")
+def check_admin(db: Session = Depends(get_db)):
+    admin = db.query(models.User).filter(models.User.email == "admin@linkora.com").first()
+    if admin:
+        return {"exists": True, "role": admin.role, "is_active": admin.is_active}
+    return {"exists": False, "count": db.query(models.User).count()}
+
 # --- API Endpoints (Session Auth) ---
 def get_current_user_id(session_id: str = Cookie(None), db: Session = Depends(get_db)) -> models.User:
     """取得當前用戶（Session 驗證）"""
