@@ -229,8 +229,6 @@ const Templates: React.FC = () => {
                   <label className="form-label">分類標籤</label>
                   <input value={form.tag} onChange={e => setForm({ ...form, tag: e.target.value })}
                     placeholder="GENERAL" className="form-input" />
-                    className="input-field py-2.5" 
-                  />
                 </div>
                 <div className="space-y-2 flex flex-col justify-end pb-3">
                   <label className="flex items-center gap-3 cursor-pointer text-sm select-none text-text-muted hover:text-white transition-colors">
@@ -252,17 +250,17 @@ const Templates: React.FC = () => {
                   value={form.subject}
                   onChange={e => setForm({...form, subject: e.target.value})}
                   placeholder="Hello {{company_name}}, interesting opportunity for you"
-                  className="input-field py-2.5 font-medium" 
+                  className="form-input"
                 />
                 <p className="text-[10px] text-text-muted flex items-center gap-1.5 mt-2">
                   <span className="bg-white/10 px-1.5 py-0.5 rounded text-white flex items-center">Tip</span>
                   支援變數動態替換：<code>{"{{company_name}}"}</code>, <code>{"{{contact_name}}"}</code>
                 </p>
               </div>
-            </section>
+            </div>
 
             {/* Middle Section: Advanced Controller & Monaco Editor */}
-            <section className="glass-panel p-5 border border-white/10 shadow-2xl flex flex-col gap-5">
+            <div className="card" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               {/* AI Generation Box (The Advanced One) */}
               <div className="bg-[#1e2330] rounded-2xl border border-white/5 p-6 shadow-inner">
                  <div className="flex items-center gap-2 mb-4">
@@ -279,7 +277,7 @@ const Templates: React.FC = () => {
                     value={aiPrompt}
                     onChange={e => setAiPrompt(e.target.value)}
                     placeholder="例如：我要寫一封針對美國汽車零件採購商的開發信，強調我們的 Cable 產品品質與交期..."
-                    className="input-field h-24 p-4 resize-none mb-4"
+                    className="form-textarea" style={{ height: 96, resize: "none", marginBottom: 14 }}
                  />
 
                  <div className="flex flex-wrap items-center justify-between gap-4">
@@ -291,7 +289,7 @@ const Templates: React.FC = () => {
                              <select 
                                 value={aiStyle}
                                 onChange={e => setAiStyle(e.target.value)}
-                                className="input-field pl-8 py-1.5 text-xs capitalize appearance-none"
+                                className="form-select" style={{ paddingLeft: 32, fontSize: 12 }}
                              >
                                 <option value="formal">正式商務</option>
                                 <option value="friendly">親切隨和</option>
@@ -307,7 +305,7 @@ const Templates: React.FC = () => {
                              <select 
                                 value={aiLanguage}
                                 onChange={e => setAiLanguage(e.target.value)}
-                                className="input-field pl-8 py-1.5 text-xs appearance-none"
+                                className="form-select" style={{ paddingLeft: 32, fontSize: 12 }}
                              >
                                 <option value="English">English</option>
                                 <option value="Traditional Chinese">繁體中文</option>
@@ -432,7 +430,7 @@ const Templates: React.FC = () => {
                     </div>
                  )}
               </div>
-            </section>
+            </div>
 
             {/* Bottom Save Section */}
             <div className="flex justify-end pt-4">

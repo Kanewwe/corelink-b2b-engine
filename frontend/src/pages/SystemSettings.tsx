@@ -171,12 +171,12 @@ const SystemSettings: React.FC = () => {
               </div>
 
               {/* Discovery Section */}
-              <div className="space-y-4">
-                <label className="text-xs font-black text-text-muted uppercase tracking-widest flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-accent" /> 數據探勘工具 (Discovery)
+              <div>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-accent-teal)', display: 'inline-block' }} />
+                  數據探勘工具 (Discovery)
                 </label>
-                <div className="space-y-4 bg-black/20 p-6 rounded-2xl border border-white/5">
-                  <div className="space-y-2">
+                <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   <div>
                     <label className="form-label">Hunter.io API Key</label>
                     <input type="password" className="form-input" placeholder="API Key for Email Discovery"
@@ -186,6 +186,11 @@ const SystemSettings: React.FC = () => {
                     <label className="form-label">Google CSE ID</label>
                     <input className="form-input" placeholder="Search Engine ID"
                       value={apiKeys.google_cse_id} onChange={e => setApiKeys({ ...apiKeys, google_cse_id: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="form-label">Google API Key</label>
+                    <input type="password" className="form-input" placeholder="Google API Key"
+                      value={apiKeys.google_api_key} onChange={e => setApiKeys({ ...apiKeys, google_api_key: e.target.value })} />
                   </div>
                 </div>
               </div>
