@@ -224,33 +224,24 @@ corelink-b2b-engine-2.0-optimized/
 
 ---
 
-## 🚀 部署指南
+## 🚀 部署與開發生命週期 (Standard Lifecycle)
 
-### 1. 推送至 GitHub
+本專案採行嚴格的 **UAT (Staging) 優先策略**，確保所有更新在進入正式環境前皆經過驗證。
 
-```bash
-git clone https://github.com/Kanewwe/corelink-b2b-engine.git
-cd corelink-b2b-engine
-git checkout -b v2.0-optimized
-git push origin v2.0-optimized
-```
+### 1. 開發流程 (Standard Workflow)
+- **Staging (UAT)**: 開發與修補請推送到 `uat` 分支。Render 會自動部署至測試環境。
+- **Verification**: 在 UAT 環境驗證功能（如：Auth、SMTP、Scraper）。
+- **Production (PRD)**: 驗證無誤後，將 `uat` 合併至 `prd` 分支。Render 會自動更新正式環境。
 
-### 2. Render 設定
+### 2. 快速指令
+使用專屬同步腳本簡化操作：
 
-1. 建立 **PostgreSQL** 資料庫
-2. 建立 **Web Service**
-3. 連接 GitHub repo，選擇 `v2.0-optimized` 分支
-4. 設定環境變數
-5. 部署！
+- **推送至測試 (UAT)**: `git push origin uat`
+- **發布至正式 (PRD)**: `./scripts/sync.ps1 -Action deploy` (自動完成合併與推送)
 
-### 3. 環境變數設定
-
-```
-OPENAI_API_KEY=sk-...
-DATABASE_URL=postgresql://...
-ADMIN_PASSWORD=your_secure_password
-APP_BASE_URL=https://linkoratw.com
-```
+### 3. Render 服務網址
+- **正式環境 (PRD)**: [https://linkora-frontend.onrender.com](https://linkora-frontend.onrender.com)
+- **測試環境 (UAT)**: [https://linkora-frontend-uat.onrender.com](https://linkora-frontend-uat.onrender.com)
 
 ---
 
