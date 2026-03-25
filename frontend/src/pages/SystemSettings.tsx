@@ -12,8 +12,7 @@ const SystemSettings: React.FC = () => {
   const [apiKeys, setApiKeys] = useState({
     openai_key: '',
     openai_model: 'gpt-4o',
-    google_cse_id: '',
-    google_api_key: '',
+    apify_token: '',
     hunter_key: ''
   });
   
@@ -181,19 +180,16 @@ const SystemSettings: React.FC = () => {
                 </label>
                 <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   <div>
+                    <label className="form-label">Apify API Token</label>
+                    <input type="password" className="form-input" placeholder="apify_api_..."
+                      value={apiKeys.apify_token} onChange={e => setApiKeys({ ...apiKeys, apify_token: e.target.value })} />
+                    <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>用於 Yellow Pages 爬蟲</p>
+                  </div>
+                  <div>
                     <label className="form-label">Hunter.io API Key</label>
                     <input type="password" className="form-input" placeholder="API Key for Email Discovery"
                       value={apiKeys.hunter_key} onChange={e => setApiKeys({ ...apiKeys, hunter_key: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="form-label">Google CSE ID</label>
-                    <input className="form-input" placeholder="Search Engine ID"
-                      value={apiKeys.google_cse_id} onChange={e => setApiKeys({ ...apiKeys, google_cse_id: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="form-label">Google API Key</label>
-                    <input type="password" className="form-input" placeholder="Google API Key"
-                      value={apiKeys.google_api_key} onChange={e => setApiKeys({ ...apiKeys, google_api_key: e.target.value })} />
+                    <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>用於 Email 發現（可選）</p>
                   </div>
                 </div>
               </div>
