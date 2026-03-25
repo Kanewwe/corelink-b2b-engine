@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import RoleGuard from './components/RoleGuard';
+import { Toaster } from 'react-hot-toast';
 
 // Pages
 import LeadEngine from './pages/LeadEngine';
@@ -20,6 +21,7 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
         <Routes>
           <Route path="/login" element={<Login />} />
           

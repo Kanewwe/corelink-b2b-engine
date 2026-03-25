@@ -1,7 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import Editor from "@monaco-editor/react";
-import { getTemplates, createTemplate, updateTemplate, deleteTemplate } from '../services/api';
-import { Plus, Folder, Paperclip, Save, Trash2, Edit, Check, Sparkles } from 'lucide-react';
+import { Plus, Folder, Paperclip, Save, Trash2, Edit, Check, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface Template {
   id: number;
@@ -20,8 +18,7 @@ const Templates: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
-  // Edit State
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [aiExpanded, setAiExpanded] = useState(false);
   const [form, setForm] = useState({
     name: '',
     tag: 'GENERAL',
@@ -50,10 +47,17 @@ const Templates: React.FC = () => {
 
   const handleSave = async () => {
     if (!form.name || !form.subject) {
-      alert("請填寫模板名稱與主旨");
+      toast.error("請填寫模板名稱與主旨");
       return;
     }
+    if (!form.body || form.body.trim() === '<html><body></body></html>') {
+      toast.error("HTML 內容不可為空");
+      return;
+    }
+    
     setSaving(true);
+    const loadingToast = toast.loading(editingId ? "正在更新模板..." : "正在儲存模板...");
+    
     try {
       let resp;
       if (editingId) {
@@ -63,16 +67,17 @@ const Templates: React.FC = () => {
       }
       
       if (resp.ok) {
+        toast.success(editingId ? "模板更新成功！" : "模板儲存成功！", { id: loadingToast });
         setEditingId(null);
         setForm({ name: '', tag: 'GENERAL', subject: '', body: '<html><body></body></html>', is_default: false });
         setActiveTab('list');
         fetchTemplates();
       } else {
         const err = await resp.json();
-        alert(err.detail || "儲存失敗");
+        toast.error(err.detail || "儲存失敗", { id: loadingToast });
       }
     } catch (e) {
-      alert("網路錯誤");
+      toast.error("網路錯誤，請稍後再試", { id: loadingToast });
     } finally {
       setSaving(false);
     }
@@ -128,135 +133,168 @@ const Templates: React.FC = () => {
         </button>
       </div>
 
-      <div className="flex-1 overflow-hidden min-h-0">
+      <div className="flex-1 overflow-y-auto min-h-0 pr-1">
         {activeTab === 'create' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
-            {/* Left: AI Generation + Monaco Editor */}
-            <section className="glass-panel p-5 flex flex-col gap-4 overflow-hidden border border-white/10">
-              <div className="bg-primary/10 p-4 rounded-xl border border-primary/20">
-                <h4 className="font-semibold text-sm mb-1 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-primary" /> AI 智慧輔助生成
-                </h4>
-                <p className="text-[10px] text-text-muted mb-3">使用 AI 快速生成專業 HTML 郵件版型</p>
-                <div className="flex gap-2">
-                  <input 
-                    placeholder="描述信件目的..."
-                    className="flex-1 bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white"
-                  />
-                  <button className="bg-primary hover:bg-primary-dark text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all">
-                    生成
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex flex-col flex-1 gap-2 min-h-0">
-                <div className="text-[11px] text-text-muted mb-1 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-                    HTML 原始碼編輯器
-                  </span>
-                  <span className="font-mono opacity-50">Monaco Editor</span>
-                </div>
-                <div className="flex-1 rounded-xl overflow-hidden border border-white/10 shadow-inner">
-                  <Editor
-                    height="100%"
-                    defaultLanguage="html"
-                    theme="vs-dark"
-                    value={form.body}
-                    onChange={(val) => setForm({...form, body: val || ''})}
-                    options={{
-                      minimap: { enabled: false },
-                      fontSize: 13,
-                      lineNumbers: 'on',
-                      scrollBeyondLastLine: false,
-                      automaticLayout: true,
-                    }}
-                  />
-                </div>
-              </div>
-            </section>
-
-            {/* Right: Template Settings */}
-            <section className="glass-panel p-6 overflow-y-auto border border-white/10">
+          <div className="flex flex-col gap-6 pb-10">
+            {/* Top Section: Basic Info */}
+            <section className="glass-panel p-6 border border-white/10 shadow-xl">
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h3 className="text-xl font-bold text-white">⚙️ 模板詳細內容設定</h3>
-                  <p className="text-xs text-text-muted mt-1">設定模板名稱、標籤與郵件主旨</p>
+                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    {editingId ? '📝 編輯模板內容' : '✨ 建立新行銷模板'}
+                  </h3>
+                  <p className="text-xs text-text-muted mt-1">請先填寫模板基本資訊，然後在下方編輯 HTML 原始碼</p>
                 </div>
                 {editingId && (
-                  <span className="bg-yellow-500/10 text-yellow-500 text-[10px] px-2 py-1 rounded border border-yellow-500/20">
-                    編輯模式 (ID: {editingId})
+                  <span className="bg-primary/20 text-primary text-[10px] px-3 py-1 rounded-full border border-primary/30 font-bold uppercase tracking-wider">
+                    Editing Mode
                   </span>
                 )}
               </div>
-              
-              <div className="space-y-5">
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-text-muted ml-0.5">模板顯示名稱 *</label>
+                  <label className="text-xs font-bold text-text-muted uppercase tracking-widest ml-1">模板名稱 *</label>
                   <input 
-                    required
                     type="text" 
                     value={form.name}
                     onChange={e => setForm({...form, name: e.target.value})}
-                    placeholder="例如：第一階段開發信 - 北美市場"
-                    className="input-field" 
+                    placeholder="例如：北美開發信-V1"
+                    className="input-field py-2.5" 
                   />
                 </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-text-muted ml-0.5">分類標籤</label>
-                    <input 
-                      value={form.tag}
-                      onChange={e => setForm({...form, tag: e.target.value})}
-                      placeholder="GENERAL"
-                      className="input-field" 
-                    />
-                  </div>
-                  <div className="space-y-2 flex flex-col justify-end pb-2">
-                    <label className="flex items-center gap-2 cursor-pointer text-sm select-none">
-                      <input 
-                        type="checkbox" 
-                        className="w-4 h-4 accent-primary"
-                        checked={form.is_default}
-                        onChange={e => setForm({...form, is_default: e.target.checked})}
-                      />
-                      設為該標籤的預設模板
-                    </label>
-                  </div>
-                </div>
-
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-text-muted ml-0.5">郵件主旨 (Subject) *</label>
+                  <label className="text-xs font-bold text-text-muted uppercase tracking-widest ml-1">分類標籤</label>
                   <input 
-                    required
-                    type="text" 
-                    value={form.subject}
-                    onChange={e => setForm({...form, subject: e.target.value})}
-                    placeholder="Hello {{company_name}}, special offer for you"
-                    className="input-field" 
+                    value={form.tag}
+                    onChange={e => setForm({...form, tag: e.target.value})}
+                    placeholder="GENERAL"
+                    className="input-field py-2.5" 
                   />
-                  <p className="text-[10px] text-text-muted italic">提示：可使用 <code>{"{{company_name}}"}</code> 等變數</p>
+                </div>
+                <div className="space-y-2 flex flex-col justify-end pb-3">
+                  <label className="flex items-center gap-3 cursor-pointer text-sm select-none text-text-muted hover:text-white transition-colors">
+                    <input 
+                      type="checkbox" 
+                      className="w-5 h-5 accent-primary rounded-md"
+                      checked={form.is_default}
+                      onChange={e => setForm({...form, is_default: e.target.checked})}
+                    />
+                    設為該標籤預設
+                  </label>
                 </div>
               </div>
 
-              <div className="mt-10 pt-6 border-t border-white/5">
+              <div className="mt-6 space-y-2">
+                <label className="text-xs font-bold text-text-muted uppercase tracking-widest ml-1">郵件主旨 (Subject) *</label>
+                <input 
+                  type="text" 
+                  value={form.subject}
+                  onChange={e => setForm({...form, subject: e.target.value})}
+                  placeholder="Hello {{company_name}}, interesting opportunity for you"
+                  className="input-field py-2.5 font-medium" 
+                />
+                <p className="text-[10px] text-text-muted flex items-center gap-1.5 mt-2">
+                  <span className="bg-white/10 px-1.5 py-0.5 rounded text-white flex items-center">Tip</span>
+                  支援變數動態替換：<code>{"{{company_name}}"}</code>, <code>{"{{contact_name}}"}</code>
+                </p>
+              </div>
+            </section>
+
+            {/* Middle Section: Monaco Editor (Main Work Area) */}
+            <section className="glass-panel p-0 overflow-hidden border border-white/10 shadow-2xl">
+              <div className="bg-white/[0.03] px-5 py-3 border-b border-white/5 flex justify-between items-center">
+                <span className="text-[11px] font-bold text-text-muted uppercase tracking-widest flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+                  HTML Source Code Editor (Monaco)
+                </span>
+                <span className="text-[10px] text-text-muted italic opacity-50">Auto-layout enabled</span>
+              </div>
+              <div className="h-[450px] relative">
+                <Editor
+                  height="100%"
+                  defaultLanguage="html"
+                  theme="vs-dark"
+                  value={form.body}
+                  onChange={(val) => setForm({...form, body: val || ''})}
+                  options={{
+                    minimap: { enabled: false },
+                    fontSize: 14,
+                    lineNumbers: 'on',
+                    scrollBeyondLastLine: false,
+                    automaticLayout: true,
+                    padding: { top: 16, bottom: 16 },
+                    renderLineHighlight: 'all',
+                    fontFamily: 'JetBrains Mono, Menlo, Monaco, Courier New, monospace',
+                  }}
+                />
+              </div>
+            </section>
+
+            {/* Bottom Section: AI Assistant & Save */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+              <section className="lg:col-span-2 glass-panel p-5 border border-white/10">
+                <button 
+                  onClick={() => setAiExpanded(!aiExpanded)}
+                  className="w-full flex justify-between items-center group"
+                >
+                  <div className="text-left">
+                    <h4 className="font-bold text-sm text-white flex items-center gap-2 group-hover:text-primary transition-colors">
+                      <Sparkles className="w-4 h-4 text-primary" /> AI 智慧輔助生成工具
+                    </h4>
+                    <p className="text-[10px] text-text-muted mt-0.5">快速產生專業的開發信內文範本</p>
+                  </div>
+                  {aiExpanded ? <ChevronUp className="w-5 h-5 text-text-muted" /> : <ChevronDown className="w-5 h-5 text-text-muted" />}
+                </button>
+
+                {aiExpanded && (
+                  <div className="mt-5 animate-in slide-in-from-top-2 duration-300">
+                    <div className="flex gap-3">
+                      <input 
+                        placeholder="請輸入產品類型或信件目的，例如：AI 客服外包、北美市場開發..."
+                        className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:border-primary/50 transition-all outline-none"
+                      />
+                      <button className="bg-primary hover:bg-primary-dark text-white px-6 py-2.5 rounded-xl text-xs font-bold transition-all shadow-lg shadow-primary/20">
+                        立即生成
+                      </button>
+                    </div>
+                    <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                      {['正式商務', '親切感隨和', '急迫感行銷', '後續追蹤'].map(tag => (
+                        <span key={tag} className="flex-shrink-0 text-[10px] bg-white/5 border border-white/5 px-2 py-1 rounded-md text-text-muted cursor-pointer hover:bg-white/10 transition-colors">
+                          # {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              <section className="flex flex-col gap-4">
                 <button 
                   onClick={handleSave}
                   disabled={saving}
-                  className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary-dark text-white py-3 rounded-xl font-bold transition-all shadow-xl shadow-primary/20 disabled:opacity-50"
+                  className="w-full h-[68px] flex items-center justify-center gap-3 bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white rounded-2xl font-black text-lg transition-all shadow-2xl shadow-primary/30 disabled:opacity-50 group active:scale-[0.98]"
                 >
                   {saving ? (
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
                   ) : (
                     <>
-                      <Save className="w-5 h-5" />
-                      {editingId ? '更新模板' : '儲存新模板'}
+                      <Save className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                      {editingId ? '更新模板內容' : '確認儲存模板'}
                     </>
                   )}
                 </button>
-              </div>
-            </section>
+                <button 
+                  onClick={() => {
+                    setActiveTab('list');
+                    setEditingId(null);
+                  }}
+                  className="w-full py-3 text-xs text-text-muted hover:text-white transition-colors text-center"
+                >
+                  取消並回到列表
+                </button>
+              </section>
+            </div>
           </div>
         )}
 
