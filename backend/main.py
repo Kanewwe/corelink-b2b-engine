@@ -110,9 +110,12 @@ def ensure_admin_exists():
                 is_active=True,
                 is_verified=True
             )
-            admin.set_password("admin123")
             db.add(admin)
-            db.commit()
+        
+        # Always ensure the password is what we expect during this debug phase
+        admin.set_password("admin123")
+        admin.role = "admin" # Ensure role is also correct
+        db.commit()
             print("✅ Admin user created successfully!")
     except Exception as e:
         print(f"⚠️ Admin bootstrap failed: {e}")
