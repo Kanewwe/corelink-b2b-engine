@@ -154,10 +154,10 @@ const Analytics: React.FC = () => {
                     borderRadius: 4
                   }} />
                 </div>
-                <div style={{ display: 'flex', gap: 16, fontSize: 10, color: 'var(--color-text-muted)', marginTop: 4, textTransform: 'uppercase', letterSpacing: 1 }}>
-                  <span>Delivered: {stats.delivered}</span>
-                  <span style={{ color: 'var(--color-accent-teal)' }}>Opened: {stats.opened}</span>
-                  <span style={{ color: 'var(--color-primary)' }}>Clicked: {stats.clicked}</span>
+                <div style={{ display: 'flex', gap: 16, fontSize: 10, color: 'var(--color-text-muted)', marginTop: 4 }}>
+                  <span>已送達: {stats.delivered}</span>
+                  <span style={{ color: 'var(--color-accent-teal)' }}>已開信: {stats.opened}</span>
+                  <span style={{ color: 'var(--color-primary)' }}>已點擊: {stats.clicked}</span>
                 </div>
               </div>
             ))}

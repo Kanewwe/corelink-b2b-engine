@@ -373,18 +373,20 @@ const MemberAdmin: React.FC = () => {
 
       {/* Stats Row */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="stats-grid">
           {[
-            { label: '總會員數', value: stats.users.total, icon: <Users size={18} />, color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20' },
-            { label: '啟用中', value: stats.users.active, icon: <UserCheck size={18} />, color: 'text-green-400', bg: 'bg-green-500/10 border-green-500/20' },
-            { label: '本月新增', value: stats.users.new_this_month, icon: <TrendingUp size={18} />, color: 'text-primary', bg: 'bg-primary/10 border-primary/20' },
-            { label: '總 Leads', value: stats.data.total_leads, icon: <BarChart2 size={18} />, color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20' },
+            { label: '總會員數',  value: stats.users.total,           icon: <Users size={18} />,     iconColor: 'var(--color-primary)',      bg: 'var(--color-primary-glow)' },
+            { label: '啟用中',    value: stats.users.active,          icon: <UserCheck size={18} />, iconColor: 'var(--color-accent-teal)',  bg: 'rgba(78,205,196,0.12)' },
+            { label: '本月新增',  value: stats.users.new_this_month,  icon: <TrendingUp size={18} />,iconColor: 'var(--color-warning)',      bg: 'rgba(245,158,11,0.12)' },
+            { label: '總 Leads',  value: stats.data.total_leads,      icon: <BarChart2 size={18} />, iconColor: 'var(--color-text-secondary)',bg: 'var(--color-bg-card)' },
           ].map(s => (
-            <div key={s.label} className={`rounded-2xl p-5 border ${s.bg} flex items-center gap-4`}>
-              <div className={`${s.color} opacity-80`}>{s.icon}</div>
+            <div key={s.label} className="stat-card">
+              <div className="stat-card__icon" style={{ background: s.bg }}>
+                <span style={{ color: s.iconColor }}>{s.icon}</span>
+              </div>
               <div>
-                <div className={`text-2xl font-black ${s.color}`}>{s.value}</div>
-                <div className="text-text-muted text-xs">{s.label}</div>
+                <div className="stat-card__value" style={{ color: s.iconColor }}>{s.value}</div>
+                <div className="stat-card__label">{s.label}</div>
               </div>
             </div>
           ))}
@@ -395,15 +397,13 @@ const MemberAdmin: React.FC = () => {
       {stats && (
         <div className="grid grid-cols-3 gap-3">
           {[
-            { role: 'admin', count: stats.users.by_role.admin, label: 'Admin', color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/20' },
-            { role: 'vendor', count: stats.users.by_role.vendor, label: 'Vendor', color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20' },
-            { role: 'member', count: stats.users.by_role.member, label: 'Member', color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20' },
+            { role: 'admin',  count: stats.users.by_role.admin,  label: 'Admin' },
+            { role: 'vendor', count: stats.users.by_role.vendor, label: 'Vendor' },
+            { role: 'member', count: stats.users.by_role.member, label: 'Member' },
           ].map(r => (
-            <div key={r.role} className={`rounded-xl p-4 border ${r.bg} flex items-center justify-between`}>
-              <div className="flex items-center gap-2">
-                <RoleBadge role={r.role} />
-              </div>
-              <span className={`text-xl font-black ${r.color}`}>{r.count}</span>
+            <div key={r.role} className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px' }}>
+              <RoleBadge role={r.role} />
+              <span style={{ fontSize: 22, fontWeight: 900, color: 'var(--color-text-primary)' }}>{r.count}</span>
             </div>
           ))}
         </div>

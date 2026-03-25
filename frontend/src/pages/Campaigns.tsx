@@ -57,15 +57,15 @@ const Campaigns: React.FC = () => {
       {/* ── SMTP 警告橫幅（未設定時顯示）── */}
       {!hasSmtp && (
         <div className="page-banner page-banner--warning">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
+            <AlertTriangle size={18} style={{ flexShrink: 0 }} />
             <div>
               <div style={{ fontWeight: 600, marginBottom: 2 }}>SMTP 尚未設定，目前無法寄信</div>
               <div style={{ fontSize: 12, opacity: 0.8 }}>完成設定後才能發送開發信</div>
             </div>
           </div>
           <Link to="/smtp" className="btn-primary btn--sm" style={{ textDecoration: 'none', flexShrink: 0 }}>
-            前往 SMTP 設定 →
+            前往設定 →
           </Link>
         </div>
       )}

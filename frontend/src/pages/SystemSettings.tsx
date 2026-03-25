@@ -121,16 +121,19 @@ const SystemSettings: React.FC = () => {
       {/* ── Tab Nav（統一元件）── */}
       <div className="tab-nav">
         {[
-          { id: 'apis',    label: 'API 接口管理',  icon: Cpu },
-          { id: 'mapping', label: '變數標籤映射',  icon: Database },
-          { id: 'general', label: '通用系統參數',  icon: Shield }
+          { id: 'apis',    label: 'API 接口管理',  icon: Cpu,      disabled: false },
+          { id: 'mapping', label: '變數標籤映射',  icon: Database, disabled: false },
+          { id: 'general', label: '通用系統參數',  icon: Shield,   disabled: true  }
         ].map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`tab-nav__item ${activeTab === tab.id ? 'active' : ''}`}
+            onClick={() => !tab.disabled && setActiveTab(tab.id as any)}
+            className={`tab-nav__item ${activeTab === tab.id ? 'active' : ''} ${tab.disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+            disabled={tab.disabled}
+            title={tab.disabled ? '即將推出' : undefined}
           >
             <tab.icon size={14} /> {tab.label}
+            {tab.disabled && <span className="badge badge--neutral" style={{ fontSize: 9, padding: '1px 5px', marginLeft: 4 }}>即將推出</span>}
           </button>
         ))}
       </div>

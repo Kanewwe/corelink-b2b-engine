@@ -434,18 +434,15 @@ const Templates: React.FC = () => {
 
             {/* Bottom Save Section */}
             <div className="flex justify-end pt-4">
-               <button 
+               <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="px-12 h-16 flex items-center justify-center gap-3 bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white rounded-2xl font-black text-lg transition-all shadow-2xl shadow-primary/30 disabled:opacity-50 group active:scale-[0.98]"
+                  className="btn-primary"
                >
                   {saving ? (
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
                   ) : (
-                    <>
-                      <Save className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                      {editingId ? '更新模板內容' : '確認儲存模板'}
-                    </>
+                    <><Save size={16} />{editingId ? '更新模板' : '儲存模板'}</>
                   )}
                </button>
             </div>
