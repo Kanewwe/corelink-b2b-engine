@@ -27,10 +27,10 @@ const SystemSettings: React.FC = () => {
         const resp = await getSystemSettings();
         if (resp.ok) {
           const data = await resp.json();
-          // Map backend flat array to our state
-          const mapping = data.find((s: any) => s.key === 'variable_mapping')?.value || {};
-          const keys = data.find((s: any) => s.key === 'api_keys')?.value || {};
-          
+          // Backend returns: { "api_keys": {...}, "variable_mapping": {...} }
+          const mapping = data.variable_mapping || {};
+          const keys = data.api_keys || {};
+
           setVariableMapping(mapping);
           setApiKeys(prev => ({ ...prev, ...keys }));
         }

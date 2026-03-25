@@ -15,8 +15,7 @@ import History from './pages/History';
 import VendorAdmin from './pages/VendorAdmin';
 import SmtpSettings from './pages/SmtpSettings';
 import SystemSettings from './pages/SystemSettings';
-
-// Placeholder Pages (To be migrated)
+import MemberAdmin from './pages/MemberAdmin';
 
 function App() {
   return (
@@ -45,6 +44,11 @@ function App() {
             <Route path="admin/settings" element={
               <RoleGuard require={['admin']}>
                 <SystemSettings />
+              </RoleGuard>
+            } />
+            <Route path="admin/members" element={
+              <RoleGuard require={['admin']}>
+                <MemberAdmin />
               </RoleGuard>
             } />
           </Route>

@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
-  Search, FileText, Send, BarChart2, Clock, Settings, Users, LogOut, Cpu 
+  Search, FileText, Send, BarChart2, Clock, Settings, Users, LogOut, Cpu, UserCog
 } from 'lucide-react';
 
 const Sidebar: React.FC = () => {
@@ -56,10 +56,11 @@ const Sidebar: React.FC = () => {
         <div className="text-xs font-semibold text-text-muted mt-6 mb-1 px-4 tracking-wider uppercase">設定</div>
         <NavItem to="/smtp" icon={<Settings size={18} />} label="發信通道配置" />
 
-        {/* Phase 1 & 2 preparation: Admin Only Section */}
+        {/* Admin Only Section */}
         {user?.role === 'admin' && (
           <>
             <div className="text-xs font-semibold text-text-muted mt-6 mb-1 px-4 tracking-wider uppercase text-warning">管理 (Admin)</div>
+            <NavItem to="/admin/members" icon={<UserCog size={18} />} label="會員管理" />
             <NavItem to="/admin/vendors" icon={<Users size={18} />} label="委外廠商管理" />
             <NavItem to="/admin/settings" icon={<Cpu size={18} />} label="系統控制中心" />
           </>

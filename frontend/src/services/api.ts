@@ -109,3 +109,25 @@ export const updateSystemSetting = (key: string, value: any) => fetchWithAuth('/
   method: 'POST',
   body: JSON.stringify({ key, value })
 });
+
+// Admin - Members
+export const getAdminMembers = (params?: { role?: string; is_active?: boolean; search?: string }) => {
+  const query = new URLSearchParams();
+  if (params?.role) query.append('role', params.role);
+  if (params?.is_active !== undefined) query.append('is_active', String(params.is_active));
+  if (params?.search) query.append('search', params.search);
+  const queryString = query.toString();
+  return fetchWithAuth(`/admin/members${queryString ? '?' + queryString : ''}`);
+};
+export const getAdminMemberDetail = (id: number) => fetchWithAuth(`/admin/members/${id}`);
+export const updateAdminMember = (id: number, data: any) => fetchWithAuth(`/admin/members/${id}`, {
+  method: 'PATCH',
+  body: JSON.stringify(data)
+});
+export const deleteAdminMember = (id: number) => fetchWithAuth(`/admin/members/${id}`, {
+  method: 'DELETE'
+});
+export const resetMemberPassword = (id: number) => fetchWithAuth(`/admin/members/${id}/reset-password`, {
+  method: 'POST'
+});
+export const getAdminStats = () => fetchWithAuth('/admin/stats');

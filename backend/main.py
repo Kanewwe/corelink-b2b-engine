@@ -848,6 +848,191 @@ def delete_vendor(vendor_id: int, db: Session = Depends(get_db), current_user: m
     db.commit()
     return {"message": "廠商已刪除"}
 
+# ══════════════════════════════════════════
+# Admin - 會員管理 (Member Management)
+# ══════════════════════════════════════════
+
+class MemberUpdateReq(BaseModel):
+    name: Optional[str] = None
+    role: Optional[str] = None  # 'admin', 'vendor', 'member'
+    is_active: Optional[bool] = None
+    is_verified: Optional[bool] = None
+
+@app.get("/api/admin/members")
+def list_members(
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(auth_module.require_role(["admin"])),
+    role: Optional[str] = None,
+    is_active: Optional[bool] = None,
+    search: Optional[str] = None
+):
+    """管理員：列出所有會員（支援篩選）"""
+    query = db.query(models.User)
+    
+    if role:
+        query = query.filter(models.User.role == role)
+    if is_active is not None:
+        query = query.filter(models.User.is_active == is_active)
+    if search:
+        query = query.filter(
+            (models.User.email.ilike(f"%{search}%")) |
+            (models.User.name.ilike(f"%{search}%")) |
+            (models.User.company_name.ilike(f"%{search}%"))
+        )
+    
+    users = query.order_by(models.User.created_at.desc()).all()
+    
+    result = []
+    for u in users:
+        # 取得訂閱資訊
+        sub = db.query(models.Subscription).filter(
+            models.Subscription.user_id == u.id,
+            models.Subscription.status == 'active'
+        ).first()
+        
+        # 取得本月用量
+        usage = UsageLog.get_or_create(db, u.id) if u.role == 'member' else None
+        
+        result.append({
+            **u.to_dict(),
+            "subscription": sub.to_dict() if sub else None,
+            "usage": usage.to_dict() if usage else None
+        })
+    
+    return result
+
+@app.get("/api/admin/members/{member_id}")
+def get_member_detail(member_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(auth_module.require_role(["admin"]))):
+    """管理員：取得會員詳情"""
+    user = db.query(models.User).filter(models.User.id == member_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="找不到該會員")
+    
+    # 訂閱資訊
+    sub = db.query(models.Subscription).filter(models.Subscription.user_id == user.id).first()
+    
+    # 用量統計
+    usage = UsageLog.get_or_create(db, user.id)
+    
+    # Leads 數量
+    leads_count = db.query(models.Lead).filter(models.Lead.user_id == user.id).count()
+    
+    # Email Logs
+    emails_sent = db.query(models.EmailLog).filter(models.EmailLog.user_id == user.id).count()
+    emails_opened = db.query(models.EmailLog).filter(
+        models.EmailLog.user_id == user.id, 
+        models.EmailLog.opened == True
+    ).count()
+    
+    return {
+        **user.to_dict(include_sensitive=True),
+        "subscription": sub.to_dict() if sub else None,
+        "usage": usage.to_dict(),
+        "stats": {
+            "leads_count": leads_count,
+            "emails_sent": emails_sent,
+            "emails_opened": emails_opened,
+            "open_rate": round(emails_opened / emails_sent * 100, 1) if emails_sent > 0 else 0
+        }
+    }
+
+@app.patch("/api/admin/members/{member_id}")
+def update_member(member_id: int, updates: MemberUpdateReq, db: Session = Depends(get_db), current_user: models.User = Depends(auth_module.require_role(["admin"]))):
+    """管理員：更新會員資訊"""
+    user = db.query(models.User).filter(models.User.id == member_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="找不到該會員")
+    
+    # 防止管理員把自己降級
+    if user.id == current_user.id and updates.role and updates.role != 'admin':
+        raise HTTPException(status_code=400, detail="不能修改自己的角色")
+    
+    if updates.name is not None:
+        user.name = updates.name
+    if updates.role is not None:
+        user.role = updates.role
+    if updates.is_active is not None:
+        user.is_active = updates.is_active
+    if updates.is_verified is not None:
+        user.is_verified = updates.is_verified
+    
+    db.commit()
+    db.refresh(user)
+    return user.to_dict()
+
+@app.delete("/api/admin/members/{member_id}")
+def delete_member(member_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(auth_module.require_role(["admin"]))):
+    """管理員：刪除會員（軟刪除）"""
+    user = db.query(models.User).filter(models.User.id == member_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="找不到該會員")
+    
+    # 防止刪除自己
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="不能刪除自己的帳號")
+    
+    # 軟刪除
+    user.is_active = False
+    db.commit()
+    return {"message": "會員已停用", "user_id": member_id}
+
+@app.post("/api/admin/members/{member_id}/reset-password")
+def reset_member_password(member_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(auth_module.require_role(["admin"]))):
+    """管理員：重設會員密碼"""
+    import secrets
+    user = db.query(models.User).filter(models.User.id == member_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="找不到該會員")
+    
+    # 產生臨時密碼
+    temp_password = secrets.token_urlsafe(12)
+    user.set_password(temp_password)
+    user.reset_token = secrets.token_urlsafe(32)
+    db.commit()
+    
+    return {
+        "message": "密碼已重設",
+        "temp_password": temp_password,
+        "reset_token": user.reset_token
+    }
+
+@app.get("/api/admin/stats")
+def get_admin_stats(db: Session = Depends(get_db), current_user: models.User = Depends(auth_module.require_role(["admin"]))):
+    """管理員：儀表板統計數據"""
+    total_users = db.query(models.User).count()
+    active_users = db.query(models.User).filter(models.User.is_active == True).count()
+    total_leads = db.query(models.Lead).count()
+    total_emails = db.query(models.EmailLog).count()
+    
+    # 各角色統計
+    admins = db.query(models.User).filter(models.User.role == 'admin').count()
+    vendors = db.query(models.User).filter(models.User.role == 'vendor').count()
+    members = db.query(models.User).filter(models.User.role == 'member').count()
+    
+    # 本月新增
+    from datetime import datetime
+    now = datetime.utcnow()
+    new_this_month = db.query(models.User).filter(
+        models.User.created_at >= datetime(now.year, now.month, 1)
+    ).count()
+    
+    return {
+        "users": {
+            "total": total_users,
+            "active": active_users,
+            "new_this_month": new_this_month,
+            "by_role": {
+                "admin": admins,
+                "vendor": vendors,
+                "member": members
+            }
+        },
+        "data": {
+            "total_leads": total_leads,
+            "total_emails": total_emails
+        }
+    }
+
 @app.put("/api/templates/{template_id}", response_model=EmailTemplateResponse)
 def update_template(template_id: int, template: EmailTemplateCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
     db_template = db.query(models.EmailTemplate).filter(
