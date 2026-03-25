@@ -44,10 +44,36 @@ This skill is designed for AI agents to maintain and develop the Linkora 2.0 B2B
 - **Styling**: Always use **Tailwind**. Icons: `lucide-react`.
 
 ---
-## 🚀 Commands (Workflow)
+## 🚀 Standard Deployment Procedure (UAT -> PRD)
+To maintain stability, follow this flow for all releases:
+
+### 1. Deploy to UAT (Staging)
+- All development and bug fixes must be committed to the `uat` branch first.
+- **Push**: `git push origin uat`.
+- Render staging environment will automatically build and deploy.
+
+### 2. UAT Verification
+- Verify all changes at the **UAT URL** (e.g., `linkora-v2-staging.onrender.com`).
+- Check specifically for:
+  - Auth redirects and session persistence.
+  - SMTP connectivity with sandbox credentials.
+  - Template rendering in the Monaco editor.
+
+### 3. Promote to Production (PRD)
+- Only after UAT is confirmed, merge `uat` into `prd`:
+  ```bash
+  git checkout prd
+  git merge uat
+  git push origin prd
+  ```
+- This triggers the final production deployment on Render.
+
+---
+## 🛠️ Commands (Workflow)
 - **Sync Device**: `/pull` or `./scripts/sync.ps1 -Action pull`
 - **Submit Work**: `/commit` or `./scripts/sync.ps1 -Action commit -Message "text"`
-- **Production Release**: `./scripts/sync.ps1 -Action deploy` (Merges UAT to PRD)
+- **Staging Release**: `git push origin uat`
+- **Production Release**: `./scripts/sync.ps1 -Action deploy` (Automates the merge & push to PRD)
 ---
 ## 🧪 Testing & Standards
 - **Zero-Garbage Policy**: No temporary files in root or core folders.
