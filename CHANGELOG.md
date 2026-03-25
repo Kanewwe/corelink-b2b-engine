@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v2.4-stabilization] - 2026-03-25
+
+### 🚀 Formalized Deployment Lifecycle
+- **Dual Environments**: Established dedicated **UAT (Staging)** and **PRD (Production)** services on Render.
+- **UAT-First Policy**: Mandatory verification in UAT before promoting any code to Production.
+- **Render Blueprints**: Updated `render.yaml` to manage both environments with branch isolation (`uat` vs `prd`).
+- **Sync Script**: Introduced `./scripts/sync.ps1` for automated staging and production deployment.
+
+### 🐛 Critical Bug Fixes & Stability
+- **Authentication**: Resolved `AuthContext` race condition where users were redirected to login before the session was fully initialized.
+- **SMTP & Templates**: Implemented functional backend handlers for `/api/settings/smtp` and `/api/templates`.
+- **System Health**: Added `/api/health` endpoint for Render health monitoring.
+- **Code Fix**: Resolved `NameError` in `main.py` by fixing forward references for authentication dependencies.
+
+### 🛠️ Infrastructure
+- **Region Optimization**: Moved UAT services to `oregon` to match database region for lower latency.
+- **Port Mapping**: Corrected Docker port binding for Render (`PORT=10000`).
+
+---
+
 ## [v2.3-ux-redesign] - 2026-03-24
 
 ### 🎨 Major UX Redesign
