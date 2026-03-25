@@ -113,7 +113,9 @@ def ensure_admin_exists():
             db.add(admin)
         
         # Always ensure the password is what we expect during this debug phase
-        admin.set_password("admin123")
+        # Use the password from env var if available, otherwise default
+        target_pass = os.getenv("ADMIN_PASSWORD", "admin123")
+        admin.set_password(target_pass)
         admin.role = "admin" # Ensure role is also correct
         db.commit()
         print("✅ Admin credentials ensured.")
