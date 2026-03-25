@@ -442,12 +442,15 @@ def get_current_user_id(session_id: str = Cookie(None), db: Session = Depends(ge
     session = auth_module.get_session(db, session_id)
     if not session:
         raise HTTPException(status_code=401, detail="Session 已過期，請重新登入")
-    return session.user
+    return session.user.to_dict()
 
-@app.get("/api/settings/smtp", response_model=Optional[SMTPSettingsResponse])
+@app.get("/api/settings/smtp")
 def get_smtp_settings(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
     """獲取使用者的 SMTP 設定"""
-    return db.query(models.SMTPSettings).filter(models.SMTPSettings.user_id == current_user.id).first()
+    smtp = db.query(models.SMTPSettings).filter(models.SMTPSettings.user_id == current_user.id).first()
+    if not smtp:
+        return None
+    return smtp.to_dict()
 
 @app.post("/api/settings/smtp", response_model=SMTPSettingsResponse)
 def save_smtp_settings(req: SMTPSettingsReq, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
@@ -467,7 +470,7 @@ def save_smtp_settings(req: SMTPSettingsReq, db: Session = Depends(get_db), curr
     
     db.commit()
     db.refresh(smtp)
-    return smtp
+    return smtp.to_dict()
 
 # --- Debug Endpoint ---
 @app.get("/api/debug")
@@ -528,7 +531,7 @@ def create_and_tag_lead(lead: LeadCreateReq, db: Session = Depends(get_db), curr
     db.add(db_lead)
     db.commit()
     db.refresh(db_lead)
-    return db_lead
+    return db_lead.to_dict()
 
 @app.get("/api/leads")
 def get_leads(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
@@ -576,14 +579,15 @@ def generate_email_for_lead(lead_id: int, db: Session = Depends(get_db), current
     lead.status = "Email_Drafted"
     db.commit()
     
-    return campaign
+    return campaign.to_dict()
 
-@app.get("/api/leads/{lead_id}/emails", response_model=List[EmailCampaignResponse])
+@app.get("/api/leads/{lead_id}/emails")
 def get_emails_for_lead(lead_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
-    return db.query(models.EmailCampaign).filter(
+    campaigns = db.query(models.EmailCampaign).filter(
         models.EmailCampaign.lead_id == lead_id,
         models.EmailCampaign.user_id == current_user.id
     ).all()
+    return [c.to_dict() for c in campaigns]
 
 @app.get("/api/campaigns", response_model=List[CampaignLogResponse])
 def get_all_campaign_logs(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
@@ -732,7 +736,7 @@ def get_templates(db: Session = Depends(get_db), current_user: models.User = Dep
     templates = db.query(models.EmailTemplate).filter(
         models.EmailTemplate.user_id == current_user.id
     ).order_by(models.EmailTemplate.tag, models.EmailTemplate.name).all()
-    return templates
+    return [t.to_dict() for t in templates]
 
 @app.post("/api/templates", response_model=EmailTemplateResponse)
 def create_template(template: EmailTemplateCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
@@ -749,7 +753,7 @@ def create_template(template: EmailTemplateCreate, db: Session = Depends(get_db)
     db.commit()
     db.refresh(db_template)
     add_log(f"✉️ [模板] 新增模板: {template.name} ({template.tag})")
-    return db_template
+    return db_template.to_dict()
 
 # ══════════════════════════════════════════
 # Vendor (委外廠商) Admin Endpoints (Admin Only)
@@ -1052,7 +1056,7 @@ def update_template(template_id: int, template: EmailTemplateCreate, db: Session
     
     db.commit()
     db.refresh(db_template)
-    return db_template
+    return db_template.to_dict()
 
 @app.delete("/api/templates/{template_id}")
 def delete_template(template_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):

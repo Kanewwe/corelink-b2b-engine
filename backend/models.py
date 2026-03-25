@@ -462,6 +462,17 @@ class EmailCampaign(Base):
     
     lead = relationship("Lead", back_populates="email_campaigns")
 
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "lead_id": self.lead_id,
+            "subject": self.subject,
+            "content": self.content,
+            "status": self.status,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
 
 class EmailTemplate(Base):
     __tablename__ = "email_templates"
@@ -476,6 +487,20 @@ class EmailTemplate(Base):
     attachment_url = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "name": self.name,
+            "tag": self.tag,
+            "subject": self.subject,
+            "body": self.body,
+            "is_default": self.is_default,
+            "attachment_url": self.attachment_url,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
 
 
 class EmailLog(Base):
