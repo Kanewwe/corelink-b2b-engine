@@ -95,6 +95,30 @@ def init_default_plans():
     finally:
         db.close()
 
+def ensure_admin_exists():
+    """Ensure at least one admin exists in the database"""
+    db = next(get_db())
+    try:
+        admin_email = "admin@linkora.com"
+        admin = db.query(models.User).filter(models.User.email == admin_email).first()
+        if not admin:
+            print(f"🚀 Bootstrapping Admin: {admin_email}...")
+            admin = models.User(
+                email=admin_email,
+                name="Linkora Admin",
+                role="admin",
+                is_active=True,
+                is_verified=True
+            )
+            admin.set_password("admin123")
+            db.add(admin)
+            db.commit()
+            print("✅ Admin user created successfully!")
+    except Exception as e:
+        print(f"⚠️ Admin bootstrap failed: {e}")
+    finally:
+        db.close()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # ─── Run DB migrations FIRST (ensures user_id and other columns exist) ───
@@ -111,6 +135,7 @@ async def lifespan(app: FastAPI):
     
     # Initialize default plans
     init_default_plans()
+    ensure_admin_exists()
     
     yield
 
