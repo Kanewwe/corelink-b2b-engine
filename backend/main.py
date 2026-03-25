@@ -244,6 +244,27 @@ class EmailTemplateResponse(BaseModel):
     created_at: str
     model_config = {"from_attributes": True}
 
+class SMTPSettingsReq(BaseModel):
+    smtp_host: str
+    smtp_port: int
+    smtp_user: str
+    smtp_password: str
+    smtp_encryption: str = 'tls' # 'tls', 'ssl', 'none'
+    from_email: Optional[str] = None
+    from_name: Optional[str] = None
+
+class SMTPSettingsResponse(BaseModel):
+    id: int
+    user_id: int
+    smtp_host: str
+    smtp_port: int
+    smtp_user: str
+    smtp_encryption: str
+    from_email: Optional[str] = None
+    from_name: Optional[str] = None
+    updated_at: datetime
+    model_config = {"from_attributes": True}
+
 # --- Authentication ---
 security = HTTPBearer()
 
@@ -403,6 +424,31 @@ def get_subscription(session_id: str = Cookie(None), db: Session = Depends(get_d
     
     return auth_module.get_user_full_info(db, session.user)
 
+@app.get("/api/settings/smtp", response_model=Optional[SMTPSettingsResponse])
+def get_smtp_settings(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
+    """獲取使用者的 SMTP 設定"""
+    return db.query(models.SMTPSettings).filter(models.SMTPSettings.user_id == current_user.id).first()
+
+@app.post("/api/settings/smtp", response_model=SMTPSettingsResponse)
+def save_smtp_settings(req: SMTPSettingsReq, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
+    """儲存使用者的 SMTP 設定"""
+    smtp = db.query(models.SMTPSettings).filter(models.SMTPSettings.user_id == current_user.id).first()
+    if not smtp:
+        smtp = models.SMTPSettings(user_id=current_user.id)
+        db.add(smtp)
+    
+    smtp.smtp_host = req.smtp_host
+    smtp.smtp_port = req.smtp_port
+    smtp.smtp_user = req.smtp_user
+    smtp.smtp_password = req.smtp_password
+    smtp.smtp_encryption = req.smtp_encryption
+    smtp.from_email = req.from_email
+    smtp.from_name = req.from_name
+    
+    db.commit()
+    db.refresh(smtp)
+    return smtp
+
 # --- Debug Endpoint ---
 @app.get("/api/debug")
 def debug():
@@ -552,6 +598,26 @@ def get_all_campaign_logs(db: Session = Depends(get_db), current_user: models.Us
 @app.get("/api/system-logs")
 def get_system_logs(current_user: models.User = Depends(get_current_user_id)):
     return {"logs": SYSTEM_LOGS}
+
+@app.get("/api/dashboard/stats")
+def get_dashboard_stats(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
+    """取得儀表板統計數據"""
+    total_leads = db.query(models.Lead).filter(models.Lead.user_id == current_user.id).count()
+    
+    # 計算本月寄信數
+    now = datetime.utcnow()
+    month_start = datetime(now.year, now.month, 1)
+    sent_month = db.query(models.EmailLog).filter(
+        models.EmailLog.user_id == current_user.id,
+        models.EmailLog.created_at >= month_start
+    ).count()
+    
+    return {
+        "total_leads": total_leads,
+        "sent_month": sent_month,
+        "open_rate": "0%",
+        "bounce_rate": "0%"
+    }
 
 @app.post("/api/test-email")
 def test_email_dispatch(current_user: models.User = Depends(get_current_user_id)):
@@ -1144,14 +1210,20 @@ def get_engagements(
     leads = query_leads.all()
     lead_map = {l.id: l for l in leads}
     
-    # 3. 統計標籤與成效
+    # 3. 統計標籤與成效 (不論是否有寄信，先從 Leads 建立基礎分佈)
     tag_stats = {}
-    for log in email_logs:
-        lead = lead_map.get(log.lead_id)
-        tag = lead.ai_tag if lead and lead.ai_tag else "UNKNOWN"
+    for lead in leads:
+        tag = lead.ai_tag if lead.ai_tag else "UNKNOWN"
         if tag not in tag_stats:
             tag_stats[tag] = {"total": 0, "delivered": 0, "opened": 0, "clicked": 0, "replied": 0}
         tag_stats[tag]["total"] += 1
+
+    # 4. 加入寄信與追蹤數據
+    for log in email_logs:
+        lead = lead_map.get(log.lead_id)
+        if not lead: continue
+        tag = lead.ai_tag if lead.ai_tag else "UNKNOWN"
+        
         if log.status == "delivered": tag_stats[tag]["delivered"] += 1
         if log.opened: tag_stats[tag]["opened"] += 1
         if log.clicked: tag_stats[tag]["clicked"] += 1

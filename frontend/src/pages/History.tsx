@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { getSearchHistory } from '../services/api';
 import { Search, RotateCw, Download, ChevronDown, ChevronUp, Clock, CheckCircle, XCircle } from 'lucide-react';
 
@@ -81,9 +82,15 @@ const History: React.FC = () => {
             </div>
           ) : tasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-text-muted text-center h-full">
-              <div className="text-5xl mb-4">🔍</div>
-              <div className="text-lg mb-2">尚無探勘記錄</div>
-              <div className="text-sm">前往 Lead Engine 開始第一次探勘</div>
+              <div className="text-6xl mb-6 opacity-20">🔍</div>
+              <div className="text-xl font-bold text-white mb-2">尚無探勘記錄</div>
+              <Link 
+                to="/lead-engine" 
+                className="text-primary hover:text-primary-light hover:underline transition-all flex items-center gap-1 group"
+              >
+                前往 Lead Engine 開始第一次探勘
+                <span className="group-hover:translate-x-1 transition-transform">→</span>
+              </Link>
             </div>
           ) : (
             <div className="space-y-4">

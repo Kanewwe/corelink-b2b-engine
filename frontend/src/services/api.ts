@@ -50,3 +50,28 @@ export const updateAdminVendor = (id: number, data: any) => fetchWithAuth(`/admi
 export const deleteAdminVendor = (id: number) => fetchWithAuth(`/admin/vendors/${id}`, {
   method: 'DELETE'
 });
+
+// Settings - SMTP
+export const getSmtpSettings = () => fetchWithAuth('/settings/smtp');
+export const saveSmtpSettings = (data: any) => fetchWithAuth('/settings/smtp', {
+  method: 'POST',
+  body: JSON.stringify(data)
+});
+
+// Templates
+export const getTemplates = () => fetchWithAuth('/email-templates');
+export const createTemplate = (data: any) => fetchWithAuth('/email-templates', {
+  method: 'POST',
+  body: JSON.stringify(data)
+});
+export const updateTemplate = (id: number, data: any) => fetchWithAuth(`/email-templates/${id}`, {
+  method: 'PUT',
+  body: JSON.stringify(data)
+});
+export const deleteTemplate = (id: number) => fetchWithAuth(`/email-templates/${id}`, {
+  method: 'DELETE'
+});
+
+// Dashboard
+export const getDashboardStats = () => fetchWithAuth('/dashboard/stats');
+export const getLeads = () => fetchWithAuth('/leads');

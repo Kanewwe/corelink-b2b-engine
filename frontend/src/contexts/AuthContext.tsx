@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 export interface User {
   id: string;
   email: string;
+  name?: string;
   role: 'admin' | 'vendor' | 'member';
   vendor_id?: string;
   username?: string;
@@ -27,25 +28,20 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Check local storage for initial auth state
-    const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-    
-    if (storedToken && storedUser) {
+  const [user, setUser] = useState<User | null>(() => {
+    const stored = localStorage.getItem('user');
+    if (stored) {
       try {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
+        return JSON.parse(stored);
       } catch (e) {
-        console.error("Failed to parse stored user data");
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        return null;
       }
     }
+    return null;
+  });
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
 
+  useEffect(() => {
     // Listen for unauthorized events from api.ts
     const handleUnauthorized = () => logout();
     window.addEventListener('auth-unauthorized', handleUnauthorized);

@@ -97,6 +97,7 @@ class User(Base):
     # 關聯
     subscriptions = relationship("Subscription", back_populates="user", cascade="all, delete-orphan")
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
+    smtp_settings = relationship("SMTPSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")
     
     def set_password(self, password: str):
         """Hash and set password"""
@@ -247,6 +248,30 @@ class UsageLog(Base):
     __table_args__ = (
         UniqueConstraint('user_id', 'period_year', 'period_month', name='uq_user_period'),
     )
+
+# ══════════════════════════════════════════
+# SMTP Settings（SMTP 設定）
+# ══════════════════════════════════════════
+
+class SMTPSettings(Base):
+    __tablename__ = "smtp_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    
+    smtp_host = Column(String(255), nullable=False)
+    smtp_port = Column(Integer, default=587)
+    smtp_user = Column(String(255), nullable=False)
+    smtp_password = Column(String(255), nullable=False)
+    smtp_encryption = Column(String(10), default='tls') # 'tls', 'ssl', 'none'
+    
+    from_email = Column(String(255))
+    from_name = Column(String(255))
+    
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # 關聯
+    user = relationship("User", back_populates="smtp_settings")
     
     @staticmethod
     def get_or_create(db, user_id: int):

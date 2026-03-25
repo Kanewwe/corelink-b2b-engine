@@ -12,9 +12,9 @@ import Campaigns from './pages/Campaigns';
 import Analytics from './pages/Analytics';
 import History from './pages/History';
 import VendorAdmin from './pages/VendorAdmin';
+import SmtpSettings from './pages/SmtpSettings';
 
 // Placeholder Pages (To be migrated)
-const Smtp = () => <div className="p-4 glass-panel flex-1 h-full"><h1>SMTP Settings (WIP)</h1></div>;
 
 function App() {
   return (
@@ -31,7 +31,7 @@ function App() {
             <Route path="campaigns" element={<Campaigns />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="history" element={<History />} />
-            <Route path="smtp" element={<Smtp />} />
+            <Route path="smtp" element={<SmtpSettings />} />
             
             {/* Admin Routes */}
             <Route path="admin/vendors" element={
