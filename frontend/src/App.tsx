@@ -14,6 +14,7 @@ import Analytics from './pages/Analytics';
 import History from './pages/History';
 import VendorAdmin from './pages/VendorAdmin';
 import SmtpSettings from './pages/SmtpSettings';
+import SystemSettings from './pages/SystemSettings';
 
 // Placeholder Pages (To be migrated)
 
@@ -41,7 +42,11 @@ function App() {
                 <VendorAdmin />
               </RoleGuard>
             } />
-            <Route path="admin/settings" element={<div className="p-4 glass-panel text-warning flex-1 h-full">System Settings (WIP)</div>} />
+            <Route path="admin/settings" element={
+              <RoleGuard require={['admin']}>
+                <SystemSettings />
+              </RoleGuard>
+            } />
           </Route>
         </Routes>
       </AuthProvider>

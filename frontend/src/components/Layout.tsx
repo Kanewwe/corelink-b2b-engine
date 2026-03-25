@@ -18,7 +18,7 @@ const Layout: React.FC = () => {
     if (path.includes('/campaigns')) return '自動化投遞 (Automated Outreach)';
     if (path.includes('/analytics')) return '成效分析雷達 (Performance Radar)';
     if (path.includes('/history')) return '開發紀錄專區 (Campaign Archive)';
-    if (path.includes('/smtp')) return '發信通道配置 (Email Channels)';
+    if (path.includes('/admin/settings')) return '系統控制中心 (System Hub)';
     if (path.includes('/admin/vendors')) return '廠商管理';
     return 'Dashboard';
   };
