@@ -249,33 +249,10 @@ class UsageLog(Base):
         UniqueConstraint('user_id', 'period_year', 'period_month', name='uq_user_period'),
     )
 
-# ══════════════════════════════════════════
-# SMTP Settings（SMTP 設定）
-# ══════════════════════════════════════════
-
-class SMTPSettings(Base):
-    __tablename__ = "smtp_settings"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
-    
-    smtp_host = Column(String(255), nullable=False)
-    smtp_port = Column(Integer, default=587)
-    smtp_user = Column(String(255), nullable=False)
-    smtp_password = Column(String(255), nullable=False)
-    smtp_encryption = Column(String(10), default='tls') # 'tls', 'ssl', 'none'
-    
-    from_email = Column(String(255))
-    from_name = Column(String(255))
-    
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # 關聯
-    user = relationship("User", back_populates="smtp_settings")
-    
     @staticmethod
     def get_or_create(db, user_id: int):
         """Get or create usage log for current month"""
+        from datetime import datetime
         now = datetime.utcnow()
         log = db.query(UsageLog).filter(
             UsageLog.user_id == user_id,
@@ -315,6 +292,43 @@ class SMTPSettings(Base):
             }
         }
         return data
+
+# ══════════════════════════════════════════
+# SMTP Settings（SMTP 設定）
+# ══════════════════════════════════════════
+
+class SMTPSettings(Base):
+    __tablename__ = "smtp_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    
+    smtp_host = Column(String(255), nullable=False)
+    smtp_port = Column(Integer, default=587)
+    smtp_user = Column(String(255), nullable=False)
+    smtp_password = Column(String(255), nullable=False)
+    smtp_encryption = Column(String(10), default='tls') # 'tls', 'ssl', 'none'
+    
+    from_email = Column(String(255))
+    from_name = Column(String(255))
+    
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # 關聯
+    user = relationship("User", back_populates="smtp_settings")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "smtp_host": self.smtp_host,
+            "smtp_port": self.smtp_port,
+            "smtp_user": self.smtp_user,
+            "smtp_encryption": self.smtp_encryption,
+            "from_email": self.from_email,
+            "from_name": self.from_name,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+        }
 
 
 # ══════════════════════════════════════════
