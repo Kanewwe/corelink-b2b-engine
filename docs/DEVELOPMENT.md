@@ -6,7 +6,12 @@ This document defines the strict development standards and the lifecycle for Lin
 
 ## 🔄 Standard Development Lifecycle
 
-The lifecycle follows a **UAT-First** approach to maximize platform stability.
+The lifecycle follows a **Test-Driven & UAT-First** approach to maximize platform stability.
+
+### Phase 0: Local Quality Assurance (Mandatory) 🧪
+- Before committing any changes, the developer must run the local unit test suite.
+- Command: `./scripts/test.ps1` (or `python -m pytest backend/tests`).
+- **Strict Rule**: If tests fail locally, the code **MUST NOT** be pushed to GitHub.
 
 ### Phase 1: Feature Development (Branch: `uat`)
 - All code changes, new features, and bug fixes must be committed to the `uat` branch.
@@ -39,6 +44,10 @@ A unified PowerShell script for managing environments:
 - `-Action pull`: Pulls the latest changes from both branches.
 - `-Action commit`: Consolidates local changes.
 - `-Action deploy`: Automates the merging of `uat` into `prd` (requires clean state).
+
+### Test Script: `./scripts/test.ps1`
+Runs the `pytest` suite for the backend:
+- Ensures all models, auth logic, and critical routes are functioning correctly.
 
 ---
 
