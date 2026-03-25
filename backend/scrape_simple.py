@@ -1,20 +1,26 @@
 """
-Simplified scraper - Uses Yellowpages/Yelp direct scraping with multiple keywords.
+Simplified scraper - Uses Apify Yellow Pages Actor
+2026 穩定版 - 取代 ScraperAPI + Mock Mode
 """
 
 import os
-import requests
-from bs4 import BeautifulSoup
 import time
 import models
-import ai_service
 from database import SessionLocal
 from logger import add_log
-import traceback
+
+# Apify 整合
+try:
+    from apify_client import ApifyClient
+    APIFY_AVAILABLE = True
+except ImportError:
+    APIFY_AVAILABLE = False
+    add_log("⚠️ apify-client 未安裝，將使用 Mock Mode", level="warning")
+
 
 def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, user_id: int = None):
     """
-    Mine companies using multiple keywords from Yellowpages.
+    Mine companies using multiple keywords from Yellowpages via Apify.
     Each keyword will be scraped for the specified number of pages.
     """
     if keywords is None:
@@ -37,7 +43,7 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
 
     stats = {"saved": 0, "skipped": 0, "errors": 0}
     
-    add_log(f"🔍 [多關鍵字爬蟲] 開始任務")
+    add_log(f"🔍 [Apify 爬蟲] 開始任務")
     add_log(f"   Market: {market}, Keywords: {keywords}, Pages: {pages}")
     
     for keyword in keywords:
@@ -45,7 +51,7 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
         
         for page in range(1, pages + 1):
             try:
-                results = scrape_keyword_page(keyword, page, market)
+                results = scrape_keyword_page_apify(keyword, page, market)
                 
                 for company in results:
                     name = company.get("name", "")
@@ -111,98 +117,99 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
         db.close()
 
 
-def scrape_keyword_page(keyword: str, page: int, market: str = "US") -> list:
+def scrape_keyword_page_apify(keyword: str, page: int, market: str = "US") -> list:
     """
-    Scrape one page of Yellowpages for a given keyword.
+    使用 Apify 官方 Yellow Pages Actor 爬取真實資料
+    Actor ID: automation-lab/yellowpages-scraper
     """
-    results = []
+    api_token = os.getenv("APIFY_API_TOKEN")
     
-    import urllib.parse
+    if not api_token or not APIFY_AVAILABLE:
+        add_log("⚠️ Apify 未設定，啟動 Mock Mode", level="warning")
+        return get_mock_results(keyword, page)
     
-    # Target URL
-    target_url = f"https://www.yellowpages.com/search?search_terms={urllib.parse.quote(keyword)}&geo_location_terms={market}&page={page}"
+    client = ApifyClient(api_token)
     
-    # ScraperAPI integration
-    base_url = "http://api.scraperapi.com"
-    params = {
-        "api_key": os.getenv("SCRAPER_API_KEY", ""),
-        "url": target_url,
-        "render": "true",
-        "premium": "true"
+    # 地點對照
+    location_map = {
+        "US": "United States",
+        "USA": "United States",
+        "EU": "Europe",
+        "TW": "Taiwan",
+        "CA": "Canada",
+        "UK": "United Kingdom",
+        "AU": "Australia"
     }
+    location = location_map.get(market, market)
     
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    # Apify Actor 輸入參數
+    run_input = {
+        "searchTerms": keyword,
+        "location": location,
+        "maxResults": 30 * page,  # 每頁約 30 筆
     }
     
     try:
-        response = requests.get(base_url, params=params, headers=headers, timeout=60)
+        add_log(f"🌐 [Apify] 開始爬取 → 關鍵字: {keyword} | 地點: {location} | 目標: {run_input['maxResults']} 筆")
         
-        if response.status_code == 200:
-            if not response.text or len(response.text) < 1000:
-                add_log(f"⚠️ [ScraperAPI] 回傳內容異常短小 ({len(response.text)} bytes)，可能被攔截。", level="warning")
-            
-            soup = BeautifulSoup(response.text, 'html.parser')
-            
-            # Find company listings
-            listings = soup.select('.v-card')
-            
-            for listing in listings:
-                try:
-                    name_elem = listing.select_one('.business-name')
-                    name = name_elem.get_text(strip=True) if name_elem else ""
-                    
-                    # Get domain from website link
-                    website_elem = listing.select_one('a.track-visit-website')
-                    domain = ""
-                    website_url = ""
-                    if website_elem:
-                        website_url = website_elem.get('href', "")
-                        if website_url.startswith('http'):
-                            from urllib.parse import urlparse
-                            domain = urlparse(website_url).netloc
-                            domain = domain.replace('www.', '')
-                    
-                    # Get phone
-                    phone_elem = listing.select_one('.phones')
-                    phone = phone_elem.get_text(strip=True) if phone_elem else ""
-                    
-                    # Get address
-                    address_elem = listing.select_one('.street-address')
-                    address = address_elem.get_text(strip=True) if address_elem else ""
-                    
-                    if name:
-                        results.append({
-                            "name": name,
-                            "domain": domain,
-                            "url": website_url,
-                            "phone": phone,
-                            "address": address
-                        })
-                        
-                except Exception as e:
-                    continue
+        # 執行 Actor
+        run = client.actor("automation-lab/yellowpages-scraper").call(run_input=run_input)
         
-        elif response.status_code == 429:
-            add_log("⚠️ Yellowpages 請求受限，等待 60 秒...", level="warning")
-            time.sleep(60)
-            
-    except Exception as e:
-        add_log(f"❌ API 連線失敗 (可能被公司防火牆阻擋): {str(e)[:50]}...", level="error")
-        response = None
+        if not run:
+            add_log("⚠️ Apify Actor 執行失敗，降級 Mock Mode", level="warning")
+            return get_mock_results(keyword, page)
         
-    # 如果沒有抓到結果 (無論是 403 阻擋、還是 Exception 防火牆斷線)，啟動降級模擬模式
-    if not results:
-        add_log(f"💡 啟動模擬降級模式 (Mock Mode)，為您生成測試客戶資料...", level="info")
-        for i in range(1, 11):
+        # 取回結果
+        dataset = client.dataset(run["defaultDatasetId"])
+        items = dataset.list_items().items
+        
+        results = []
+        for item in items:
+            website = item.get("website", "")
+            domain = ""
+            if website and website.startswith("http"):
+                from urllib.parse import urlparse
+                domain = urlparse(website).netloc.replace("www.", "")
+            
+            # 組合地址
+            address_parts = [
+                item.get('address', ''),
+                item.get('city', ''),
+                item.get('state', ''),
+                item.get('zipCode', '')
+            ]
+            address = " ".join(filter(None, address_parts)).strip()
+            
             results.append({
-                "name": f"Mock {keyword.title()} Corp {page}-{i}",
-                "domain": f"mock-{keyword.replace(' ', '')}{page}{i}.com",
-                "url": f"https://www.mock-{keyword.replace(' ', '')}{page}{i}.com",
-                "phone": f"+1-555-010{page}{i}",
-                "address": f"{1000 + i} Test Ave, Tech City, CA"
+                "name": item.get("businessName") or item.get("name", ""),
+                "domain": domain,
+                "url": website,
+                "phone": item.get("phone", ""),
+                "address": address
             })
-            
+        
+        add_log(f"✅ [Apify] 成功取得 {len(results)} 筆真實資料")
+        return results
+        
+    except Exception as e:
+        add_log(f"❌ Apify 錯誤: {str(e)[:100]}，降級 Mock Mode", level="error")
+        return get_mock_results(keyword, page)
+
+
+def get_mock_results(keyword: str, page: int) -> list:
+    """
+    Mock Mode - 當 Apify 失敗時的降級方案
+    """
+    add_log(f"💡 [Mock Mode] 生成測試資料...", level="info")
+    results = []
+    for i in range(1, 11):
+        results.append({
+            "name": f"Mock {keyword.title()} Corp {page}-{i}",
+            "domain": f"mock-{keyword.replace(' ', '')}{page}{i}.com",
+            "url": f"https://www.mock-{keyword.replace(' ', '')}{page}{i}.com",
+            "phone": f"+1-555-010{page}{i}",
+            "address": f"{1000 + i} Test Ave, Tech City, CA"
+        })
     return results
 
 
