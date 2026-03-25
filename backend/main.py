@@ -1389,9 +1389,9 @@ def debug_scrape(db: Session = Depends(get_db), current_user: models.User = Depe
 # System Settings (Variable Mapping, etc.)
 # ══════════════════════════════════════════
 
-class SystemSettingUpdate(pydantic.BaseModel):
+class SystemSettingUpdate(BaseModel):
     key: str
-    value: typing.Any
+    value: any
 
 @app.get("/api/system/settings")
 def get_system_settings(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
