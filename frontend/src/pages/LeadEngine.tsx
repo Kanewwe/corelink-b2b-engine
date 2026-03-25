@@ -127,35 +127,50 @@ const LeadEngine: React.FC = () => {
 
   if (loading && leads.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-text-muted">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mr-3"></div>
-        載入中...
+      <div className="page-loading">
+        <div className="spinner" />
+        <span>載入中...</span>
       </div>
     );
   }
 
   const kpiData = [
-    { label: '客戶總數', value: kpi.total, sub: '無上限', color: 'text-primary', bg: 'bg-primary/10', icon: Users },
-    { label: '本月寄信', value: kpi.sentMonth, sub: '無上限', color: 'text-accent', bg: 'bg-accent/10', icon: Send },
-    { label: '開信率', value: kpi.openRate, sub: '統計開發中', color: 'text-warning', bg: 'bg-warning/10', icon: BarChart3 },
-    { label: '退信率', value: kpi.bounceRate, sub: '統計開發中', color: 'text-error', bg: 'bg-error/10', icon: ShieldAlert },
+    { label: '客戶總數',  value: kpi.total,      note: '無上限',    iconColor: 'var(--color-primary)',  bg: 'rgba(91,127,255,0.15)',  icon: Users },
+    { label: '本月寄信',  value: kpi.sentMonth,  note: '無上限',    iconColor: 'var(--color-accent-teal)', bg: 'rgba(78,205,196,0.15)', icon: Send },
+    { label: '開信率',    value: kpi.openRate,   note: '統計開發中', iconColor: 'var(--color-warning)',  bg: 'rgba(245,158,11,0.15)', icon: BarChart3 },
+    { label: '退信率',    value: kpi.bounceRate, note: '統計開發中', iconColor: 'var(--color-danger)',   bg: 'rgba(239,68,68,0.15)',  icon: ShieldAlert },
   ];
 
   return (
-    <div className="flex flex-col gap-6 h-full">
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="page-wrapper">
+
+      {/* ── Page Header ── */}
+      <div className="page-header">
+        <div>
+          <div className="page-header__title-row">
+            <h1 className="page-title">
+              精準開發雷達
+              <span className="page-title__en">Precision Radar</span>
+            </h1>
+            <span className="version-badge">LINKORA V2</span>
+          </div>
+          <p className="page-subtitle">AI 驅動的全自動 B2B 客戶探勘引擎，精準發現潛在採購商。</p>
+        </div>
+      </div>
+
+      {/* ── KPI Cards ── */}
+      <div className="stats-grid">
         {kpiData.map((card, idx) => {
           const Icon = card.icon;
           return (
-            <div key={idx} className="glass-panel p-4 flex items-center gap-4 hover:bg-white/[0.03] transition-all border border-white/5 group">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${card.bg} ${card.color} group-hover:scale-110 transition-transform`}>
-                <Icon className="w-6 h-6" />
+            <div key={idx} className="stat-card">
+              <div className="stat-card__icon" style={{ background: card.bg }}>
+                <Icon size={20} style={{ color: card.iconColor }} />
               </div>
               <div>
-                <div className="text-2xl font-bold text-white leading-none mb-1">{card.value}</div>
-                <div className="text-[11px] text-text-muted font-medium">{card.label}</div>
-                <div className="text-[9px] text-text-muted/50 mt-1 uppercase tracking-tighter">{card.sub}</div>
+                <div className="stat-card__value" style={{ color: card.iconColor }}>{card.value}</div>
+                <div className="stat-card__label">{card.label}</div>
+                <div className="stat-card__note">{card.note}</div>
               </div>
             </div>
           );
@@ -164,9 +179,11 @@ const LeadEngine: React.FC = () => {
 
       <div className="grid grid-cols-2 gap-6 flex-1 min-h-[500px]">
         {/* Left Column: Miner Form */}
-        <section className="glass-panel p-6 overflow-y-auto">
-          <h3 className="text-xl font-semibold mb-2">🕷️ 全自動化探勘引擎 (Auto-Miner)</h3>
-          <p className="text-sm text-text-muted mb-6">直接爬取黃頁網站，自動發現採購/負責人 Email</p>
+        <section className="card" style={{ overflowY: 'auto' }}>
+          <div className="card__header">
+            <h3 className="card__title">🕷️ 全自動化探勘引擎 (Auto-Miner)</h3>
+          </div>
+          <p className="card__subtitle" style={{ marginBottom: 20 }}>直接爬取黃頁網站，自動發現採購/負責人 Email</p>
 
           <form onSubmit={handleScrape} className="flex flex-col gap-5">
             <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl">
@@ -175,8 +192,8 @@ const LeadEngine: React.FC = () => {
               </div>
               <div className="flex gap-4">
                 <label className="flex-1 flex items-center gap-2 p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors group">
-                  <input 
-                    type="radio" name="email-strategy" value="free" 
+                  <input
+                    type="radio" name="email-strategy" value="free"
                     checked={emailStrategy === 'free'} onChange={() => setEmailStrategy('free')}
                     className="accent-emerald-500"
                   />
@@ -357,45 +374,46 @@ const LeadEngine: React.FC = () => {
         </section>
 
         {/* Right Column: Leads Table */}
-        <section className="glass-panel p-6 flex flex-col h-[600px]">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-semibold">客戶列表 <span className="text-sm font-normal text-text-muted">{leads.length} 筆</span></h3>
-            <div className="flex gap-2">
-              <input 
+        <section className="card" style={{ display: 'flex', flexDirection: 'column', height: 600 }}>
+          <div className="card__header">
+            <h3 className="card__title">
+              客戶列表
+              <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--color-text-muted)' }}>{leads.length} 筆</span>
+            </h3>
+            <div className="form-input-wrapper" style={{ width: 160 }}>
+              <Search size={13} className="input-icon" />
+              <input
                 type="text" placeholder="搜尋公司..."
                 value={search} onChange={e => setSearch(e.target.value)}
-                className="px-3 py-1.5 bg-black/25 border border-glass-border rounded-lg text-sm w-32 focus:w-48 transition-all outline-none focus:border-primary"
+                className="form-input" style={{ padding: '7px 10px 7px 32px', fontSize: 12 }}
               />
             </div>
           </div>
-          
-          <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-3">
+
+          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
             {leads.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-text-muted">
-                <Search className="w-12 h-12 mb-4 opacity-20" />
-                <div className="text-lg mb-2">尚無客戶資料</div>
-                <div className="text-sm">在左側設定條件後開始探勘</div>
+              <div className="empty-state">
+                <div className="empty-state__icon"><Search size={40} style={{ opacity: 0.3 }} /></div>
+                <p className="empty-state__title">尚無客戶資料</p>
+                <p className="empty-state__desc">在左側設定條件後開始探勘</p>
               </div>
             ) : (
-              leads.map((lead: any, idx: number) => (
-                <div key={idx} className="p-4 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.05] hover:-translate-y-0.5 transition-all group flex justify-between items-center">
-                  <div>
-                    <div className="font-bold text-white text-sm group-hover:text-primary transition-colors">{lead.company_name}</div>
-                    <div className="text-[10px] text-text-muted font-mono mt-1 opacity-70">{lead.email || lead.email_candidates || '無聯絡信箱'}</div>
+              leads
+                .filter((l: any) => !search || l.company_name?.toLowerCase().includes(search.toLowerCase()))
+                .map((lead: any, idx: number) => (
+                  <div key={idx} className="card" style={{ padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--color-text-primary)' }}>{lead.company_name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--color-text-muted)', fontFamily: 'monospace', marginTop: 2 }}>
+                        {lead.email || lead.email_candidates || '無聯絡信箱'}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button className="btn-icon-sm" title="查看詳情"><Search size={13} /></button>
+                      <button className="btn-icon-sm" title="立即寄信" style={{ color: 'var(--color-primary)', borderColor: 'rgba(91,127,255,0.3)' }}><Send size={13} /></button>
+                    </div>
                   </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                     <button title="查看詳情" className="p-1.5 hover:bg-white/10 rounded-md text-text-muted hover:text-white transition-colors">
-                        <Search className="w-3.5 h-3.5" />
-                     </button>
-                     <button title="立即寄信" className="p-1.5 hover:bg-primary/20 rounded-md text-primary hover:scale-110 transition-all">
-                        <Send className="w-3.5 h-3.5" />
-                     </button>
-                     <button title="刪除客戶" className="p-1.5 hover:bg-error/20 rounded-md text-error/60 hover:text-error transition-colors">
-                        <ShieldAlert className="w-3.5 h-3.5" />
-                     </button>
-                  </div>
-                </div>
-              ))
+                ))
             )}
           </div>
         </section>

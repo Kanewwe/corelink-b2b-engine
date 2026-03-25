@@ -164,79 +164,71 @@ const Templates: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("確定要刪除此模板嗎？")) return;
+    if (!confirm('確定要刪除此模板嗎？')) return;
     try {
       const resp = await deleteTemplate(id);
-      if (resp.ok) fetchTemplates();
-    } catch (e) {
-      console.error(e);
-    }
+      if (resp.ok) { fetchTemplates(); toast.success('模板已刪除'); }
+    } catch { toast.error('刪除失敗'); }
   };
 
   return (
-    <div className="flex flex-col h-full gap-4">
-      {/* Tab Navigation */}
-      <div className="flex gap-3 border-b border-white/10 pb-3">
-        <button 
-          onClick={() => setActiveTab('list')}
-          className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-all ${activeTab === 'list' ? 'bg-primary/20 text-white border border-primary/30' : 'bg-white/5 text-text-muted hover:bg-white/10'}`}
-        >
-          <Folder className="w-4 h-4" /> 現有模板
+    <div className="page-wrapper">
+
+      {/* ── Page Header ── */}
+      <div className="page-header">
+        <div>
+          <div className="page-header__title-row">
+            <h1 className="page-title">
+              智慧行銷劇本
+              <span className="page-title__en">AI Scripts</span>
+            </h1>
+            <span className="version-badge">LINKORA V2</span>
+          </div>
+          <p className="page-subtitle">建立、管理並以 AI 輔助生成個性化開發信模板。</p>
+        </div>
+        <div className="page-header__right">
+          <button onClick={() => { setEditingId(null); setForm({ name: '', tag: 'GENERAL', subject: '', body: '<html><body></body></html>', is_default: false }); setActiveTab('create'); }} className="btn-primary btn--sm">
+            <Plus size={14} />建立新模板
+          </button>
+        </div>
+      </div>
+
+      {/* ── Tab Nav（統一元件）── */}
+      <div className="tab-nav">
+        <button className={`tab-nav__item ${activeTab === 'list' ? 'active' : ''}`} onClick={() => setActiveTab('list')}>
+          <Folder size={14} /> 現有模板
         </button>
-        <button 
-          onClick={() => {
-            setEditingId(null);
-            setForm({ name: '', tag: 'GENERAL', subject: '', body: '<html><body></body></html>', is_default: false });
-            setActiveTab('create');
-          }}
-          className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-all ${activeTab === 'create' ? 'bg-primary/20 text-white border border-primary/30' : 'bg-white/5 text-text-muted hover:bg-white/10'}`}
-        >
-          <Plus className="w-4 h-4" /> {editingId ? '編輯模板' : '建立新模板'}
+        <button className={`tab-nav__item ${activeTab === 'create' ? 'active' : ''}`} onClick={() => { setEditingId(null); setForm({ name: '', tag: 'GENERAL', subject: '', body: '<html><body></body></html>', is_default: false }); setActiveTab('create'); }}>
+          <Plus size={14} /> {editingId ? '編輯模板' : '建立新模板'}
         </button>
-        <button 
-          onClick={() => setActiveTab('attachments')}
-          className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-all ${activeTab === 'attachments' ? 'bg-primary/20 text-white border border-primary/30' : 'bg-white/5 text-text-muted hover:bg-white/10'}`}
-        >
-          <Paperclip className="w-4 h-4" /> 附件管理
+        <button className={`tab-nav__item ${activeTab === 'attachments' ? 'active' : ''}`} onClick={() => setActiveTab('attachments')}>
+          <Paperclip size={14} /> 附件管理
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, paddingRight: 4 }}>
         {activeTab === 'create' && (
-          <div className="flex flex-col gap-6 pb-10">
-            {/* Top Section: Basic Info */}
-            <section className="glass-panel p-6 border border-white/10 shadow-xl">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                    {editingId ? '📝 編輯模板內容' : '✨ 建立新行銷模板'}
-                  </h3>
-                  <p className="text-xs text-text-muted mt-1">請先填寫模板基本資訊，然後在下方編輯 HTML 原始碼</p>
-                </div>
-                {editingId && (
-                  <span className="bg-primary/20 text-primary text-[10px] px-3 py-1 rounded-full border border-primary/30 font-bold uppercase tracking-wider">
-                    Editing Mode
-                  </span>
-                )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 40 }}>
+
+            {/* 模板基本資訊 */}
+            <div className="card">
+              <div className="card__header">
+                <h3 className="card__title">
+                  {editingId ? '📝 編輯模板內容' : '✨ 建立新行銷模板'}
+                </h3>
+                {editingId && <span className="badge badge--primary">Editing Mode</span>}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-text-muted uppercase tracking-widest ml-1">模板名稱 *</label>
-                  <input 
-                    type="text" 
-                    value={form.name}
-                    onChange={e => setForm({...form, name: e.target.value})}
-                    placeholder="例如：北美開發信-V1"
-                    className="input-field py-2.5" 
-                  />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
+                <div>
+                  <label className="form-label">模板名稱 *</label>
+                  <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+                    placeholder="例如：北美開發信-V1" className="form-input" />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-text-muted uppercase tracking-widest ml-1">分類標籤</label>
-                  <input 
-                    value={form.tag}
-                    onChange={e => setForm({...form, tag: e.target.value})}
-                    placeholder="GENERAL"
+                <div>
+                  <label className="form-label">分類標籤</label>
+                  <input value={form.tag} onChange={e => setForm({ ...form, tag: e.target.value })}
+                    placeholder="GENERAL" className="form-input" />
                     className="input-field py-2.5" 
                   />
                 </div>
@@ -399,13 +391,13 @@ const Templates: React.FC = () => {
               {/* Editor / Preview Area */}
               <div className={`grid gap-4 ${editorMode === 'split' ? 'grid-cols-2' : 'grid-cols-1'}`}>
                  {(editorMode === 'html' || editorMode === 'split') && (
-                    <div className="flex flex-col gap-2 min-h-[400px]">
+                    <div className="flex flex-col gap-2" style={{ minHeight: 350 }}>
                        <div className="text-[10px] text-text-muted uppercase tracking-widest flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-t-lg w-fit">
                           <FileCode className="w-3 h-3" /> HTML 編輯器
                        </div>
-                       <div className="flex-1 border border-white/10 rounded-xl overflow-hidden shadow-2xl">
+                       <div className="flex-1 border border-white/10 rounded-xl overflow-hidden shadow-2xl" style={{ minHeight: 350 }}>
                           <Editor
-                             height="100%"
+                             height="350px"
                              defaultLanguage="html"
                              theme="vs-dark"
                              value={form.body}
@@ -426,12 +418,12 @@ const Templates: React.FC = () => {
                  )}
 
                  {(editorMode === 'preview' || editorMode === 'split') && (
-                    <div className="flex flex-col gap-2 min-h-[400px]">
+                    <div className="flex flex-col gap-2" style={{ minHeight: 350 }}>
                        <div className="text-[10px] text-text-muted uppercase tracking-widest flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-t-lg w-fit">
                           <Eye className="w-3 h-3" /> 即時預覽
                        </div>
-                       <div className="flex-1 bg-white rounded-xl overflow-hidden border border-white/10 shadow-2xl p-4">
-                          <iframe 
+                       <div className="flex-1 bg-white rounded-xl overflow-hidden border border-white/10 shadow-2xl p-4" style={{ minHeight: 350 }}>
+                          <iframe
                              title="Email Preview"
                              srcDoc={form.body}
                              className="w-full h-full border-none"
@@ -463,87 +455,65 @@ const Templates: React.FC = () => {
         )}
 
         {activeTab === 'list' && (
-          <section className="glass-panel p-6 h-full flex flex-col border border-white/10 overflow-hidden">
-            <header className="flex justify-between items-center mb-6">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h3 className="text-xl font-bold text-white">現有模板列表</h3>
-                <p className="text-xs text-text-muted mt-1">管理您所有已儲存的開發信模板</p>
+                <h3 className="card__title">現有模板列表</h3>
+                <p className="card__subtitle">管理您所有已儲存的開發信模板</p>
               </div>
-              <button 
-                onClick={fetchTemplates}
-                className="p-2 hover:bg-white/5 rounded-lg text-text-muted transition-colors"
-                title="重新整理"
-              >
-                <Plus className={`w-5 h-5 transition-transform ${loading ? 'animate-spin' : ''}`} />
+              <button onClick={fetchTemplates} className="btn-outline btn--sm">
+                <RotateCcw size={13} className={loading ? 'animate-spin' : ''} />重新整理
               </button>
-            </header>
+            </div>
 
-            <div className="flex-1 overflow-y-auto min-h-0 -mx-6 px-6">
-              <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 bg-bg-dark/80 backdrop-blur-md z-10">
-                  <tr className="text-text-muted text-[11px] uppercase tracking-wider border-b border-white/10">
-                    <th className="py-4 font-semibold">名稱 / 標籤</th>
-                    <th className="py-4 font-semibold">主旨</th>
-                    <th className="py-4 font-semibold">狀態</th>
-                    <th className="py-4 font-semibold text-right">管理</th>
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>名稱 / 標籤</th>
+                    <th>主旨</th>
+                    <th>狀態</th>
+                    <th style={{ textAlign: 'right' }}>管理</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody>
                   {loading ? (
-                    <tr>
-                      <td colSpan={4} className="py-10 text-center text-text-muted text-sm">載入中...</td>
-                    </tr>
+                    <tr className="empty-row"><td colSpan={4}>載入中...</td></tr>
                   ) : templates.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="py-16 text-center">
-                        <div className="text-4xl mb-3">📁</div>
-                        <div className="text-text-muted text-sm">尚無模板資料，點擊「建立新模板」開始吧！</div>
+                    <tr><td colSpan={4}>
+                      <div className="empty-state">
+                        <div className="empty-state__icon">📁</div>
+                        <p className="empty-state__title">尚無模板資料</p>
+                        <p className="empty-state__desc">點擊「建立新模板」開始建立您的第一個開發信模板</p>
+                      </div>
+                    </td></tr>
+                  ) : templates.map(t => (
+                    <tr key={t.id}>
+                      <td>
+                        <div style={{ fontWeight: 600, fontSize: 13 }}>{t.name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--color-primary)', fontFamily: 'monospace', marginTop: 2 }}>{t.tag}</div>
+                      </td>
+                      <td style={{ maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12, color: 'var(--color-text-muted)' }}>
+                        {t.subject}
+                      </td>
+                      <td>
+                        {t.is_default
+                          ? <span className="badge badge--primary"><Check size={10} style={{ marginRight: 4 }} />預設</span>
+                          : <span className="badge badge--neutral">一般</span>
+                        }
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+                          <button onClick={() => handleEdit(t)} className="btn-icon-sm" title="編輯"><Edit size={13} /></button>
+                          <button onClick={() => handleDelete(t.id)} className="btn-icon-sm danger" title="刪除"><Trash2 size={13} /></button>
+                        </div>
                       </td>
                     </tr>
-                  ) : (
-                    templates.map(t => (
-                      <tr key={t.id} className="hover:bg-white/[0.02] transition-colors group">
-                        <td className="py-4">
-                          <div className="font-medium text-white text-sm">{t.name}</div>
-                          <div className="text-[10px] text-primary-light font-mono mt-0.5">{t.tag}</div>
-                        </td>
-                        <td className="py-4 max-w-xs truncate text-xs text-text-muted">
-                          {t.subject}
-                        </td>
-                        <td className="py-4">
-                          {t.is_default ? (
-                            <span className="bg-primary/10 text-primary text-[10px] px-2 py-1 rounded-full border border-primary/20 flex items-center w-fit gap-1">
-                              <Check className="w-3 h-3" /> 預設
-                            </span>
-                          ) : (
-                            <span className="text-[10px] text-text-muted px-2 py-1">一般</span>
-                          )}
-                        </td>
-                        <td className="py-4 text-right">
-                          <div className="flex justify-end gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                            <button 
-                              onClick={() => handleEdit(t)}
-                              className="p-2 hover:bg-blue-500/10 rounded-lg text-blue-400 transition-colors"
-                              title="編輯"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={() => handleDelete(t.id)}
-                              className="p-2 hover:bg-red-500/10 rounded-lg text-red-400 transition-colors"
-                              title="刪除"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
+                  ))}
                 </tbody>
               </table>
             </div>
-          </section>
+          </div>
         )}
       </div>
     </div>

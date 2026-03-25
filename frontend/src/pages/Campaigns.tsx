@@ -1,71 +1,149 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { Send, Search, RefreshCw, AlertTriangle } from 'lucide-react';
+
+const STATUS_OPTIONS = ['已寄出', '已送達', '已開信', '已點擊', '已回覆', '退信', '失敗'];
+
+const STATUS_BADGE: Record<string, string> = {
+  '已寄出': 'badge--primary',
+  '已送達': 'badge--neutral',
+  '已開信': 'badge--success',
+  '已點擊': 'badge--success',
+  '已回覆': 'badge--success',
+  '退信':   'badge--warning',
+  '失敗':   'badge--danger',
+};
 
 const Campaigns: React.FC = () => {
   const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [searchText, setSearchText] = useState('');
+  const [hasSmtp] = useState(false); // TODO: 從 context 取得 SMTP 狀態
 
   useEffect(() => {
-    // Placeholder to use setCampaigns
     if (campaigns.length < 0) setCampaigns([]);
-  }, [campaigns]);
+  }, []);
+
+  const filtered = campaigns.filter(c => {
+    if (statusFilter && c.status !== statusFilter) return false;
+    if (searchText && !c.subject?.includes(searchText) && !c.company?.includes(searchText)) return false;
+    return true;
+  });
 
   return (
-    <div className="flex flex-col h-full gap-4">
-      {/* Feature Card: SMTP Warning (Hidden by default, shown if no SMTP) */}
-      <div className="glass-panel p-4 border-l-4 border-warning bg-warning/5 flex justify-between items-center">
+    <div className="page-wrapper">
+
+      {/* ── Page Header ── */}
+      <div className="page-header">
         <div>
-          <div className="font-semibold text-warning mb-1">⚠️ SMTP 尚未設定，目前無法寄信</div>
-          <div className="text-sm text-text-muted">完成設定後才能發送開發信</div>
+          <div className="page-header__title-row">
+            <h1 className="page-title">
+              自動化投遞
+              <span className="page-title__en">Automated Outreach</span>
+            </h1>
+            <span className="version-badge">LINKORA V2</span>
+          </div>
+          <p className="page-subtitle">追蹤所有開發信的寄送狀態、開信率與互動記錄。</p>
         </div>
-        <button className="bg-gradient-to-br from-warning to-orange-500 text-white py-2 px-4 rounded-lg font-medium">
-          前往 SMTP 設定 →
-        </button>
+        <div className="page-header__right">
+          <button className="btn-outline btn--sm">
+            <RefreshCw size={13} />重新整理
+          </button>
+        </div>
       </div>
 
-      {/* Feature Card: Filters */}
-      <div className="glass-panel p-4 flex gap-3 items-center flex-wrap">
-        <select className="p-2.5 rounded-lg bg-black/25 border border-glass-border text-white text-sm outline-none focus:border-primary">
+      {/* ── SMTP 警告橫幅（未設定時顯示）── */}
+      {!hasSmtp && (
+        <div className="page-banner page-banner--warning">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+            <div>
+              <div style={{ fontWeight: 600, marginBottom: 2 }}>SMTP 尚未設定，目前無法寄信</div>
+              <div style={{ fontSize: 12, opacity: 0.8 }}>完成設定後才能發送開發信</div>
+            </div>
+          </div>
+          <Link to="/smtp" className="btn-primary btn--sm" style={{ textDecoration: 'none', flexShrink: 0 }}>
+            前往 SMTP 設定 →
+          </Link>
+        </div>
+      )}
+
+      {/* ── 篩選列 ── */}
+      <div className="filter-bar">
+        <div className="form-input-wrapper" style={{ flex: 1, minWidth: 200 }}>
+          <Search size={14} className="input-icon" />
+          <input
+            className="form-input"
+            placeholder="搜尋主旨 / 公司..."
+            value={searchText}
+            onChange={e => setSearchText(e.target.value)}
+          />
+        </div>
+
+        <select className="form-select" style={{ width: 'auto', minWidth: 120 }}
+          value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="">所有狀態</option>
-          <option value="Sent">已寄出</option>
-          <option value="Delivered">已送達</option>
-          <option value="Opened">已開信</option>
-          <option value="Clicked">已點擊</option>
-          <option value="Replied">已回覆</option>
-          <option value="Bounced">退信</option>
-          <option value="Failed">失敗</option>
+          {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
-        <input type="date" className="p-2.5 rounded-lg bg-black/25 border border-glass-border text-white text-sm outline-none focus:border-primary" />
-        <span className="text-text-muted text-sm">至</span>
-        <input type="date" className="p-2.5 rounded-lg bg-black/25 border border-glass-border text-white text-sm outline-none focus:border-primary" />
-        <input type="text" placeholder="搜尋主旨/公司..." className="flex-1 min-w-[150px] p-2.5 rounded-lg bg-black/25 border border-glass-border text-white text-sm outline-none focus:border-primary" />
-        <button className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-text-muted hover:text-white transition-colors">↺</button>
+
+        <input type="date" className="form-input" style={{ width: 'auto' }}
+          value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+        <span style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>至</span>
+        <input type="date" className="form-input" style={{ width: 'auto' }}
+          value={dateTo} onChange={e => setDateTo(e.target.value)} />
       </div>
 
-      {/* Feature Card: Table */}
-      <div className="glass-panel flex-1 flex flex-col overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-white/10 text-text-muted text-sm">
-                <th className="p-3 w-10"><input type="checkbox" className="accent-primary" /></th>
-                <th className="p-3">時間</th>
-                <th className="p-3">目標公司</th>
-                <th className="p-3">Email</th>
-                <th className="p-3">主旨</th>
-                <th className="p-3">狀態</th>
-                <th className="p-3 w-[100px]">操作</th>
+      {/* ── Table ── */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden', flex: 1 }}>
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th style={{ width: 40 }}><input type="checkbox" style={{ accentColor: 'var(--color-primary)' }} /></th>
+              <th>時間</th>
+              <th>目標公司</th>
+              <th>Email</th>
+              <th>主旨</th>
+              <th>狀態</th>
+              <th style={{ width: 100 }}>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 ? (
+              <tr><td colSpan={7}>
+                <div className="empty-state">
+                  <div className="empty-state__icon"><Send size={40} style={{ opacity: 0.3 }} /></div>
+                  <p className="empty-state__title">尚無寄信記錄</p>
+                  <p className="empty-state__desc">
+                    {hasSmtp
+                      ? '完成 Lead 探勘並選擇模板後，即可開始發送開發信'
+                      : '請先完成 SMTP 設定，才能開始發送開發信'}
+                  </p>
+                  {!hasSmtp && (
+                    <Link to="/smtp" className="btn-primary btn--sm" style={{ textDecoration: 'none', marginTop: 8 }}>
+                      前往 SMTP 設定
+                    </Link>
+                  )}
+                </div>
+              </td></tr>
+            ) : filtered.map((c, i) => (
+              <tr key={i}>
+                <td><input type="checkbox" style={{ accentColor: 'var(--color-primary)' }} /></td>
+                <td style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{c.sent_at}</td>
+                <td style={{ fontWeight: 600 }}>{c.company}</td>
+                <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{c.email}</td>
+                <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.subject}</td>
+                <td><span className={`badge ${STATUS_BADGE[c.status] || 'badge--neutral'}`}>{c.status}</span></td>
+                <td>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button className="btn-icon-sm" title="查看">👁</button>
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {campaigns.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="text-center py-10 text-text-muted">
-                    尚無寄信記錄
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

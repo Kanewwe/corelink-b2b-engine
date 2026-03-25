@@ -1,11 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getEngagements, getAdminVendors } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-  BarChart3, TrendingUp, Users, DollarSign, 
-  ArrowUpRight, Calendar, Receipt,
-  Building2, RefreshCw
-} from 'lucide-react';
+import { BarChart3, Users, DollarSign, Calendar, Building2 } from 'lucide-react';
 
 interface BillingInfo {
   total_leads: number;
@@ -48,8 +44,9 @@ const Analytics: React.FC = () => {
 
   if (loading && !data) {
     return (
-      <div className="flex items-center justify-center h-full text-text-muted">
-        <RefreshCw className="w-8 h-8 animate-spin" />
+      <div className="page-loading">
+        <div className="spinner" />
+        <span>Loading Analytics...</span>
       </div>
     );
   }
@@ -57,142 +54,153 @@ const Analytics: React.FC = () => {
   const billing = data?.billing as BillingInfo;
 
   return (
-    <div className="flex flex-col h-full gap-6 max-w-7xl mx-auto w-full">
-      <header className="flex justify-between items-end">
+    <div className="page-wrapper">
+
+      {/* ── Page Header ── */}
+      <div className="page-header">
         <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            <BarChart3 className="w-7 h-7 text-primary" />
-            成效與帳務分析
-          </h2>
-          <p className="text-text-muted text-sm mt-1">
+          <div className="page-header__title-row">
+            <h1 className="page-title">
+              成效分析雷達
+              <span className="page-title__en">Performance Radar</span>
+            </h1>
+            <span className="version-badge">LINKORA V2</span>
+          </div>
+          <p className="page-subtitle">
             {user?.role === 'admin' ? '全系統營運數據監控' : '委外專案執行進度與結算額'}
           </p>
         </div>
-        
         {user?.role === 'admin' && (
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-text-muted">查看特定廠商:</span>
-            <select 
-              value={selectedVendor || ''} 
-              onChange={(e) => setSelectedVendor(e.target.value ? Number(e.target.value) : undefined)}
-              className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-primary"
+          <div className="page-header__right">
+            <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>查看廠商:</span>
+            <select
+              value={selectedVendor || ''}
+              onChange={e => setSelectedVendor(e.target.value ? Number(e.target.value) : undefined)}
+              className="form-select" style={{ width: 'auto', minWidth: 160 }}
             >
               <option value="">全系統 (All Users)</option>
-              {vendors.map(v => (
-                <option key={v.id} value={v.id}>{v.company_name}</option>
-              ))}
+              {vendors.map(v => <option key={v.id} value={v.id}>{v.company_name}</option>)}
             </select>
           </div>
         )}
-      </header>
+      </div>
 
-      {/* Top Stats - Billing Focused for Vendors/Admins */}
+      {/* ── Billing Stats ── */}
       {billing && (
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="glass-panel p-6 border-l-4 border-l-primary relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Users className="w-16 h-16" />
+        <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 24 }}>
+          <div className="stat-card">
+            <div className="stat-card__icon" style={{ background: 'rgba(91,127,255,0.15)' }}>
+              <Users size={20} style={{ color: 'var(--color-primary)' }} />
             </div>
-            <div className="text-sm text-text-muted mb-1 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" />
-              累積探勘名單 (Leads)
-            </div>
-            <div className="text-3xl font-bold text-white tracking-tight">
-              {billing.total_leads.toLocaleString()}
-              <span className="text-sm font-normal text-text-muted ml-2">筆</span>
-            </div>
-            <div className="text-xs text-green-400 mt-2 flex items-center gap-1">
-              <ArrowUpRight className="w-3 h-3" />
-              本月週期: {billing.period}
+            <div>
+              <div className="stat-card__value">{billing.total_leads.toLocaleString()}</div>
+              <div className="stat-card__label">累積探勘名單</div>
+              <div className="stat-card__note">本月週期: {billing.period}</div>
             </div>
           </div>
 
-          <div className="glass-panel p-6 border-l-4 border-l-accent relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <DollarSign className="w-16 h-16" />
+          <div className="stat-card">
+            <div className="stat-card__icon" style={{ background: 'rgba(78,205,196,0.15)' }}>
+              <DollarSign size={20} style={{ color: 'var(--color-accent-teal)' }} />
             </div>
-            <div className="text-sm text-text-muted mb-1 flex items-center gap-2">
-              <Receipt className="w-4 h-4" />
-              {user?.role === 'admin' ? '預估應收 (Wholesale)' : '本月對帳應付'}
-            </div>
-            <div className="text-3xl font-bold text-accent tracking-tight">
-              ${billing.total_amount.toLocaleString()}
-              <span className="text-sm font-normal text-text-muted ml-2">{billing.currency}</span>
-            </div>
-            <div className="text-xs text-text-muted mt-2">
-              計費單價: ${billing.unit_price} / lead
+            <div>
+              <div className="stat-card__value" style={{ color: 'var(--color-accent-teal)' }}>
+                ${billing.total_amount.toLocaleString()}
+              </div>
+              <div className="stat-card__label">
+                {user?.role === 'admin' ? '預估應收 (Wholesale)' : '本月對帳應付'}
+              </div>
+              <div className="stat-card__note">計費單價: ${billing.unit_price} / lead</div>
             </div>
           </div>
 
-          <div className="glass-panel p-6 border-l-4 border-l-warning relative overflow-hidden group flex flex-col justify-center bg-warning/5">
-             <div className="text-sm font-bold text-warning flex items-center gap-2 mb-2">
-               <Calendar className="w-4 h-4" />
-               結算提醒
-             </div>
-             <p className="text-xs text-text-muted leading-relaxed">
-               {user?.role === 'vendor' 
-                ? "此金額為您委外團隊執行之批發對帳額度，請於次月 5 日前確認數據是否有誤。" 
-                : "管理員提示：此為目前的批發應收款項估計，最終結帳金額以實發 Lead 為準。"}
-             </p>
+          <div className="card" style={{ background: 'rgba(245,158,11,0.05)', borderColor: 'rgba(245,158,11,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <Calendar size={14} style={{ color: 'var(--color-warning)' }} />
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-warning)' }}>結算提醒</span>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.6, margin: 0 }}>
+              {user?.role === 'vendor'
+                ? '此金額為您委外團隊執行之批發對帳額度，請於次月 5 日前確認數據是否有誤。'
+                : '管理員提示：此為目前的批發應收款項估計，最終結帳金額以實發 Lead 為準。'}
+            </p>
           </div>
-        </section>
+        </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
-        {/* Left: Tag Distribution */}
-        <section className="glass-panel p-6 flex flex-col overflow-hidden">
-          <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-primary" />
-            各行業界別分佈
-          </h3>
-          <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+      {/* ── Charts ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        {/* 行業分佈 */}
+        <div className="card">
+          <div className="card__header">
+            <h3 className="card__title">
+              <BarChart3 size={16} style={{ color: 'var(--color-primary)' }} />
+              各行業界別分佈
+            </h3>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', maxHeight: 400 }}>
             {Object.entries(data?.tag_stats || {}).map(([tag, stats]: [string, any]) => (
-              <div key={tag} className="space-y-2">
-                <div className="flex justify-between text-sm items-end">
-                  <span className="text-white font-medium">{tag}</span>
-                  <span className="text-text-muted">{stats.total} 筆</span>
+              <div key={tag}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+                  <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>{tag}</span>
+                  <span style={{ color: 'var(--color-text-muted)' }}>{stats.total} 筆</span>
                 </div>
-                <div className="h-3 bg-white/5 rounded-full overflow-hidden border border-white/5">
-                  <div 
-                    className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-1000"
-                    style={{ width: `${Math.min(100, (stats.total / (data.total_leads || 1)) * 100)}%` }}
-                  ></div>
+                <div style={{ height: 8, background: 'var(--color-border)', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%',
+                    background: 'linear-gradient(90deg, var(--color-primary), var(--color-accent-teal))',
+                    width: `${Math.min(100, (stats.total / (data.total_leads || 1)) * 100)}%`,
+                    transition: 'width 1s ease',
+                    borderRadius: 4
+                  }} />
                 </div>
-                <div className="flex gap-4 text-[10px] text-text-muted uppercase tracking-tighter">
+                <div style={{ display: 'flex', gap: 16, fontSize: 10, color: 'var(--color-text-muted)', marginTop: 4, textTransform: 'uppercase', letterSpacing: 1 }}>
                   <span>Delivered: {stats.delivered}</span>
-                  <span className="text-accent">Opened: {stats.opened}</span>
-                  <span className="text-primary-light">Clicked: {stats.clicked}</span>
+                  <span style={{ color: 'var(--color-accent-teal)' }}>Opened: {stats.opened}</span>
+                  <span style={{ color: 'var(--color-primary)' }}>Clicked: {stats.clicked}</span>
                 </div>
               </div>
             ))}
+            {Object.keys(data?.tag_stats || {}).length === 0 && (
+              <div className="empty-state" style={{ padding: '40px 20px' }}>
+                <div className="empty-state__icon">📊</div>
+                <p className="empty-state__title">尚無分析資料</p>
+              </div>
+            )}
           </div>
-        </section>
+        </div>
 
-        {/* Right: Recent Activity Log */}
-        <section className="glass-panel p-6 flex flex-col overflow-hidden">
-          <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-accent" />
-            即時探勘動態
-          </h3>
-          <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+        {/* 即時動態 */}
+        <div className="card">
+          <div className="card__header">
+            <h3 className="card__title">
+              <Building2 size={16} style={{ color: 'var(--color-accent-teal)' }} />
+              即時探勘動態
+            </h3>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', maxHeight: 400 }}>
             {data?.records?.slice(0, 20).map((record: any) => (
-              <div key={record.id} className="p-3 bg-white/5 border border-white/5 rounded-lg flex justify-between items-center group hover:bg-white/10 transition-colors">
+              <div key={record.id} className="card" style={{ padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div className="text-sm font-medium text-white">{record.company_name}</div>
-                  <div className="text-xs text-text-muted mt-0.5">{record.recipient}</div>
+                  <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--color-text-primary)' }}>{record.company_name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>{record.recipient}</div>
                 </div>
-                <div className="text-right">
-                  <div className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold ${
-                    record.opened ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-white/40'
-                  }`}>
+                <div style={{ textAlign: 'right' }}>
+                  <span className={`badge ${record.opened ? 'badge--success' : 'badge--neutral'}`}>
                     {record.opened ? '已開信' : '未讀'}
-                  </div>
-                  <div className="text-[10px] text-text-muted mt-1 font-mono">{record.sent_at}</div>
+                  </span>
+                  <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 4, fontFamily: 'monospace' }}>{record.sent_at}</div>
                 </div>
               </div>
             ))}
+            {(!data?.records || data.records.length === 0) && (
+              <div className="empty-state" style={{ padding: '40px 20px' }}>
+                <div className="empty-state__icon">📬</div>
+                <p className="empty-state__title">尚無動態記錄</p>
+              </div>
+            )}
           </div>
-        </section>
+        </div>
       </div>
     </div>
   );

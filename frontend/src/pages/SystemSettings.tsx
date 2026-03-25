@@ -102,80 +102,67 @@ const SystemSettings: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-full gap-6 animate-in fade-in duration-500 overflow-y-auto pb-20 pr-2 custom-scrollbar">
-      {/* Header Panel */}
-      <div className="bg-glass-panel p-8 rounded-2xl border border-white/5 relative overflow-hidden group">
-        <div className="absolute -right-10 -top-10 opacity-5 group-hover:opacity-10 transition-opacity">
-          <Settings size={200} />
-        </div>
-        <div className="relative z-10">
-          <h2 className="text-3xl font-black text-white flex items-center gap-3">
-             <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center border border-primary/20 shadow-inner">
-                <Settings className="w-7 h-7 text-primary" />
-             </div>
-             系統控制中心 (System Hub)
-          </h2>
-          <p className="text-text-muted mt-2 max-w-2xl text-sm leading-relaxed">
-            管理 Linkora 全球探勘引擎的核心配置，包含 AI 驅動模型、外部數據接口連線以及系統變數映射定義。
-          </p>
+    <div className="page-wrapper">
+
+      {/* ── Page Header ── */}
+      <div className="page-header">
+        <div>
+          <div className="page-header__title-row">
+            <h1 className="page-title">
+              系統控制中心
+              <span className="page-title__en">System Hub</span>
+            </h1>
+            <span className="version-badge">LINKORA V2</span>
+          </div>
+          <p className="page-subtitle">管理 Linkora 全球探勘引擎的核心配置，包含 AI 驅動模型、外部數據接口連線以及系統變數映射定義。</p>
         </div>
       </div>
 
-      {/* Main Tabs */}
-      <div className="flex gap-4">
+      {/* ── Tab Nav（統一元件）── */}
+      <div className="tab-nav">
         {[
-          { id: 'apis', label: 'API 接口管理', icon: Cpu },
-          { id: 'mapping', label: '變數標籤映射', icon: Database },
-          { id: 'general', label: '通用系統參數', icon: Shield }
+          { id: 'apis',    label: 'API 接口管理',  icon: Cpu },
+          { id: 'mapping', label: '變數標籤映射',  icon: Database },
+          { id: 'general', label: '通用系統參數',  icon: Shield }
         ].map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`px-6 py-3 rounded-xl text-sm font-bold flex items-center gap-3 transition-all border ${
-              activeTab === tab.id 
-                ? 'bg-primary/20 text-white border-primary/30 shadow-lg shadow-primary/10' 
-                : 'bg-white/5 text-text-muted border-white/5 hover:bg-white/10'
-            }`}
+            className={`tab-nav__item ${activeTab === tab.id ? 'active' : ''}`}
           >
-            <tab.icon className="w-4 h-4" /> {tab.label}
+            <tab.icon size={14} /> {tab.label}
           </button>
         ))}
       </div>
 
-      {/* Tab Content */}
-      <div className="flex-1">
+      {/* ── Tab Content ── */}
+      <div>
         {activeTab === 'apis' && (
-          <div className="glass-panel p-8 flex flex-col gap-8 animate-in slide-in-from-right-4 duration-300">
-            <div className="flex items-center gap-3 pb-6 border-b border-white/5">
-              <Sparkles className="text-accent w-5 h-5" />
-              <h3 className="text-xl font-bold text-white tracking-tight">AI & 外部工具連線配置</h3>
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+            <div className="card__header">
+              <h3 className="card__title">
+                <Sparkles size={16} style={{ color: 'var(--color-accent-teal)' }} />
+                AI & 外部工具連線配置
+              </h3>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* OpenAI Section */}
-              <div className="space-y-4">
-                <label className="text-xs font-black text-text-muted uppercase tracking-widest flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary" /> OpenAI 配置
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28 }}>
+              {/* OpenAI */}
+              <div>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-primary)', display: 'inline-block' }} />
+                  OpenAI 配置
                 </label>
-                <div className="space-y-4 bg-black/20 p-6 rounded-2xl border border-white/5">
-                  <div className="space-y-2">
-                    <span className="text-[10px] text-text-muted ml-1">OpenAI API Key</span>
-                    <input 
-                      type="password"
-                      className="input-field"
-                      placeholder="sk-..."
-                      value={apiKeys.openai_key}
-                      onChange={e => setApiKeys({...apiKeys, openai_key: e.target.value})}
-                    />
+                <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    <label className="form-label">OpenAI API Key</label>
+                    <input type="password" className="form-input" placeholder="sk-..."
+                      value={apiKeys.openai_key} onChange={e => setApiKeys({ ...apiKeys, openai_key: e.target.value })} />
                   </div>
-                  <div className="space-y-2">
-                    <span className="text-[10px] text-text-muted ml-1">AI 默認模型</span>
-                    <select 
-                      className="input-field appearance-none"
-                      value={apiKeys.openai_model}
-                      onChange={e => setApiKeys({...apiKeys, openai_model: e.target.value})}
-                    >
-                      <option value="gpt-4o">GPT-4o (推薦)</option>
+                  <div>
+                    <label className="form-label">AI 默認模型</label>
+                    <select className="form-select" value={apiKeys.openai_model} onChange={e => setApiKeys({ ...apiKeys, openai_model: e.target.value })}>
+                      <option value="gpt-4o">GPT-4o（推薦）</option>
                       <option value="gpt-4-turbo">GPT-4 Turbo</option>
                       <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
                     </select>
@@ -190,126 +177,100 @@ const SystemSettings: React.FC = () => {
                 </label>
                 <div className="space-y-4 bg-black/20 p-6 rounded-2xl border border-white/5">
                   <div className="space-y-2">
-                    <span className="text-[10px] text-text-muted ml-1">Hunter.io API Key</span>
-                    <input 
-                      type="password"
-                      className="input-field"
-                      placeholder="API Key for Email Discovery"
-                      value={apiKeys.hunter_key}
-                      onChange={e => setApiKeys({...apiKeys, hunter_key: e.target.value})}
-                    />
+                  <div>
+                    <label className="form-label">Hunter.io API Key</label>
+                    <input type="password" className="form-input" placeholder="API Key for Email Discovery"
+                      value={apiKeys.hunter_key} onChange={e => setApiKeys({ ...apiKeys, hunter_key: e.target.value })} />
                   </div>
-                  <div className="space-y-2">
-                    <span className="text-[10px] text-text-muted ml-1">Google CSE ID</span>
-                    <input 
-                      className="input-field"
-                      placeholder="Search Engine ID"
-                      value={apiKeys.google_cse_id}
-                      onChange={e => setApiKeys({...apiKeys, google_cse_id: e.target.value})}
-                    />
+                  <div>
+                    <label className="form-label">Google CSE ID</label>
+                    <input className="form-input" placeholder="Search Engine ID"
+                      value={apiKeys.google_cse_id} onChange={e => setApiKeys({ ...apiKeys, google_cse_id: e.target.value })} />
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-end pt-4">
-              <button 
-                onClick={handleSaveApiKeys}
-                disabled={saving}
-                className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-8 py-3 rounded-xl font-bold transition-all shadow-xl shadow-primary/20 disabled:opacity-50"
-              >
-                {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                儲存連線設定
+            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 8 }}>
+              <button onClick={handleSaveApiKeys} disabled={saving} className="btn-primary">
+                {saving ? <><div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />儲存中...</> : <><Save size={14} />儲存連線設定</>}
               </button>
             </div>
           </div>
         )}
 
         {activeTab === 'mapping' && (
-          <div className="glass-panel p-8 flex flex-col gap-8 animate-in slide-in-from-right-4 duration-300">
-            <div className="flex items-center gap-3 pb-6 border-b border-white/5">
-              <Database className="text-primary w-5 h-5" />
-              <h3 className="text-xl font-bold text-white tracking-tight">變數與標籤自動化映射</h3>
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div className="card__header">
+              <h3 className="card__title">
+                <Database size={16} style={{ color: 'var(--color-primary)' }} />
+                變數與標籤自動化映射
+              </h3>
             </div>
 
-            <div className="space-y-6">
-              <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl flex items-start gap-3">
-                <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                <p className="text-xs text-text-muted leading-relaxed">
-                  在這裡定義標籤名稱，系統會在「行銷模板」編輯器中顯示您的自定義標籤（例如：<code>公司名稱</code>），而在發送時自動轉換回系統標準變數（例如：<code>{"{{company_name}}"}</code>）。
-                </p>
+            {/* Info Banner */}
+            <div className="page-banner page-banner--info" style={{ margin: 0 }}>
+              <Info size={15} style={{ flexShrink: 0 }} />
+              <p style={{ margin: 0, fontSize: 12, lineHeight: 1.6 }}>
+                在這裡定義標籤名稱，系統會在「行銷模板」編輯器中顯示您的自定義標籤（例如：<code>公司名稱</code>），而在發送時自動轉換回系統標準變數（例如：<code>{'{{company_name}}'}</code>）。
+              </p>
+            </div>
+
+            {/* Add New Mapping */}
+            <div className="card" style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <label className="form-label">系統變數名</label>
+                <input value={newMappingKey} onChange={e => setNewMappingKey(e.target.value)} className="form-input" placeholder="company_name" />
               </div>
+              <div style={{ flex: 1 }}>
+                <label className="form-label">顯示標籤名</label>
+                <input value={newMappingLabel} onChange={e => setNewMappingLabel(e.target.value)} className="form-input" placeholder="公司名稱" />
+              </div>
+              <button onClick={addMapping} className="btn-outline" style={{ flexShrink: 0 }}>
+                <Plus size={14} />新增
+              </button>
+            </div>
 
-              <div className="grid grid-cols-1 gap-4">
-                 <div className="flex items-end gap-4 bg-white/5 p-6 rounded-2xl border border-white/5">
-                    <div className="flex-1 space-y-2">
-                       <span className="text-[10px] font-bold text-text-muted uppercase ml-1">系統變數名 (e.g. company_name)</span>
-                       <input 
-                          value={newMappingKey}
-                          onChange={e => setNewMappingKey(e.target.value)}
-                          className="input-field"
-                          placeholder="company_name"
-                       />
+            {/* Mapping List */}
+            <div>
+              <label className="form-label" style={{ marginBottom: 12 }}>現有映射清單</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {Object.entries(variableMapping).map(([key, label]) => (
+                  <div key={key} className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <code style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--color-primary)', background: 'var(--color-primary-glow)', padding: '3px 8px', borderRadius: 4 }}>
+                        {'{' + key + '}'}
+                      </code>
+                      <span style={{ fontWeight: 600, fontSize: 13 }}>{label}</span>
                     </div>
-                    <div className="flex-1 space-y-2">
-                       <span className="text-[10px] font-bold text-text-muted uppercase ml-1">顯示標籤名 (e.g. 公司名稱)</span>
-                       <input 
-                          value={newMappingLabel}
-                          onChange={e => setNewMappingLabel(e.target.value)}
-                          className="input-field"
-                          placeholder="公司名稱"
-                       />
+                    <button onClick={() => removeMapping(key)} className="btn-icon-sm danger"><Trash2 size={13} /></button>
+                  </div>
+                ))}
+                {Object.keys(variableMapping).length === 0 && (
+                  <div style={{ gridColumn: '1/-1' }}>
+                    <div className="empty-state" style={{ padding: '32px 20px' }}>
+                      <p className="empty-state__title">尚無映射設定</p>
                     </div>
-                    <button 
-                      onClick={addMapping}
-                      className="bg-white/10 hover:bg-white/20 p-3.5 rounded-2xl transition-all border border-white/10 text-white"
-                    >
-                      <Plus className="w-5 h-5" />
-                    </button>
-                 </div>
-
-                 <div className="space-y-2 mt-4">
-                    <span className="text-[10px] font-black text-text-muted uppercase tracking-widest ml-1">現有映射清單</span>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                       {Object.entries(variableMapping).map(([key, label]) => (
-                         <div key={key} className="flex items-center justify-between p-4 bg-black/20 rounded-xl border border-white/5 hover:border-primary/20 transition-all group">
-                            <div className="flex items-center gap-4">
-                               <code className="text-[11px] font-mono text-primary bg-primary/10 px-2 py-1 rounded">{"{" + key + "}"}</code>
-                               <span className="text-white font-bold text-sm">{label}</span>
-                            </div>
-                            <button 
-                              onClick={() => removeMapping(key)}
-                              className="text-error/30 hover:text-error transition-colors p-2"
-                            >
-                               <Trash2 className="w-4 h-4" />
-                            </button>
-                         </div>
-                       ))}
-                    </div>
-                 </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="flex justify-end pt-4">
-              <button 
-                onClick={handleSaveMapping}
-                disabled={saving}
-                className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-8 py-3 rounded-xl font-bold transition-all shadow-xl shadow-primary/20 disabled:opacity-50"
-              >
-                {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                儲存映射關係
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={handleSaveMapping} disabled={saving} className="btn-primary">
+                {saving ? <><div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />儲存中...</> : <><Save size={14} />儲存映射關係</>}
               </button>
             </div>
           </div>
         )}
 
         {activeTab === 'general' && (
-          <div className="glass-panel p-16 flex flex-col items-center justify-center gap-4 border-dashed border-white/10 opacity-60 animate-in fade-in duration-500">
-             <Shield className="w-16 h-16 text-text-muted" />
-             <div className="text-center">
-                <h3 className="text-xl font-bold text-white">通用參數即將推出</h3>
-                <p className="text-sm text-text-muted mt-1">包含語系切換、時區設定及預設登入偏好。</p>
-             </div>
+          <div className="card">
+            <div className="empty-state" style={{ padding: '80px 20px' }}>
+              <div className="empty-state__icon"><Shield size={48} style={{ opacity: 0.3 }} /></div>
+              <p className="empty-state__title">通用參數即將推出</p>
+              <p className="empty-state__desc">包含語系切換、時區設定及預設登入偏好。</p>
+            </div>
           </div>
         )}
       </div>
