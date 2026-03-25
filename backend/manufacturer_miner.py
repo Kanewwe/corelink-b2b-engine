@@ -114,9 +114,13 @@ async def search_via_google_cse(
                 )
                 
                 if resp.status_code == 400:
-                    add_log(f"⚠️ Google CSE 400錯誤 - 請檢查 GOOGLE_API_KEY 和 GOOGLE_CSE_ID 環境變數")
-                    add_log(f"   API Key設定: {'YES' if GOOGLE_API_KEY else 'NO'}")
-                    add_log(f"   CSE ID設定: {'YES' if GOOGLE_CSE_ID else 'NO'}")
+                    error_data = resp.json() if resp.text else {}
+                    error_msg = error_data.get('error', {}).get('message', 'Unknown error')
+                    add_log(f"❌ Google CSE 400錯誤")
+                    add_log(f"   API Key: {'✅ 已設定 (' + GOOGLE_API_KEY[:10] + '...)' if GOOGLE_API_KEY else '❌ 未設定'}")
+                    add_log(f"   CSE ID: {'✅ 已設定 (' + GOOGLE_CSE_ID + ')' if GOOGLE_CSE_ID else '❌ 未設定'}")
+                    add_log(f"   錯誤原因: {error_msg}")
+                    add_log(f"   建議: 檢查 GOOGLE_API_KEY 和 GOOGLE_CSE_ID 是否匹配")
                 elif resp.status_code != 200:
                     add_log(f"⚠️ Google CSE 回應 {resp.status_code}")
                     break
@@ -365,11 +369,20 @@ async def manufacturer_mine(
         
         current_results = []
         if GOOGLE_API_KEY and GOOGLE_CSE_ID:
+            add_log(f"  📍 Google CSE 狀態：")
+            add_log(f"     API Key: ✅ 已設定 ({GOOGLE_API_KEY[:10]}...)")
+            add_log(f"     CSE ID: ✅ 已設定 ({GOOGLE_CSE_ID})")
             current_results = await search_via_google_cse(query, pages=1)
+        else:
+            add_log(f"  ⚠️ Google CSE 未設定或無效：")
+            if not GOOGLE_API_KEY:
+                add_log(f"     API Key: ❌ 未設定 (GOOGLE_API_KEY)")
+            if not GOOGLE_CSE_ID:
+                add_log(f"     CSE ID: ❌ 未設定 (GOOGLE_CSE_ID)")
         
         # 如果 Google 沒結果或 API 失敗，立即使用 Bing 備援
         if not current_results:
-            add_log(f"  🔄 Google 無法使用，呼叫 Bing 備援...")
+            add_log(f"  🔄 Google CSE 無法使用，切換到 Bing 備援...")
             current_results = await search_via_bing(query)
         
         # 去重

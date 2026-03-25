@@ -12,8 +12,33 @@ def run_migrations():
     tables_to_patch = {
         "users": ["role", "vendor_id"],
         "vendors": ["user_id", "company_name", "pricing_config"],
-        "leads": ["user_id", "email_sent", "email_sent_at"],
-        "email_campaigns": ["user_id"],
+        "leads": [
+            "user_id", 
+            "email_sent", 
+            "email_sent_at", 
+            "contact_name", 
+            "contact_role", 
+            "contact_email", 
+            "contact_confidence",
+            "website_url",
+            "domain",
+            "email_candidates",
+            "mx_valid",
+            "description",
+            "extracted_keywords",
+            "assigned_bd",
+            "phone",
+            "address",
+            "city",
+            "state",
+            "zip_code",
+            "categories",
+            "source_domain",
+            "scrape_location",
+            "employee_count",
+            "revenue_range"
+        ],
+        "email_campaigns": ["user_id", "lead_id"],
         "email_templates": ["user_id"],
         "email_logs": ["user_id"]
     }
@@ -42,6 +67,14 @@ def run_migrations():
                     col_type = "INTEGER"
                     if column == "email_sent": col_type = "BOOLEAN DEFAULT FALSE"
                     if column == "email_sent_at": col_type = "TIMESTAMP"
+                    if column == "email_source": col_type = "VARCHAR(50)"
+                    if column == "contact_name": col_type = "VARCHAR(255)"
+                    if column == "contact_role": col_type = "VARCHAR(255)"
+                    if column == "contact_email": col_type = "VARCHAR(255)"
+                    if column in ["user_id", "lead_id", "mx_valid", "contact_confidence"]: col_type = "INTEGER"
+                    if column in ["email_sent"]: col_type = "BOOLEAN DEFAULT FALSE"
+                    if column in ["email_sent_at", "created_at"]: col_type = "TIMESTAMP"
+                    if column in ["company_name", "domain", "status", "assigned_bd", "contact_name", "contact_role", "contact_email", "phone", "address", "city", "state", "zip_code", "categories", "source_domain", "scrape_location", "employee_count", "revenue_range", "website_url", "email_candidates", "extracted_keywords", "ai_tag", "description"]: col_type = "TEXT"
                     
                     # More aggressive check
                     has_column = False
