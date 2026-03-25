@@ -405,7 +405,13 @@ def debug():
 def check_admin(db: Session = Depends(get_db)):
     admin = db.query(models.User).filter(models.User.email == "admin@linkora.com").first()
     if admin:
-        return {"exists": True, "role": admin.role, "is_active": admin.is_active}
+        return {
+            "exists": True, 
+            "role": admin.role, 
+            "is_active": admin.is_active,
+            "hash_len": len(admin.password_hash) if admin.password_hash else 0,
+            "hash_prefix": admin.password_hash[:10] if admin.password_hash else ""
+        }
     return {"exists": False, "count": db.query(models.User).count()}
 
 # --- API Endpoints (Session Auth) ---
