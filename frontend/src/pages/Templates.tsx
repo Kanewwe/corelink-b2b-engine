@@ -16,10 +16,17 @@ interface Template {
 }
 
 const Templates: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'create' | 'list' | 'attachments'>('list');
+  const [activeTab, setActiveTab] = useState<'create' | 'list' | 'attachments' | 'settings'>('list');
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  
+  const [variableMapping, setVariableMapping] = useState<Record<string, string>>({
+    'company_name': '公司名稱',
+    'bd_name': '我的姓名 (BD)',
+    'industry': '產業領域',
+    'product_name': '產品名稱'
+  });
   
   const [editorMode, setEditorMode] = useState<'html' | 'preview' | 'split'>('html');
   const [aiPrompt, setAiPrompt] = useState('');
@@ -50,8 +57,24 @@ const Templates: React.FC = () => {
     }
   };
 
+  const fetchSettings = async () => {
+    try {
+      const { getSystemSettings } = await import('../services/api');
+      const resp = await getSystemSettings();
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.variable_mapping) {
+          setVariableMapping(data.variable_mapping);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch mapping", e);
+    }
+  };
+
   useEffect(() => {
     fetchTemplates();
+    fetchSettings();
   }, []);
 
   const handleAiGenerate = async () => {
@@ -175,6 +198,12 @@ const Templates: React.FC = () => {
           className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-all ${activeTab === 'attachments' ? 'bg-primary/20 text-white border border-primary/30' : 'bg-white/5 text-text-muted hover:bg-white/10'}`}
         >
           <Paperclip className="w-4 h-4" /> 附件管理
+        </button>
+        <button 
+          onClick={() => setActiveTab('settings')}
+          className={`px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-all ${activeTab === 'settings' ? 'bg-primary/20 text-white border border-primary/30' : 'bg-white/5 text-text-muted hover:bg-white/10'}`}
+        >
+          <Settings className="w-4 h-4" /> 變數映射建議
         </button>
       </div>
 
@@ -356,16 +385,21 @@ const Templates: React.FC = () => {
 
               {/* Variable Insertion Chips */}
               <div className="flex flex-wrap items-center gap-2">
-                 <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider mr-1">變數插入：</span>
-                 {['company_name', 'bd_name', 'keywords', 'description'].map(v => (
+                 <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider mr-1">變數插入 (點擊插入)：</span>
+                 {Object.entries(variableMapping).map(([key, label]) => (
                     <button 
-                       key={v}
-                       onClick={() => insertVariable(v)}
-                       className="bg-primary/10 border border-primary/20 text-primary-light text-[10px] px-2.5 py-1 rounded-md hover:bg-primary/20 transition-colors font-mono"
+                       key={key}
+                       onClick={() => insertVariable(key)}
+                       className="bg-primary/10 border border-primary/20 text-primary-light text-[10px] px-2.5 py-1 rounded-md hover:bg-primary/20 transition-all flex items-center gap-1.5"
                     >
-                       `{`{{${v}}}`}`
+                       <span className="opacity-60">{label}:</span>
+                       <span className="font-mono">{"{{" + key + "}}"}</span>
                     </button>
                  ))}
+                 
+                 {Object.keys(variableMapping).length === 0 && (
+                    <span className="text-[10px] text-text-muted italic">尚未在設定中建立變數映射</span>
+                 )}
               </div>
 
               {/* Editor / Preview Area */}
@@ -518,17 +552,95 @@ const Templates: React.FC = () => {
           </section>
         )}
 
-        {activeTab === 'attachments' && (
-          <section className="glass-panel p-6 h-full flex flex-col border border-white/10">
-            <h3 className="text-xl font-bold mb-4">📎 附件管理中心</h3>
-            <div className="border-2 border-dashed border-white/10 rounded-2xl p-16 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-primary/5 hover:border-primary/30 transition-all group">
-              <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                <Paperclip className="w-8 h-8 text-text-muted" />
+        {activeTab === 'settings' && (
+          <section className="glass-panel p-8 h-full flex flex-col border border-white/10 overflow-y-auto">
+            <div className="max-w-4xl mx-auto w-full">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                  <Settings className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-white">變數映射設定 (Variable Label Mapping)</h3>
+                  <p className="text-sm text-text-muted">在這裡定義標籤名稱，我們會在編輯器中顯示中文名稱以供參考，儲存時自動轉換回標準變數。</p>
+                </div>
               </div>
-              <div className="font-bold text-white mb-2">拖曳檔案到此處，或點擊上傳</div>
-              <div className="text-xs text-text-muted max-w-xs mx-auto leading-relaxed">
-                支援：PDF、DOCX、XLSX、PPT、PNG、JPG<br />
-                單檔限制：10MB | 附件將可用於行銷郵件
+
+              <div className="bg-white/5 rounded-2xl border border-white/10 p-6 space-y-6">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="text-[11px] text-text-muted uppercase tracking-widest border-b border-white/10">
+                      <th className="pb-4 pl-2">系統變數名稱 (System Key)</th>
+                      <th className="pb-4">介面顯示標籤 (Display Label)</th>
+                      <th className="pb-4 text-right pr-2">動作</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {Object.entries(variableMapping).map(([key, label]) => (
+                      <tr key={key} className="group">
+                        <td className="py-4 pl-2">
+                          <code className="text-primary-light text-sm font-mono bg-primary/5 px-2 py-1 rounded">{"{{" + key + "}}"}</code>
+                        </td>
+                        <td className="py-4">
+                          <input 
+                            className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:border-primary outline-none transition-all w-64"
+                            value={label}
+                            onChange={(e) => {
+                              const newMapping = { ...variableMapping, [key]: e.target.value };
+                              setVariableMapping(newMapping);
+                            }}
+                          />
+                        </td>
+                        <td className="py-4 text-right pr-2">
+                          <button 
+                            onClick={() => {
+                              const newMapping = { ...variableMapping };
+                              delete newMapping[key];
+                              setVariableMapping(newMapping);
+                            }}
+                            className="text-error/60 hover:text-error p-2 hover:bg-error/10 rounded-lg transition-all"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                
+                <div className="pt-6 border-t border-white/5 flex justify-between items-center">
+                  <button 
+                    onClick={() => {
+                      const key = prompt("輸入新的變數名稱 (英文，如: location)");
+                      const label = prompt("輸入顯示標籤 (中文，如: 公司所在地)");
+                      if (key && label) {
+                        setVariableMapping({ ...variableMapping, [key.trim()]: label.trim() });
+                      }
+                    }}
+                    className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-4 py-2 rounded-xl text-sm font-bold border border-white/10 transition-all"
+                  >
+                    <Plus size={16} /> 新增變數對應
+                  </button>
+                  
+                  <button 
+                    onClick={async () => {
+                      const { updateSystemSetting } = await import('../services/api');
+                      const loadingToast = toast.loading("儲存變數映射中...");
+                      try {
+                        const resp = await updateSystemSetting('variable_mapping', variableMapping);
+                        if (resp.ok) {
+                          toast.success("變數映射設定已儲存", { id: loadingToast });
+                        } else {
+                          toast.error("儲存失敗", { id: loadingToast });
+                        }
+                      } catch (e) {
+                         toast.error("網路連線錯誤", { id: loadingToast });
+                      }
+                    }}
+                    className="flex items-center gap-2 bg-primary text-white px-6 py-2 rounded-xl text-sm font-black shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all"
+                  >
+                    <Save size={16} /> 儲存設定變更
+                  </button>
+                </div>
               </div>
             </div>
           </section>
@@ -537,5 +649,8 @@ const Templates: React.FC = () => {
     </div>
   );
 };
+
+// Mock imported icons from lucide might be missing some, so ensure they are available
+import { Settings } from 'lucide-react';
 
 export default Templates;

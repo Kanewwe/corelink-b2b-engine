@@ -93,11 +93,16 @@ Instead of reading the whole tree, focus on these files:
 - **Migrations**: Add new tables to `backend/migrations.py` to ensure auto-migration in Docker.
 
 ### 2. Frontend Standards
-- **Styling**: Strictly **Tailwind CSS**. Custom styles should go into `index.css` or `App.css`.
+- **Styling**: Strictly **Tailwind CSS**. Use glassmorphism (`glass-panel`) and `input-field` architecture.
+- **Aesthetics**: Premium, high-contrast dark theme with consistent HSL gradients.
+- **Naming**: Use Professional/Precision terminology (e.g., '精準開發雷達', '智慧行銷劇本').
 - **Icons**: Use `lucide-react`.
-- **State**: Use `AuthContext` for user session.
-- **Fetching**: Always use `fetchWithAuth` from `api.ts`.
-- **Roles**: Guard pages with `<RoleGuard require={['admin', 'vendor']}>`.
+- **Feedback**: Always use `react-hot-toast` for async operations.
+
+### 3. New Advanced Features (Linkora v2.0+)
+- **Keyword Token System**: In `LeadEngine.tsx`, keywords are managed as interactive chips/tokens. Scraper joins multiple tokens with commas.
+- **Variable Mapping**: In `Templates.tsx`, uses `SystemSetting` key-value store to map technical variables (e.g., `{{company_name}}`) to user-friendly labels (e.g., `公司名稱`).
+- **Email Channels (SMTP)**: Refactored with a grouped, icon-heavy configuration panel to simplify credential management.
 
 ---
 
@@ -111,7 +116,7 @@ Instead of reading the whole tree, focus on these files:
 ## 🚀 Quick Execution
 - **Local Dev**: `npm run dev` (Frontend), `uvicorn main:app --reload` (Backend).
 - **Docker**: `docker-compose up --build`.
-- **Render**: Configured via `render.yaml`. Root level.
+- **Init DB**: `POST /api/init-db` to create new tables like `system_settings`.
 
 ---
 **Note for AI Agent**: Do not re-scan `node_modules` or `dist`. Stick to the logical files mentioned above to save context window.

@@ -12,7 +12,9 @@ const LeadEngine: React.FC = () => {
   // Scraper Form State
   const [market, setMarket] = useState('US');
   const [location, setLocation] = useState('');
-  const [keyword, setKeyword] = useState('');
+  const [keywordInput, setKeywordInput] = useState('');
+  const [activeKeywords, setActiveKeywords] = useState<string[]>([]);
+  const [suggestedKeywords, setSuggestedKeywords] = useState<string[]>([]);
   const [pages, setPages] = useState('3');
   const [minerMode, setMinerMode] = useState('manufacturer');
   const [emailStrategy, setEmailStrategy] = useState<'free' | 'hunter'>('free');
@@ -51,22 +53,37 @@ const LeadEngine: React.FC = () => {
     fetchDashboardData();
   }, []);
 
+  const addKeyword = (k: string) => {
+    const trimmed = k.trim();
+    if (trimmed && !activeKeywords.includes(trimmed)) {
+      setActiveKeywords([...activeKeywords, trimmed]);
+      setKeywordInput('');
+    }
+  };
+
+  const removeKeyword = (k: string) => {
+    setActiveKeywords(activeKeywords.filter(item => item !== k));
+  };
+
   const handleScrape = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!keyword) {
+    const finalKeywords = [...activeKeywords];
+    if (keywordInput.trim()) finalKeywords.push(keywordInput.trim());
+
+    if (finalKeywords.length === 0) {
       toast.error("請輸入產業關鍵字");
       return;
     }
     
     setIsMining(true);
-    setMiningStatus('探勘任務已啟動！請查看系統日誌或稍後重整列表。');
+    setMiningStatus('探勘任務已啟動！請查看系統日誌隨時查看進度。');
     const loadingToast = toast.loading("正在啟動 AI 探勘引擎...");
     
     try {
       const resp = await triggerScrapeSimple({
         market,
         pages: parseInt(pages),
-        keyword,
+        keyword: finalKeywords.join(', '),
         location,
         miner_mode: minerMode,
         email_strategy: emailStrategy
@@ -74,7 +91,8 @@ const LeadEngine: React.FC = () => {
       
       if (resp.ok) {
         toast.success("探勘背景任務已成功啟動！", { id: loadingToast });
-        // Optionally clear form or keep for next search
+        setActiveKeywords([]);
+        setKeywordInput('');
       } else {
         const err = await resp.json();
         toast.error(err.detail || "啟動失敗", { id: loadingToast });
@@ -87,17 +105,18 @@ const LeadEngine: React.FC = () => {
   };
 
   const handleAiKeywords = async () => {
-    if (!keyword) {
+    const base = keywordInput || activeKeywords[0];
+    if (!base) {
       toast.error("請先輸入一個基礎關鍵字");
       return;
     }
     const loadingToast = toast.loading("AI 正在擴展相關關鍵字...");
     try {
-      const resp = await generateAiKeywords(keyword);
+      const resp = await generateAiKeywords(base);
       const data = await resp.json();
       if (data.success && data.keywords && data.keywords.length > 0) {
-        toast.success(`AI 已為您找到 ${data.keywords.length} 個相關關鍵字`, { id: loadingToast });
-        setKeyword(data.keywords[0]); // 取第一個最相關的
+        toast.success(`AI 已為您找到 ${data.keywords.length} 個建議`, { id: loadingToast });
+        setSuggestedKeywords(data.keywords);
       } else {
         toast.error("AI 關鍵字生成失敗", { id: loadingToast });
       }
@@ -218,22 +237,69 @@ const LeadEngine: React.FC = () => {
               />
             </div>
             
-            <div>
-              <label className="block text-[11px] font-bold text-text-muted uppercase tracking-widest mb-2 ml-1">產業關鍵字 (Keyword) *</label>
+            <div className="space-y-3">
+              <label className="block text-[11px] font-bold text-text-muted uppercase tracking-widest mb-2 ml-1 flex items-center justify-between">
+                <span>產業關鍵字 (Keyword Chips)</span>
+                <span className="text-[9px] text-primary underline decoration-primary/30">支援多關鍵字探勘</span>
+              </label>
+              
+              {/* Active Keywords */}
+              <div className="flex flex-wrap gap-2 mb-2">
+                {activeKeywords.map((k, idx) => (
+                  <div key={idx} className="bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-bold border border-primary/30 flex items-center gap-2 animate-in zoom-in duration-200">
+                    {k}
+                    <button type="button" onClick={() => removeKeyword(k)} className="hover:text-white transition-colors">×</button>
+                  </div>
+                ))}
+              </div>
+
               <div className="flex gap-2">
-                <input 
-                  type="text" required placeholder="例如: Plastic Manufacturer"
-                  className="flex-1 px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:border-primary/50 outline-none transition-all"
-                  value={keyword} onChange={e => setKeyword(e.target.value)}
-                />
+                <div className="flex-1 relative">
+                  <input 
+                    type="text" placeholder="輸入關鍵字後按 Enter..."
+                    className="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:border-primary/50 outline-none transition-all"
+                    value={keywordInput} 
+                    onChange={e => setKeywordInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addKeyword(keywordInput);
+                      }
+                    }}
+                  />
+                </div>
                 <button 
                   type="button" 
                   onClick={handleAiKeywords}
                   className="bg-primary/10 hover:bg-primary/20 text-primary px-4 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 border border-primary/20 shadow-lg shadow-primary/5"
                 >
-                  <Sparkles className="w-3.5 h-3.5" /> AI 建議
+                  <Sparkles className="w-3.5 h-3.5" /> AI 聯想
                 </button>
               </div>
+
+              {/* AI Suggestions */}
+              {suggestedKeywords.length > 0 && (
+                <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3 animate-in fade-in slide-in-from-top-2">
+                  <div className="text-[10px] text-text-muted font-bold uppercase mb-2 flex items-center gap-1.5">
+                    <Sparkles className="w-3 h-3 text-warning" /> AI 選項建議 (點選加入):
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {suggestedKeywords.map((sk, idx) => (
+                      <button 
+                        key={idx} 
+                        type="button"
+                        onClick={() => {
+                          addKeyword(sk);
+                          setSuggestedKeywords(suggestedKeywords.filter(k => k !== sk));
+                        }}
+                        className="bg-white/5 hover:bg-primary/20 hover:text-white px-2.5 py-1 rounded-lg text-[11px] text-text-muted border border-white/10 transition-all"
+                      >
+                        + {sk}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="p-4 bg-primary/5 border border-primary/10 rounded-xl">

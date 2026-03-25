@@ -43,18 +43,18 @@ const Sidebar: React.FC = () => {
 
       <nav className="flex flex-col gap-2 flex-1 overflow-y-auto pr-2">
         <div className="text-xs font-semibold text-text-muted mt-2 mb-1 px-4 tracking-wider uppercase">主要功能</div>
-        <NavItem to="/lead-engine" icon={<Search size={18} />} label="Lead Engine" />
+        <NavItem to="/lead-engine" icon={<Search size={18} />} label="精準開發雷達" />
 
         <div className="text-xs font-semibold text-text-muted mt-6 mb-1 px-4 tracking-wider uppercase">寄信作業</div>
-        <NavItem to="/templates" icon={<FileText size={18} />} label="信件模板" />
-        <NavItem to="/campaigns" icon={<Send size={18} />} label="寄信記錄" />
+        <NavItem to="/templates" icon={<FileText size={18} />} label="智慧行銷劇本" />
+        <NavItem to="/campaigns" icon={<Send size={18} />} label="自動化投遞" />
 
         <div className="text-xs font-semibold text-text-muted mt-6 mb-1 px-4 tracking-wider uppercase">分析</div>
-        <NavItem to="/analytics" icon={<BarChart2 size={18} />} label="觸及率分析" />
-        <NavItem to="/history" icon={<Clock size={18} />} label="探勘歷史" />
+        <NavItem to="/analytics" icon={<BarChart2 size={18} />} label="成效分析雷達" />
+        <NavItem to="/history" icon={<Clock size={18} />} label="開發紀錄專區" />
 
         <div className="text-xs font-semibold text-text-muted mt-6 mb-1 px-4 tracking-wider uppercase">設定</div>
-        <NavItem to="/smtp" icon={<Settings size={18} />} label="SMTP 設定" />
+        <NavItem to="/smtp" icon={<Settings size={18} />} label="發信通道配置" />
 
         {/* Phase 1 & 2 preparation: Admin Only Section */}
         {user?.role === 'admin' && (

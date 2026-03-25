@@ -102,3 +102,10 @@ export const generateAiKeywords = (keyword: string, count: number = 5) => fetchW
   method: 'POST',
   body: JSON.stringify({ keyword, count })
 });
+
+// System Settings
+export const getSystemSettings = () => fetchWithAuth('/system/settings');
+export const updateSystemSetting = (key: string, value: any) => fetchWithAuth('/system/settings', {
+  method: 'POST',
+  body: JSON.stringify({ key, value })
+});

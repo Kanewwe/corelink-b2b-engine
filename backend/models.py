@@ -511,3 +511,32 @@ class EmailLog(Base):
     
     lead = relationship("Lead")
     template = relationship("EmailTemplate")
+class SystemSetting(Base):
+    """General key-value storage for system-wide or user-specific settings (e.g., Variable Mapping)"""
+    __tablename__ = "system_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    
+    key = Column(String(100), nullable=False)   # e.g., 'variable_mapping'
+    value = Column(Text)                         # JSON string storage
+    
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # 確保每個 user 的 key 是唯一的
+    __table_args__ = (
+        UniqueConstraint('user_id', 'key', name='uq_user_setting_key'),
+    )
+
+    def to_dict(self):
+        import json
+        try:
+            val = json.loads(self.value or '{}')
+        except:
+            val = self.value
+            
+        return {
+            "key": self.key,
+            "value": val,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+        }

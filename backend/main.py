@@ -1385,6 +1385,46 @@ def debug_scrape(db: Session = Depends(get_db), current_user: models.User = Depe
         import traceback
         return {"error": str(e), "trace": traceback.format_exc()}
 
+# ══════════════════════════════════════════
+# System Settings (Variable Mapping, etc.)
+# ══════════════════════════════════════════
+
+class SystemSettingUpdate(pydantic.BaseModel):
+    key: str
+    value: typing.Any
+
+@app.get("/api/system/settings")
+def get_system_settings(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
+    """获取用户的所有系统设置"""
+    settings = db.query(models.SystemSetting).filter(models.SystemSetting.user_id == current_user.id).all()
+    return {s.key: s.to_dict()["value"] for s in settings}
+
+@app.post("/api/system/settings")
+def update_system_setting(setting: SystemSettingUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
+    """更新或创建系统设置"""
+    import json
+    
+    # 查找现有设置
+    existing = db.query(models.SystemSetting).filter(
+        models.SystemSetting.user_id == current_user.id,
+        models.SystemSetting.key == setting.key
+    ).first()
+    
+    val_str = json.dumps(setting.value)
+    
+    if existing:
+        existing.value = val_str
+    else:
+        new_setting = models.SystemSetting(
+            user_id=current_user.id,
+            key=setting.key,
+            value=val_str
+        )
+        db.add(new_setting)
+    
+    db.commit()
+    return {"success": True, "key": setting.key}
+
 # INIT: Create database tables
 @app.post("/api/init-db")
 def init_db(current_user: models.User = Depends(get_current_user_id)):

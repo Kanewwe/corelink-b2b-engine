@@ -13,12 +13,12 @@ const Layout: React.FC = () => {
 
   const getPageTitle = () => {
     const path = location.pathname;
-    if (path.includes('/lead-engine')) return '探勘引擎';
-    if (path.includes('/templates')) return '信件模板';
-    if (path.includes('/campaigns')) return '開發任務';
-    if (path.includes('/analytics')) return '數據分析';
-    if (path.includes('/history')) return '探勘歷史';
-    if (path.includes('/smtp')) return 'SMTP 設定';
+    if (path.includes('/lead-engine')) return '精準開發雷達 (Precision Radar)';
+    if (path.includes('/templates')) return '智慧行銷劇本 (AI Scripts)';
+    if (path.includes('/campaigns')) return '自動化投遞 (Automated Outreach)';
+    if (path.includes('/analytics')) return '成效分析雷達 (Performance Radar)';
+    if (path.includes('/history')) return '開發紀錄專區 (Campaign Archive)';
+    if (path.includes('/smtp')) return '發信通道配置 (Email Channels)';
     if (path.includes('/admin/vendors')) return '廠商管理';
     return 'Dashboard';
   };
