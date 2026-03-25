@@ -1,6 +1,7 @@
 # Linkora V2 — UI/UX 設計規範
 
-> **版本：** 1.0.0 | **最後更新：** 2026-03-25 | **維護者：** Ann (AI)
+> **版本：** 2.0.0 | **最後更新：** 2026-03-25 23:02 | **維護者：** Ann (AI)
+> **狀態：** ✅ P0 + P1 + P2 全部完成 | 手機版 RWD (M1-M10) 完成
 
 ---
 
@@ -12,6 +13,7 @@
 | **元件統一** | 相同功能使用相同元件，禁止各頁面自行實作 |
 | **一致骨架** | 每個頁面必須使用 `page-wrapper > page-header > page-body` 結構 |
 | **Toast 回饋** | 所有操作（儲存/刪除/錯誤）必須有 Toast 通知，禁止 `alert()` |
+| **手機優先** | 768px 以下自動切換 Drawer + TabBar，無橫向滾動 |
 
 ---
 
@@ -21,9 +23,12 @@
 frontend/src/
 ├── styles/
 │   ├── tokens.css       ← Design Token（全域 CSS 變數）
-│   └── components.css   ← 通用元件樣式庫
+│   ├── components.css   ← 通用元件樣式庫 + RWD 規則
+│   └── (M1-M10 RWD 規則已整合)
 ├── index.css            ← Tailwind base + 舊有全域樣式
-└── main.tsx             ← 引入順序：index.css → tokens.css → components.css
+├── main.tsx             ← 引入順序：index.css → tokens.css → components.css
+└── components/
+    └── Layout.tsx       ← 含 Sidebar Drawer + Bottom TabBar
 ```
 
 ---
@@ -108,19 +113,19 @@ frontend/src/
 </div>
 ```
 
-### 頁面標題對照表
+### 頁面標題對照表 + `<title>` 標籤
 
-| 路由 | 中文標題 | 英文副標 |
-|------|---------|---------|
-| `/lead-engine` | 精準開發雷達 | Precision Radar |
-| `/templates` | 智慧行銷劇本 | AI Scripts |
-| `/campaigns` | 自動化投遞 | Automated Outreach |
-| `/analytics` | 成效分析雷達 | Performance Radar |
-| `/history` | 開發紀錄專區 | Campaign Archive |
-| `/smtp` | 發信通道配置 | Email Channels |
-| `/admin/vendors` | 廠商管理 | Vendor Management |
-| `/admin/settings` | 系統控制中心 | System Hub |
-| `/admin/members` | 會員管理中心 | Member Management |
+| 路由 | 中文標題 | 英文副標 | `<title>` |
+|------|---------|---------|----------|
+| `/lead-engine` | 精準開發雷達 | Precision Radar | `Linkora - 精準開發雷達` |
+| `/templates` | 智慧行銷劇本 | AI Scripts | `Linkora - 智慧行銷劇本` |
+| `/campaigns` | 自動化投遞 | Automated Outreach | `Linkora - 自動化投遞` |
+| `/analytics` | 成效分析雷達 | Performance Radar | `Linkora - 成效分析雷達` |
+| `/history` | 開發紀錄專區 | Campaign Archive | `Linkora - 開發紀錄專區` |
+| `/smtp` | 發信通道配置 | Email Channels | `Linkora - 發信通道配置` |
+| `/admin/vendors` | 廠商管理 | Vendor Management | `Linkora - 委外廠商管理` |
+| `/admin/settings` | 系統控制中心 | System Hub | `Linkora - 系統控制中心` |
+| `/admin/members` | 會員管理中心 | Member Management | `Linkora - 會員管理` |
 
 ---
 
@@ -158,6 +163,10 @@ frontend/src/
 </div>
 ```
 
+**RWD 規則：**
+- `@media (max-width: 1024px)`: 2 欄
+- `@media (max-width: 640px)`: 1 欄
+
 ### 5-3 Tab 導覽 `.tab-nav`
 
 ```tsx
@@ -170,6 +179,8 @@ frontend/src/
   </button>
 </div>
 ```
+
+**樣式：** 透明底 + active 時藍色邊框 + 填色背景
 
 ### 5-4 按鈕系統
 
@@ -222,7 +233,7 @@ frontend/src/
           </div>
         </td></tr>
       ) : data.map(item => (
-        <tr key={item.id}>
+        <tr key={item.id} data-label="欄位名稱">
           <td>{item.name}</td>
         </tr>
       ))}
@@ -230,6 +241,9 @@ frontend/src/
   </table>
 </div>
 ```
+
+**RWD 規則（M9）：**
+- `@media (max-width: 480px)`: 隱藏 `<thead>`，每個 `<tr>` 變成 flex column，`<td>` 加 `data-label` 屬性顯示欄位名稱
 
 ### 5-7 Badge
 
@@ -246,9 +260,15 @@ frontend/src/
 ```tsx
 <div className="page-banner page-banner--warning">
   <AlertTriangle size={16} />
-  警告訊息內容
+  <div>
+    <div style={{ fontWeight: 600 }}>警告標題</div>
+    <div style={{ fontSize: 12, opacity: 0.8 }}>警告訊息內容</div>
+  </div>
+  <button className="btn-primary btn--sm">操作按鈕</button>
 </div>
 ```
+
+**樣式：** `display: flex; align-items: center; justify-content: space-between;` 確保文字左、按鈕右
 
 ### 5-9 Loading 狀態
 
@@ -266,7 +286,163 @@ if (loading) {
 
 ---
 
-## 六、禁止事項
+## 六、手機版 RWD 規範（M1-M10）
+
+### Breakpoints
+
+- **768px (md)**: Tablet 臨界點，Sidebar → Drawer，TabBar 出現
+- **640px (sm)**: 手機臨界點，統計卡片 1 欄，表格 → Card 模式
+- **480px (xs)**: 小手機，進一步優化
+
+### M1: Sidebar → Drawer
+
+```css
+@media (max-width: 768px) {
+  .sidebar-drawer {
+    position: fixed;
+    top: 0; left: 0;
+    width: 260px;
+    height: 100vh;
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+  }
+  .sidebar-drawer.open {
+    transform: translateX(0);
+  }
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 199;
+  }
+}
+```
+
+### M2: 底部 TabBar
+
+```css
+.bottom-tabbar {
+  display: flex;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 60px;
+  background: var(--color-bg-dark);
+  border-top: 1px solid var(--color-border);
+  z-index: 100;
+}
+.bottom-tabbar__item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--color-text-muted);
+  transition: color 0.2s;
+}
+.bottom-tabbar__item.active {
+  color: var(--color-primary);
+}
+```
+
+**包含 6 個主要頁面：** 探勘、模板、投遞、分析、記錄、設定
+
+### M3: 統計卡片 2 欄 → 1 欄
+
+```css
+@media (max-width: 768px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr; }
+}
+```
+
+### M4-M6: 雙欄頁面堆疊
+
+```css
+@media (max-width: 768px) {
+  .lead-engine-grid { grid-template-columns: 1fr; }
+  .smtp-grid { grid-template-columns: 1fr; }
+  .analytics-grid { grid-template-columns: 1fr; }
+}
+```
+
+### M7: Tab 文字截斷 → 換行
+
+```css
+@media (max-width: 768px) {
+  .tab-nav {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .tab-nav__item {
+    font-size: 11px;
+    padding: 6px 12px;
+  }
+}
+```
+
+### M8: 篩選列換行
+
+```css
+@media (max-width: 768px) {
+  .filter-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+```
+
+### M9: 表格 → Card 模式
+
+```css
+@media (max-width: 480px) {
+  .data-table thead { display: none; }
+  .data-table tbody tr {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    margin-bottom: 10px;
+    padding: 12px;
+  }
+  .data-table tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    border: none;
+    font-size: 12px;
+  }
+  .data-table tbody td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--color-text-muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: 8px;
+    flex-shrink: 0;
+  }
+}
+```
+
+### M10: Monaco Editor 高度優化
+
+```css
+@media (max-width: 480px) {
+  .monaco-editor-wrapper {
+    min-height: 200px !important;
+  }
+}
+```
+
+---
+
+## 七、禁止事項
 
 | ❌ 禁止 | ✅ 改用 |
 |---------|---------|
@@ -276,54 +452,65 @@ if (loading) {
 | 各頁面自行實作 Tab 樣式 | `.tab-nav` 元件 |
 | 空狀態只有純文字 | `.empty-state` 元件 |
 | `className="bg-primary hover:bg-primary-dark ..."` 長串 | `.btn-primary` |
+| 橫幅文字垂直斷行 | `display: flex; justify-content: space-between;` |
+| 頁面 `<title>` 顯示 Dashboard | 動態更新為 `Linkora - 頁面名稱` |
 
 ---
 
-## 七、一致性 Checklist
+## 八、完成狀態 Checklist
 
-開發完成後，每個頁面須對照以下清單：
+### ✅ P0 — 立即修正（全部完成）
+- [x] Campaigns SMTP 橫幅文字排版
+- [x] LeadEngine 雙重標題移除
+- [x] 所有頁面 `<title>` 動態更新
+- [x] SystemSettings Tab active 樣式統一
+- [x] Templates 儲存按鈕改為 `btn-primary`
+- [x] SystemSettings 儲存按鈕改為 `btn-primary`
 
-### 結構面
-- [ ] 使用 `page-wrapper` 骨架
-- [ ] `page-header` 含正確中文標題 + 英文副標 + `version-badge`
-- [ ] `page-header__right` 有頁面主操作按鈕（若有）
+### ✅ P1 — 本週修正（全部完成）
+- [x] MemberAdmin 統計卡片改用 `stats-grid + stat-card`
+- [x] MemberAdmin 角色卡改用 `card + RoleBadge`
+- [x] Analytics select 套用 `form-select`
+- [x] Analytics 進度條改中文標籤
+- [x] SystemSettings API Key label 已是中文
+- [x] SystemSettings Info Banner 套用 `page-banner--info`
+- [x] SystemSettings 通用系統參數 Tab 加 disabled + badge
+- [x] Layout 右上角 User Dropdown 含登出
 
-### 元件面
-- [ ] Tab 使用 `.tab-nav` 元件
-- [ ] 統計卡片使用 `.stat-card` 元件
-- [ ] 表格使用 `.data-table` 元件
-- [ ] 空狀態使用 `.empty-state` 元件（含圖示 + 標題 + 說明）
-- [ ] 按鈕使用 `.btn-primary` / `.btn-outline` / `.btn-danger` / `.btn-icon-sm`
-- [ ] 卡片使用 `.card` 元件
+### ✅ P2 — 下週優化（全部完成）
+- [x] Analytics 補無資料 empty-state
+- [x] Templates Monaco Editor min-height 400px
+- [x] History 更新列表在 page-header__right
+- [x] User Dropdown 登出功能
+- [x] 全站 Toast 通知（react-hot-toast）
 
-### 視覺面
-- [ ] 所有色彩來自 CSS Token（無硬編碼）
-- [ ] Section 標題無數字編號
-- [ ] Loading 使用 `.page-loading` + `.spinner`
-
-### 互動面
-- [ ] 所有操作後有 Toast 通知（無 `alert()`）
-- [ ] 表單欄位有 focus 狀態
-- [ ] 按鈕有 hover / disabled 狀態
+### ✅ 手機版 RWD（M1-M10 全部完成）
+- [x] M1: Sidebar Drawer + overlay
+- [x] M2: 底部 TabBar (6 個主要頁面)
+- [x] M3: 統計卡片 2 欄 → 1 欄
+- [x] M4: LeadEngine 雙欄堆疊
+- [x] M5: SmtpSettings 雙欄堆疊
+- [x] M6: Analytics 雙欄堆疊
+- [x] M7: Tab 文字換行
+- [x] M8: 篩選列換行
+- [x] M9: 表格 → Card 模式 (data-label)
+- [x] M10: Monaco Editor 高度優化
 
 ---
 
-## 八、待完成項目（P1 剩餘 + P2）
+## 九、待完成項目（下一階段）
 
-### P1 剩餘（逐頁套用）
-- [ ] `LeadEngine.tsx` - 套用 `page-header` + `stat-card`
-- [ ] `Templates.tsx` - Tab 換 `tab-nav`，Monaco Editor `min-height: 350px`，表單欄位順序重排
-- [ ] `Campaigns.tsx` - 空狀態換 `empty-state`，篩選列換 `filter-bar`
-- [ ] `History.tsx` - 「更新列表」移到 `page-header__right`
-- [ ] `Analytics.tsx` - 套用 `page-header` + `stat-card`
-- [ ] `SystemSettings.tsx` - Tab 換 `tab-nav`
+### 新功能開發
+- [ ] 中英文切換 (i18n) — DB 驅動 + localStorage 快取
+- [ ] 語言管理後台 (`/admin/i18n`) — CRUD + 匯入/匯出
+- [ ] 右上角 `LangSwitcher` 元件
 
-### P2 細節優化
-- [ ] RWD：統計卡片 < 768px 時為 2 欄
-- [ ] RWD：側邊欄 < 768px 時收起（漢堡選單）
-- [ ] RWD：表格 < 640px 時轉 Card 模式
-- [ ] 右上角 User Info 補 `LangSwitcher` 元件（i18n 準備）
+### 進階優化
+- [ ] 深色/淺色主題切換
+- [ ] 無障礙 (a11y) 審計
+- [ ] 性能優化 (Lighthouse)
 
 ---
 
 *本文件由 Ann 自動生成並維護，每次 UI 重構後請同步更新。*
+*最後驗收日期：2026-03-25 23:02 GMT+8*
