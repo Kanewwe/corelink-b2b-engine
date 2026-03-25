@@ -319,10 +319,12 @@ def register(req: RegisterReq, request: Request, response: Response, db: Session
     
     add_log(f"✅ 新用戶註冊: {user.email}")
     
+    user_info = auth_module.get_user_full_info(db, user)
+    
     return {
         "message": "註冊成功",
-        "session_id": session.id,
-        "user": auth_module.get_user_full_info(db, user)
+        "access_token": session.id,
+        "user": user_info["user"]
     }
 
 @app.post("/api/auth/login")
@@ -353,10 +355,12 @@ def auth_login(req: AuthLoginReq, request: Request, response: Response, db: Sess
     
     add_log(f"✅ 用戶登入: {user.email}")
     
+    user_info = auth_module.get_user_full_info(db, user)
+    
     return {
         "message": "登入成功",
-        "session_id": session.id,
-        "user": auth_module.get_user_full_info(db, user)
+        "access_token": session.id,  # Map session_id to access_token for frontend
+        "user": user_info["user"]    # Return flat user object for AuthContext
     }
 
 @app.post("/api/auth/logout")
