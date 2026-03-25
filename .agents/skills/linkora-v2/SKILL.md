@@ -48,7 +48,9 @@ This skill is designed for AI agents to maintain and develop the Linkora 2.0 B2B
 - **Sync Device**: `/pull` or `./scripts/sync.ps1 -Action pull`
 - **Submit Work**: `/commit` or `./scripts/sync.ps1 -Action commit -Message "text"`
 - **Production Release**: `./scripts/sync.ps1 -Action deploy` (Merges UAT to PRD)
-
-## 🧪 Testing Flow
-- Always follow `docs/TESTING.md` before merging to **PRD**.
-- Render is configured to only track the **PRD** branch.
+---
+## 🧪 Testing & Standards
+- **Zero-Garbage Policy**: No temporary files in root or core folders.
+- **Workflow**: Follow `docs/TESTING.md` before merging to **PRD**.
+- **Standards**: Strictly follow `docs/DEVELOPMENT_STANDARDS.md`.
+- **Render**: Deploys only from **PRD** branch.
