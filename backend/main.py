@@ -429,6 +429,16 @@ def get_subscription(session_id: str = Cookie(None), db: Session = Depends(get_d
     
     return auth_module.get_user_full_info(db, session.user)
 
+# --- Authentication Dependency ---
+def get_current_user_id(session_id: str = Cookie(None), db: Session = Depends(get_db)) -> models.User:
+    """取得當前用戶（Session 驗證）"""
+    if not session_id:
+        raise HTTPException(status_code=401, detail="請先登入")
+    session = auth_module.get_session(db, session_id)
+    if not session:
+        raise HTTPException(status_code=401, detail="Session 已過期，請重新登入")
+    return session.user
+
 @app.get("/api/settings/smtp", response_model=Optional[SMTPSettingsResponse])
 def get_smtp_settings(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
     """獲取使用者的 SMTP 設定"""
@@ -479,15 +489,6 @@ def check_admin(db: Session = Depends(get_db)):
     return {"exists": False, "count": db.query(models.User).count()}
 
 # --- API Endpoints (Session Auth) ---
-def get_current_user_id(session_id: str = Cookie(None), db: Session = Depends(get_db)) -> models.User:
-    """取得當前用戶（Session 驗證）"""
-    if not session_id:
-        raise HTTPException(status_code=401, detail="請先登入")
-    session = auth_module.get_session(db, session_id)
-    if not session:
-        raise HTTPException(status_code=401, detail="Session 已過期，請重新登入")
-    return session.user
-
 @app.post("/api/leads", response_model=LeadResponse)
 def create_and_tag_lead(lead: LeadCreateReq, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
     # 檢查用量限制
