@@ -1,4 +1,4 @@
-import { Plus, Folder, Paperclip, Save, Trash2, Edit, Check, Sparkles, ChevronDown, ChevronUp, Zap, RotateCcw, FileCode, Eye, Layout, Languages, Type } from 'lucide-react';
+import { Plus, Folder, Paperclip, Save, Trash2, Edit, Check, Sparkles, RotateCcw, FileCode, Eye, Layout, Languages, Type } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { getTemplates, createTemplate, updateTemplate, deleteTemplate, generateAiTemplate } from '../services/api';
 import Editor from "@monaco-editor/react";

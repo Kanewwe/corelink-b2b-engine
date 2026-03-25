@@ -1,5 +1,6 @@
+import React, { useState, useEffect } from 'react';
 import { getDashboardStats, getLeads, triggerScrapeSimple, generateAiKeywords } from '../services/api';
-import { Users, Send, BarChart3, ShieldAlert, Cpu, Search, Sparkles, Zap, ShieldCheck, Mail, Globe } from 'lucide-react';
+import { Users, Send, BarChart3, ShieldAlert, Cpu, Search, Sparkles, Zap, Mail, Globe } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 const LeadEngine: React.FC = () => {
