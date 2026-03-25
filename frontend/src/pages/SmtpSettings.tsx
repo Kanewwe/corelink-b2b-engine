@@ -141,7 +141,7 @@ const SmtpSettings: React.FC = () => {
                 <div className="relative">
                   <Shield className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                   <select 
-                    className="input-field pl-11 bg-transparent pr-10 appearance-none"
+                    className="input-field pl-11 appearance-none"
                     value={form.smtp_encryption}
                     onChange={e => setForm({...form, smtp_encryption: e.target.value})}
                   >

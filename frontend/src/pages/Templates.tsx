@@ -293,7 +293,7 @@ const Templates: React.FC = () => {
                     value={aiPrompt}
                     onChange={e => setAiPrompt(e.target.value)}
                     placeholder="例如：我要寫一封針對美國汽車零件採購商的開發信，強調我們的 Cable 產品品質與交期..."
-                    className="w-full h-24 bg-black/30 border border-white/10 rounded-xl p-4 text-sm text-white focus:border-primary/50 outline-none transition-all resize-none mb-4 placeholder:text-text-muted/30"
+                    className="input-field h-24 p-4 resize-none mb-4"
                  />
 
                  <div className="flex flex-wrap items-center justify-between gap-4">
@@ -305,7 +305,7 @@ const Templates: React.FC = () => {
                              <select 
                                 value={aiStyle}
                                 onChange={e => setAiStyle(e.target.value)}
-                                className="bg-white/5 border border-white/10 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white outline-none focus:border-primary/50 capitalize appearance-none"
+                                className="input-field pl-8 py-1.5 text-xs capitalize appearance-none"
                              >
                                 <option value="formal">正式商務</option>
                                 <option value="friendly">親切隨和</option>
@@ -321,7 +321,7 @@ const Templates: React.FC = () => {
                              <select 
                                 value={aiLanguage}
                                 onChange={e => setAiLanguage(e.target.value)}
-                                className="bg-white/5 border border-white/10 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white outline-none focus:border-primary/50 appearance-none"
+                                className="input-field pl-8 py-1.5 text-xs appearance-none"
                              >
                                 <option value="English">English</option>
                                 <option value="Traditional Chinese">繁體中文</option>
@@ -582,7 +582,7 @@ const Templates: React.FC = () => {
                         </td>
                         <td className="py-4">
                           <input 
-                            className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:border-primary outline-none transition-all w-64"
+                            className="input-field py-1.5 w-64"
                             value={label}
                             onChange={(e) => {
                               const newMapping = { ...variableMapping, [key]: e.target.value };

@@ -205,7 +205,7 @@ const LeadEngine: React.FC = () => {
                 <div className="relative">
                   <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                   <select 
-                    className="w-full pl-10 pr-3 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:border-primary/50 outline-none transition-all appearance-none"
+                    className="input-field pl-10 appearance-none"
                     value={market} onChange={e => setMarket(e.target.value)}
                   >
                     <option value="US">美國 (US)</option>
@@ -217,7 +217,7 @@ const LeadEngine: React.FC = () => {
               <div>
                 <label className="block text-[11px] font-bold text-text-muted uppercase tracking-widest mb-2 ml-1">爬取深度 (Pages)</label>
                 <select 
-                  className="w-full px-3 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:border-primary/50 outline-none transition-all"
+                  className="input-field appearance-none"
                   value={pages} onChange={e => setPages(e.target.value)}
                 >
                   <option value="1">1 頁 (10筆)</option>
@@ -232,7 +232,7 @@ const LeadEngine: React.FC = () => {
               <label className="block text-[11px] font-bold text-text-muted uppercase tracking-widest mb-2 ml-1">探勘所在地區 (Location)</label>
               <input 
                 type="text" placeholder="例如: California, Seattle..."
-                className="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:border-primary/50 outline-none transition-all"
+                className="input-field"
                 value={location} onChange={e => setLocation(e.target.value)}
               />
             </div>
@@ -257,7 +257,7 @@ const LeadEngine: React.FC = () => {
                 <div className="flex-1 relative">
                   <input 
                     type="text" placeholder="輸入關鍵字後按 Enter..."
-                    className="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:border-primary/50 outline-none transition-all"
+                    className="input-field"
                     value={keywordInput} 
                     onChange={e => setKeywordInput(e.target.value)}
                     onKeyDown={e => {
