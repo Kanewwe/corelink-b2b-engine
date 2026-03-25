@@ -406,6 +406,66 @@ AI 生成相關關鍵字
 }
 ```
 
+}
+```
+
+---
+
+## 系統設定 API
+
+### GET /api/system/settings
+取得所有系統設定（包含 API 金鑰與變數映射等）
+
+**Headers:** `Cookie: session_id=<uuid>`
+
+**Response:**
+```json
+[
+  {
+    "key": "api_keys",
+    "value": {
+      "openai_key": "sk-...",
+      "openai_model": "gpt-4o",
+      "hunter_key": "..."
+    },
+    "updated_at": "2026-03-25T10:00:00"
+  },
+  {
+    "key": "variable_mapping",
+    "value": {
+      "company_name": "公司名稱",
+      "bd_name": "業務負責人"
+    },
+    "updated_at": "2026-03-25T10:00:00"
+  }
+]
+```
+
+---
+
+### POST /api/system/settings
+更新指定的系統設定項目
+
+**Headers:** `Cookie: session_id=<uuid>`
+
+**Request:**
+```json
+{
+  "key": "variable_mapping",
+  "value": {
+    "company_name": "公司名稱",
+    "location": "營業據點"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "message": "設定已儲存"
+}
+```
+
 ---
 
 ## 追蹤 API（無需認證）

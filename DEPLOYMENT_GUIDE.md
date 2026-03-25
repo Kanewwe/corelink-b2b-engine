@@ -63,6 +63,18 @@ Ensure the following variables are consistent across both sets of services:
 
 ---
 
+## ⚙️ Post-Deployment Initialization
+After successfully deploying to a new environment, the Administrator should:
+1. Log in with admin credentials.
+2. Navigate to **系統控制中心 (System Hub)**.
+3. Configure the following required API Keys:
+   - `openai_key` (Required for AI features).
+   - `hunter_key` (Optional, for advanced email discovery).
+   - `google_cse_id` & `google_api_key` (Optional, for better search results).
+4. Save the configuration to ensure the Lead Engine is fully operational.
+
+---
+
 ## 🛠️ Maintenance Commands
 
 - **Pull latest metadata**: `./scripts/sync.ps1 -Action pull`

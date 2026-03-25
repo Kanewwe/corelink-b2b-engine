@@ -100,9 +100,10 @@ Instead of reading the whole tree, focus on these files:
 - **Feedback**: Always use `react-hot-toast` for async operations.
 
 ### 3. New Advanced Features (Linkora v2.0+)
-- **Keyword Token System**: In `LeadEngine.tsx`, keywords are managed as interactive chips/tokens. Scraper joins multiple tokens with commas.
-- **Variable Mapping**: In `Templates.tsx`, uses `SystemSetting` key-value store to map technical variables (e.g., `{{company_name}}`) to user-friendly labels (e.g., `公司名稱`).
-- **Email Channels (SMTP)**: Refactored with a grouped, icon-heavy configuration panel to simplify credential management.
+- **精準開發雷達 (Keyword Token System)**：在 `LeadEngine.tsx` 中，關鍵字以互動式權杖 (Chips) 形式管理，支援多組關鍵字聯動探勘與 AI 聯想建議。
+- **系統控制中心 (System Hub)**：集中管理 API 金鑰 (OpenAI, Hunter.io, Google) 與系統變數映射。僅限 `admin` 使用。
+- **變數映射 (Variable Mapping)**：使用 `SystemSetting` 儲存技術變數與顯示標籤的對應關係。
+- **發信通道 (SMTP)**：採用分組式、圖示化配置介面，提升認證設定的直覺性。
 
 ---
 
