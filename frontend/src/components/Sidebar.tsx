@@ -60,6 +60,7 @@ const Sidebar: React.FC = () => {
         {user?.role === 'admin' && (
           <>
             <div className="text-xs font-semibold text-text-muted mt-6 mb-1 px-4 tracking-wider uppercase text-warning">管理 (Admin)</div>
+            <NavItem to="/admin/dashboard" icon={<BarChart2 size={18} />} label="系統監控" />
             <NavItem to="/admin/members" icon={<UserCog size={18} />} label="會員管理" />
             <NavItem to="/admin/vendors" icon={<Users size={18} />} label="廠商管理" />
             <NavItem to="/admin/settings" icon={<Cpu size={18} />} label="系統控制中心" />

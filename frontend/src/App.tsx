@@ -16,6 +16,7 @@ import VendorAdmin from './pages/VendorAdmin';
 import SmtpSettings from './pages/SmtpSettings';
 import SystemSettings from './pages/SystemSettings';
 import MemberAdmin from './pages/MemberAdmin';
+import AdminDashboard from './pages/AdminDashboard';
 
 function App() {
   return (
@@ -36,6 +37,11 @@ function App() {
             <Route path="smtp" element={<SmtpSettings />} />
             
             {/* Admin Routes */}
+            <Route path="admin/dashboard" element={
+              <RoleGuard require={['admin']}>
+                <AdminDashboard />
+              </RoleGuard>
+            } />
             <Route path="admin/vendors" element={
               <RoleGuard require={['admin']}>
                 <VendorAdmin />

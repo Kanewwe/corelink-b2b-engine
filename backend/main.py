@@ -1040,6 +1040,26 @@ def get_admin_stats(db: Session = Depends(get_db), current_user: models.User = D
         models.User.created_at >= datetime(now.year, now.month, 1)
     ).count()
     
+    # 方案分佈統計
+    free_count = db.query(models.User).join(models.Subscription).join(models.Plan).filter(
+        models.Plan.name == 'free'
+    ).count()
+    pro_count = db.query(models.User).join(models.Subscription).join(models.Plan).filter(
+        models.Plan.name == 'pro'
+    ).count()
+    enterprise_count = db.query(models.User).join(models.Subscription).join(models.Plan).filter(
+        models.Plan.name == 'enterprise'
+    ).count()
+    
+    # 探勘任務統計
+    total_tasks = db.query(models.ScrapeTask).count()
+    active_tasks = db.query(models.ScrapeTask).filter(models.ScrapeTask.status == 'Running').count()
+    completed_tasks = db.query(models.ScrapeTask).filter(models.ScrapeTask.status == 'Completed').count()
+    
+    # 計算開信率
+    opened_emails = db.query(models.EmailLog).filter(models.EmailLog.opened == True).count()
+    open_rate = round(opened_emails / total_emails * 100, 1) if total_emails > 0 else 0
+    
     return {
         "users": {
             "total": total_users,
@@ -1049,11 +1069,23 @@ def get_admin_stats(db: Session = Depends(get_db), current_user: models.User = D
                 "admin": admins,
                 "vendor": vendors,
                 "member": members
+            },
+            "by_plan": {
+                "free": free_count,
+                "pro": pro_count,
+                "enterprise": enterprise_count
             }
         },
         "data": {
             "total_leads": total_leads,
-            "total_emails": total_emails
+            "total_emails_sent": total_emails,
+            "total_emails_opened": opened_emails,
+            "open_rate": open_rate
+        },
+        "usage": {
+            "total_scrape_tasks": total_tasks,
+            "active_tasks": active_tasks,
+            "completed_tasks": completed_tasks
         }
     }
 
