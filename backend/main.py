@@ -183,7 +183,8 @@ class CampaignLogResponse(BaseModel):
     content: str
     status: str
     created_at: str
-    model_config = {"from_attributes": True}
+    class Config:
+        from_attributes = True
 
 class LeadResponse(BaseModel):
     id: int
@@ -208,7 +209,8 @@ class LeadResponse(BaseModel):
     source_domain: Optional[str] = None
     # Email tracking
     email_sent: bool = False
-    model_config = {"from_attributes": True}
+    class Config:
+        from_attributes = True
 
 class EmailCampaignResponse(BaseModel):
     id: int
@@ -216,7 +218,8 @@ class EmailCampaignResponse(BaseModel):
     subject: str
     content: str
     status: str
-    model_config = {"from_attributes": True}
+    class Config:
+        from_attributes = True
 
 class EmailTemplateCreate(BaseModel):
     name: str
@@ -247,7 +250,8 @@ class EmailTemplateResponse(BaseModel):
     is_default: bool
     attachment_url: Optional[str] = None
     created_at: str
-    model_config = {"from_attributes": True}
+    class Config:
+        from_attributes = True
 
 class SMTPSettingsReq(BaseModel):
     smtp_host: str
@@ -268,7 +272,8 @@ class SMTPSettingsResponse(BaseModel):
     from_email: Optional[str] = None
     from_name: Optional[str] = None
     updated_at: datetime
-    model_config = {"from_attributes": True}
+    class Config:
+        from_attributes = True
 
 # --- Authentication ---
 security = HTTPBearer()
