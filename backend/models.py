@@ -424,6 +424,7 @@ class Lead(Base):
     # Email tracking
     email_sent = Column(Boolean, default=False)
     email_sent_at = Column(DateTime, nullable=True)
+    email_source = Column(String, nullable=True)  # 'free', 'hunter', 'manual'
     
     # Contact person info
     contact_name = Column(String, nullable=True)
