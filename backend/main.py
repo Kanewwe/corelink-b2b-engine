@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Any
 import os
 from datetime import datetime
 
@@ -1391,7 +1391,7 @@ def debug_scrape(db: Session = Depends(get_db), current_user: models.User = Depe
 
 class SystemSettingUpdate(BaseModel):
     key: str
-    value: any
+    value: Any
 
 @app.get("/api/system/settings")
 def get_system_settings(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
