@@ -22,11 +22,12 @@ TARGET_ROLES = [
     "operations manager"
 ]
 
-async def find_target_contacts(company_name: str, website_url: str = None) -> Dict:
+async def find_target_contacts(company_name: str, website_url: str = None, api_key: str = None) -> Dict:
     """
     使用 Hunter.io 找到公司的採購/負責人 Email
     優先級: procurement > owner/CEO > manager > 通用
     """
+    key = api_key or HUNTER_API_KEY
     domain = extract_domain(website_url) if website_url else None
     
     if not domain:
@@ -37,7 +38,7 @@ async def find_target_contacts(company_name: str, website_url: str = None) -> Di
     
     async with httpx.AsyncClient(timeout=15) as client:
         # Step 1: Hunter Domain Search - 取得所有已知聯絡人
-        contacts = await hunter_domain_search(client, domain)
+        contacts = await hunter_domain_search(client, domain, key)
         
         # Step 2: 角色優先排序
         prioritized = prioritize_contacts(contacts)
@@ -59,15 +60,21 @@ async def find_target_contacts(company_name: str, website_url: str = None) -> Di
             "primary_contact": primary
         }
 
-async def hunter_domain_search(client: httpx.AsyncClient, domain: str) -> List[Dict]:
+async def find_company_emails(company_name: str, api_key: str = None) -> List[str]:
+    """Alias for main.py to get email list directly"""
+    result = await find_target_contacts(company_name, api_key=api_key)
+    return result.get("emails", [])
+
+async def hunter_domain_search(client: httpx.AsyncClient, domain: str, api_key: str = None) -> List[Dict]:
     """Hunter.io Domain Search API"""
-    if not HUNTER_API_KEY:
+    key = api_key or HUNTER_API_KEY
+    if not key:
         return []
     
     url = "https://api.hunter.io/v2/domain-search"
     params = {
         "domain": domain,
-        "api_key": HUNTER_API_KEY,
+        "api_key": key,
         "limit": 20,
         "type": "personal"  # 只找個人信箱，非 info@/contact@
     }

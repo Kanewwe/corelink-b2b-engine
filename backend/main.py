@@ -1256,9 +1256,18 @@ class AITemplateRequest(BaseModel):
     language: str = "english"  # english, chinese
 
 @app.post("/api/templates/ai-generate")
-def ai_generate_template(req: AITemplateRequest, current_user: models.User = Depends(get_current_user_id)):
+def ai_generate_template(req: AITemplateRequest, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
     """Use AI to generate HTML email template."""
     import openai
+    from config_utils import get_api_key, get_openai_model
+    
+    api_key = get_api_key(db, "openai", current_user.id)
+    model = get_openai_model(db, current_user.id)
+    
+    if not api_key:
+        return {"success": False, "html": "", "message": "OpenAI API Key not set in Dashboard"}
+    
+    openai.api_key = api_key
     
     system_prompt = """你是一個專業的 B2B 商務開發信設計師。
 請根據以下需求，產生一封完整的 HTML Email 模板。
@@ -1277,7 +1286,7 @@ def ai_generate_template(req: AITemplateRequest, current_user: models.User = Dep
 
     style_guide = {
         "professional": "語氣正式、專業，適合大型企業",
-        "friendly": "語氣親切、溫暖，適合中小企業",
+        "friendly": "語氣親切、溫溫，適合中小企業",
         "technical": "強調技術細節與規格，適合工程師"
     }
     
@@ -1289,7 +1298,7 @@ def ai_generate_template(req: AITemplateRequest, current_user: models.User = Dep
     
     try:
         response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
+            model=model,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
@@ -1410,13 +1419,15 @@ async def find_email_for_lead(
         }
     
     # Try to find email
+    from config_utils import get_api_key
     try:
         company_name = lead.company_name or ""
         
-        if strategy == "hunter" and os.getenv("HUNTER_API_KEY"):
+        hunter_key = get_api_key(db, "hunter", current_user.id)
+        if strategy == "hunter" and hunter_key:
             # Use Hunter.io
             from email_hunter import find_company_emails
-            emails = await find_company_emails(company_name, os.getenv("HUNTER_API_KEY"))
+            emails = await find_company_emails(company_name, hunter_key)
             if emails:
                 lead.email = emails[0]
                 lead.email_source = "hunter_io"

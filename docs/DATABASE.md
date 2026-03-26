@@ -20,14 +20,14 @@
         │                 │
         │     ┌───────────┴───────────┐
         │     │                       │
-┌───────┴─────┴───────┐   ┌─────────┴────────┐
-│  subscriptions       │   │    usage_logs    │
-├─────────────────────┤   ├──────────────────┤
-│ id (PK)             │   │ id (PK)          │
-│ user_id (FK)        │   │ user_id (FK)     │
-│ plan_id (FK)        │   │ period_year      │
-│ status              │   │ period_month     │
-│ billing_cycle       │   │ customers_count  │
+┌───────┴─────┴───────┐   ┌─────────┴────────┐    ┌──────────────────┐
+│  subscriptions       │   │    usage_logs    │    │  system_settings │
+├─────────────────────┤   ├──────────────────┤    ├──────────────────┤
+│ id (PK)             │   │ id (PK)          │    │ id (PK)          │
+│ user_id (FK)        │   │ user_id (FK)     │    │ user_id (FK)     │
+│ plan_id (FK)        │   │ period_year      │    │ key (UNIQUE)     │
+│ status              │   │ period_month     │    │ value (JSON)     │
+│ billing_cycle       │   │ customers_count  │    └──────────────────┘
 │ current_period_*    │   │ emails_sent_*    │
 │ trial_*             │   │ autominer_*      │
 │ payment_*          │   │ templates_*      │
@@ -40,35 +40,20 @@
 │ user_id (FK) ───────────► users.id                     │
 │ company_name, website_url, domain                       │
 │ email_candidates, ai_tag, status                        │
-│ contact_*, address, phone                              │
-│ source_domain, scrape_location                         │
+│ contact_*, address, phone                               │
+│ source_domain, scrape_location                          │
 └──────────────────────────────────────────────────────────┘
           │
           │ (1:N)
           ▼
 ┌─────────────────────┐     ┌─────────────────────────────┐
-│  email_campaigns    │     │      email_templates        │
+│  scrape_tasks       │     │      scrape_logs            │
 ├─────────────────────┤     ├─────────────────────────────┤
 │ id (PK)            │     │ id (PK)                    │
-│ user_id (FK)        │     │ user_id (FK)               │
-│ lead_id (FK)        │     │ name, tag, subject, body   │
-│ subject, content     │     │ is_default                 │
-│ status              │     │ attachment_url              │
+│ user_id (FK)        │─────│ task_id (FK)               │
+│ market, keywords    │     │ level (info/error)         │
+│ miner_mode, status  │     │ message, created_at        │
 └─────────────────────┘     └─────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────┐
-│                     email_logs                            │
-├──────────────────────────────────────────────────────────┤
-│ id (PK)                                                │
-│ user_id (FK)                                           │
-│ log_uuid (UNIQUE)                                      │
-│ lead_id (FK), template_id (FK)                         │
-│ recipient, subject, sent_at                             │
-│ status (pending/delivered/bounce)                      │
-│ opened, opened_at, open_count                           │
-│ clicked, clicked_at, click_count, clicked_urls          │
-│ replied, replied_at, reply_source                      │
-└──────────────────────────────────────────────────────────┘
 ```
 
 ## Tables
@@ -228,6 +213,30 @@ Email 追蹤日誌表
 | replied_at | TIMESTAMP | Reply time |
 | reply_source | VARCHAR(50) | manual/imap/webhook |
 
+### system_settings
+系統與 API 金鑰設定表 (新增於 v2.6)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | SERIAL | Primary key |
+| user_id | INT | FK to users |
+| key | VARCHAR(100) | Setting name (e.g., 'api_keys') |
+| value | TEXT (JSON) | Setting values |
+| created_at | TIMESTAMP | Creation time |
+| updated_at | TIMESTAMP | Last update |
+
+### scrape_logs
+爬蟲任務詳細日誌 (新增於 v2.6)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | SERIAL | Primary key |
+| task_id | INT | FK to scrape_tasks |
+| level | VARCHAR(20) | info, warning, success, error |
+| message | TEXT | Log message |
+| extra_data | TEXT (JSON) | Optional structured data |
+| created_at | TIMESTAMP | Log time |
+
 ## Indexes
 
 ```sql
@@ -247,6 +256,9 @@ CREATE INDEX idx_leads_user ON leads(user_id);
 
 -- Email Logs
 CREATE INDEX idx_email_logs_uuid ON email_logs(log_uuid);
+
+-- Scrape Logs
+CREATE INDEX idx_scrape_logs_task ON scrape_logs(task_id);
 ```
 
 ## Deployment Environment Variables
@@ -259,7 +271,8 @@ CREATE INDEX idx_email_logs_uuid ON email_logs(log_uuid);
 | **Branch** | `prd` (正式) / `uat` (測試) | Git 分支對應 |
 | `DATABASE_URL` | (from PostgreSQL) | PostgreSQL 連線字串 |
 | `APP_ENV` | `production` 或 `uat` | 環境切換 (Schema 選項) |
-| `OPENAI_API_KEY` | `sk-...` | OpenAI API Key |
+
+*註：API Key 現在優先讀取資料庫中的 `system_settings`。*
 
 ## Migration from v1.0
 
@@ -287,21 +300,12 @@ ALTER TABLE email_templates ALTER COLUMN user_id SET NOT NULL;
 ALTER TABLE email_logs ALTER COLUMN user_id SET NOT NULL;
 ```
 
-## Migration to v2.5 (PostgreSQL)
+## Migration to v2.6 (Database-First Config)
 
-本專案已全面遷移至 PostgreSQL。詳細的環境管理（PRD/UAT Schema 切換）請參閱：
-- **[DATABASE_ENV.md](./DATABASE_ENV.md)**
+本專案已支援資料庫優先的 API Key 管理模式 (v2.6)。
 
-### 手動遷移步驟 (v1.0 → v2.5)
-
+### 手動填寫 API Key (直接 SQL 或透過 UI)
 ```sql
--- 1. 建立 UAT Schema (如需要)
-CREATE SCHEMA IF NOT EXISTS uat;
-
--- 2. 修改 Search Path (預設為 public)
-SET search_path TO public;
-
--- 3. 套用累積的欄位變更 (見 migrations.py)
-ALTER TABLE leads ADD COLUMN IF NOT EXISTS user_id INT;
--- ... 其他變更
+INSERT INTO system_settings (user_id, key, value)
+VALUES (1, 'api_keys', '{"openai_key": "sk-...", "apify_token": "apify_...", "hunter_key": "...", "openai_model": "gpt-4o-mini"}');
 ```

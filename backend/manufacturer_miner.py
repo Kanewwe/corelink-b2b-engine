@@ -14,9 +14,6 @@ import models
 from database import SessionLocal
 from datetime import datetime
 
-# Apify 設定
-APIFY_TOKEN = os.getenv("APIFY_API_TOKEN") or os.getenv("APIFY_TOKEN")
-
 # ── 公司規模過濾詞（排除大型跨國企業）──
 ENTERPRISE_BLACKLIST = [
     "bosch", "siemens", "honeywell", "3m", "johnson", "ge ", "ford",
@@ -27,15 +24,18 @@ ENTERPRISE_BLACKLIST = [
 # Apify 搜尋主函數
 # ══════════════════════════════════════════
 
-async def search_via_apify_thomasnet(keyword: str, market: str = "US", max_results: int = 30) -> List[Dict]:
+async def search_via_apify_thomasnet(keyword: str, market: str = "US", max_results: int = 30, db = None, user_id: int = None) -> List[Dict]:
     """使用 Apify Thomasnet Actor 搜尋製造商"""
-    if not APIFY_TOKEN:
-        add_log("❌ APIFY_TOKEN 未設定！請確認 .env 檔案或是環境變數", level="error")
+    from config_utils import get_api_key
+    apify_token = get_api_key(db, "apify", user_id)
+    
+    if not apify_token:
+        add_log("❌ APIFY_TOKEN 未設定！請確認資料庫或環境變數", level="error")
         return []
 
     try:
         from apify_client import ApifyClient
-        client = ApifyClient(APIFY_TOKEN)
+        client = ApifyClient(apify_token)
     except ImportError:
         add_log("❌ 未安裝 apify-client 庫", level="error")
         return []
@@ -114,8 +114,11 @@ async def manufacturer_mine(
 ) -> Dict:
     from free_email_hunter import find_emails_free, auto_discover_domain
     from models import Lead
+    from config_utils import get_api_key
     
     db = SessionLocal()
+    apify_token = get_api_key(db, "apify", user_id)
+    
     add_log(f"🏭 [製造商模式 - Apify] 開始探勘：{keyword} | 市場：{market}")
 
     task_record = models.ScrapeTask(
@@ -134,14 +137,14 @@ async def manufacturer_mine(
     add_task_log(db, task_id, "info", f"製造商模式 (Apify) 啟動 | 關鍵字: {keyword}")
 
     # 直接用 Apify Thomasnet 搜尋（最有效）
-    all_companies = await search_via_apify_thomasnet(keyword, market, max_results=40)
+    all_companies = await search_via_apify_thomasnet(keyword, market, max_results=40, db=db, user_id=user_id)
 
     # 如果 Thomasnet 結果太少，補充 Yellow Pages（製造商相關）
-    if len(all_companies) < 15 and APIFY_TOKEN:
+    if len(all_companies) < 15 and apify_token:
         add_task_log(db, task_id, "info", "Thomasnet 結果不足，補充 Yellow Pages 製造商...", keyword=keyword)
         try:
             from apify_client import ApifyClient
-            client = ApifyClient(APIFY_TOKEN)
+            client = ApifyClient(apify_token)
             yp_input = {
                 "searchTerms": f"{keyword} manufacturer",
                 "location": "United States" if market == "US" else market,

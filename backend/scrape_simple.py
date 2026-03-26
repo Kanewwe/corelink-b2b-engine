@@ -59,7 +59,7 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
                 try:
                     add_log(f"   第 {page}/{pages} 頁開始...")
                     
-                    results = scrape_keyword_page_apify(keyword, page, market, db, task_id)
+                    results = scrape_keyword_page_apify(keyword, page, market, db, task_id, user_id)
                     
                     for company in results:
                         name = company.get("name", "")
@@ -138,15 +138,16 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
         db.close()
 
 
-def scrape_keyword_page_apify(keyword: str, page: int, market: str = "US", db=None, task_id: int = None) -> list:
+def scrape_keyword_page_apify(keyword: str, page: int, market: str = "US", db=None, task_id: int = None, user_id: int = None) -> list:
     """
     使用 Apify 官方 Yellow Pages Actor 爬取真實資料
     Actor ID: automation-lab/yellowpages-scraper
     """
-    api_token = os.getenv("APIFY_API_TOKEN")
+    from config_utils import get_api_key
+    api_token = get_api_key(db, "apify", user_id)
     
     if not api_token or not APIFY_AVAILABLE:
-        add_log("⚠️ Apify 未設定，啟動 Mock Mode")
+        add_log("⚠️ Apify 未設定 (或 API Key 失敗)，降級至 Mock Mode")
         if db and task_id:
             add_task_log(db, task_id, "warning", "Apify 未設定或不可用，降級 Mock Mode", keyword=keyword, page=page)
         return get_mock_results(keyword, page)

@@ -5,13 +5,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Initialize OpenAI (legacy API for openai<1.0)
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Initialize OpenAI (Set dynamically per request)
+from config_utils import get_api_key, get_openai_model
 
 # Import rule-based classifier (saves tokens)
 from classifier import classify_lead as rule_classify
 
-def analyze_company_and_tag(company_name: str, description: str, use_gpt: bool = False) -> dict:
+def analyze_company_and_tag(company_name: str, description: str, use_gpt: bool = False, db = None, user_id: int = None) -> dict:
     """
     Classify lead and extract keywords.
     Default: use rule-based classification (no GPT, saves tokens)
@@ -21,6 +21,14 @@ def analyze_company_and_tag(company_name: str, description: str, use_gpt: bool =
         return rule_classify(company_name, description)
     
     # GPT fallback (only if explicitly requested)
+    api_key = get_api_key(db, "openai", user_id)
+    model = get_openai_model(db, user_id)
+    
+    if not api_key:
+        return {"Tag": "UNKNOWN", "BD": "General", "Reason": "OpenAI API Key not set", "Keywords": []}
+
+    openai.api_key = api_key
+    
     prompt = f"""
     你是一個 B2B 採購與供應鏈專家。我會提供一家位於北美的中小企業製造商簡介。請分析他們的主要業務，並嚴格按照規則分類，最後輸出 JSON。
 
@@ -51,7 +59,7 @@ def analyze_company_and_tag(company_name: str, description: str, use_gpt: bool =
     
     try:
         response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
+            model=model,
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that strictly outputs JSON."},
                 {"role": "user", "content": prompt}
@@ -62,11 +70,19 @@ def analyze_company_and_tag(company_name: str, description: str, use_gpt: bool =
         print(f"Error calling OpenAI API (Tagging): {e}")
         return {"Tag": "UNKNOWN", "BD": "General", "Reason": str(e), "Keywords": []}
 
-def generate_outreach_email(company_name: str, description: str, tag: str, bd_name: str, keywords: list) -> dict:
+def generate_outreach_email(company_name: str, description: str, tag: str, bd_name: str, keywords: list, db = None, user_id: int = None) -> dict:
     """
     Generate personalized outreach email using GPT-4o-mini.
     This is Prompt 2 - kept because it needs creative writing.
     """
+    api_key = get_api_key(db, "openai", user_id)
+    model = get_openai_model(db, user_id)
+    
+    if not api_key:
+        return {"Subject": "Error", "Body": "OpenAI API Key not set"}
+    
+    openai.api_key = api_key
+
     prompt = f"""
     你是一位頂尖的 B2B 業務代表，代表台灣客製化工業件採購公司 "Corelink"。
     請根據以下提供的【客戶資訊】與【產品線策略】，撰寫一封簡潔、專業且具備高轉換率的開發信。
@@ -102,7 +118,7 @@ def generate_outreach_email(company_name: str, description: str, tag: str, bd_na
 
     try:
         response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
+            model=model,
             messages=[
                 {"role": "system", "content": "You are a helpful B2B sales assistant that strictly outputs JSON."},
                 {"role": "user", "content": prompt}
@@ -114,11 +130,19 @@ def generate_outreach_email(company_name: str, description: str, tag: str, bd_na
         return {"Subject": "Error generating email", "Body": str(e)}
 
 
-def generate_related_keywords(seed_keyword: str, count: int = 5) -> list:
+def generate_related_keywords(seed_keyword: str, count: int = 5, db = None, user_id: int = None) -> list:
     """
     Generate related B2B industry keywords with actual parts/components focus.
     Used for auto-mining with specific part variations.
     """
+    api_key = get_api_key(db, "openai", user_id)
+    model = get_openai_model(db, user_id)
+    
+    if not api_key:
+        return [seed_keyword + " parts", seed_keyword + " supplier"]
+    
+    openai.api_key = api_key
+    
     prompt = f"""Given the B2B industry/product keyword "{seed_keyword}", generate {count} related keywords that are SPECIFIC PARTS or COMPONENTS related to this industry.
 
 Requirements:
@@ -136,7 +160,7 @@ Return ONLY a JSON array of {count} strings, nothing else."""
 
     try:
         response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
+            model=model,
             messages=[
                 {"role": "system", "content": "You are a helpful B2B sourcing assistant specializing in parts and components. Output ONLY JSON arrays."},
                 {"role": "user", "content": prompt}
@@ -158,10 +182,19 @@ Return ONLY a JSON array of {count} strings, nothing else."""
             seed_keyword + " supplier",
             seed_keyword + " manufacturer"
         ][:count]
-def generate_html_template(prompt: str, style: str = "formal", language: str = "English") -> dict:
+
+def generate_html_template(prompt: str, style: str = "formal", language: str = "English", db = None, user_id: int = None) -> dict:
     """
     Generate a professional HTML email template based on user prompt.
     """
+    api_key = get_api_key(db, "openai", user_id)
+    model = get_openai_model(db, user_id)
+    
+    if not api_key:
+        return {"subject": "Error", "html": "OpenAI API Key not set"}
+    
+    openai.api_key = api_key
+    
     style_hints = {
         "formal": "Professional, corporate, respectfull, B2B focused. Use clear headings.",
         "friendly": "Warm, welcoming, personal, approachable. Use conversational tone.",
@@ -185,7 +218,7 @@ Output ONLY JSON format:
 
     try:
         response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
+            model=model,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"Generate a template for: {prompt}"}
@@ -195,7 +228,8 @@ Output ONLY JSON format:
         content = response.choices[0].message.content.strip()
         # Handle cases where GPT might wrap in ```json
         if content.startswith("```"):
-            content = content.split("```")[1]
+            chunks = content.split("```")
+            content = chunks[1]
             if content.startswith("json"):
                 content = content[4:]
         
