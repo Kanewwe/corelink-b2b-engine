@@ -1,110 +1,69 @@
 # Linkora 爬蟲系統技術文件 (v2.6)
 
-> **版本：** 2.6.0  
-> **建立日期：** 2026-03-26  
+> **版本：** 2.6.0 (Enhanced)  
+> **更新日期：** 2026-03-26  
 > **維護者：** Antigravity AI  
-> **適用範圍：** UAT/PRD 環境
 
 ---
 
-## 一、系統架構 (Database-First Config)
+## 一、核心爬取策略 (v2.6 升級重點)
 
-### 1.1 動態配置流程 (New in v2.6)
+### 1.1 Email 撈取方式 (Apify 加強版)
 
-從 v2.6 開始，所有外部工具的 API Key 優先從資料庫讀取，確保無需重新部署即可更新服務：
+為了提升 Email 獲取率，我們從 v2.6 開始採用 **Deep Extraction** (深層提取) 技術，由原本的搜尋結果解析，變更為進入公司詳細頁面進行主動探測：
 
-```
-┌──────────────────┐      ┌────────────────────────┐      ┌─────────────────────┐
-│   管理員/使用者   │ ───► │ 系統設定 (DB)            │ ───► │ config_utils.py     │
-│   (設定介面)      │      │ system_settings 表      │      │ (優先排序邏輯)        │
-└──────────────────┘      └────────────────────────┘      └──────────┬──────────┘
-                                                                     │
-                                             ┌───────────────────────┴───────────────────────┐
-                                             ▼                       ▼                       ▼
-                                   ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
-                                   │ OpenAI (GPT-4o)  │    │ Apify (Scraper)  │    │ Hunter.io (Email)│
-                                   └──────────────────┘    └──────────────────┘    └──────────────────┘
-```
+- **核心原理**：Apify Actor 會自動分析每個公司的官方網站，尋找 `mailto:` 連結、聯絡頁面、隱含的 Email 字串。
+- **關鍵參數 (API 層級)**：
+  - `"extractEmails": True` (開啟深層提取)
+  - `"includeDetails": True` (進入詳細頁面)
+- **Email 解析優先級**：
+  - 我們會同時檢查多個回傳欄位：`email` -> `emails` -> `contactEmail`。
+  - 第一個有效的 Email 會被存入 `contact_email`，其餘候選者會存入 `email_candidates` 作為備援。
+- **推薦 Actor**：
+  - `junipr/yellow-pages-scraper` (主推，包含詳細 Email 提取)
+  - `memo23/thomasnet-scraper` (製造商模式首選)
 
-### 1.2 爬蟲任務流程
+### 1.2 進階去重邏輯 (Multi-Stage Deduplication)
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                          後端 API 層                                 │
-│  POST /api/scrape-simple (主要入口)                                  │
-│  ├── miner_mode: "yellowpages"  → scrape_simple.py (Apify 版)       │
-│  ├── miner_mode: "manufacturer" → manufacturer_miner.py (Apify 版)   │
-│  └── email_strategy: "free" / "hunter"                              │
-└─────────────────────────────────────────────────────────────────────┘
-            │
-            ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                          資料來源層 (Apify 優先)                    │
-│  ┌─────────────────────────────────────────────────────────────────┐ │
-│  │ Yellowpages 模式 (Apify Actor)                                  │ │
-│  │ • Actor: automation-lab/yellowpages-scraper                     │ │
-│  │ • 備援：Mock Mode (當 API Key 失敗時)                           │ │
-│  └─────────────────────────────────────────────────────────────────┘ │
-│  ┌─────────────────────────────────────────────────────────────────┐ │
-│  │ 製造商模式 (Apify 混合模式)                                      │ │
-│  │ • Thomasnet Scraper (Apify)                                     │ │
-│  │ • Yellowpages Scraper (Apify 備援)                              │ │
-│  │ • 排除 ENTERPRISE_BLACKLIST (不爬跨國大企業)                    │ │
-│  └─────────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────┘
-```
+為了避免使用者撈取到重複或已存在的客戶資料，系統採用了三層式的去重檢查：
+
+1. **Domain 檢查 (Level 1)**：
+   - 這是最精確的去重方式。系統會將網址標準化為 Domain (例如 `bosch.com`)。
+   - 若資料庫中已有相同 Domain 的 Lead，系統會立即跳過，避免因公司名稱微調 (如 Inc vs LLC) 導致的誤判。
+2. **名稱檢查 (Level 2)**：
+   - 若無法提取到 Domain，則會比對公司名稱。
+   - 名稱經過去空格與小寫化後進行嚴格比對。
+3. **分用戶隔離**：
+   - 所有的去重檢查皆在 `user_id` 層級進行。這意味著不同的使用者可以擁有相同的客戶，但同一個使用者絕對不會在名單中看到重複的項目。
 
 ---
 
-## 二、API 規格 (無變更)
+## 二、模式說明
 
-### 2.1 啟動爬蟲任務
-- **Endpoint**: `POST /api/scrape-simple`
-- **Auth**: `Bearer <token>`
-- **Body**: 原有規格不變，後端會自動根據 `user_id` 查找對應的 Key。
+### 2.1 製造商模式 (Manufacturer Mode - PRO)
+- **目標**：搜尋中小型 B2B 製造商。
+- **流程**：
+  1. 優先使用 **Thomasnet Scraper** (北美最權威製造商目錄)。
+  2. 若結果不足，自動切換至 **Yellowpages (Pro)** 模式，並加上 `manufacturer` 關鍵字補償。
+- **過濾機制**：內建 `ENTERPRISE_BLACKLIST`，自動排除 Bosch、Siemens 等跨國大企業，專注於中型與小型的真實採購商。
 
----
-
-## 三、外部工具設定 (API Key Management)
-
-### 3.1 關鍵字對照表
-
-在 `system_settings` 的 `api_keys` JSON 中，應包含以下 Key：
-
-| JSON Key | 對應工具 | 說明 |
-|----------|----------|------|
-| `openai_key` | OpenAI | 用於 AI 標籤分類與開發信生成 |
-| `openai_model` | OpenAI | 指定模型 (如 `gpt-4o-mini`, `gpt-4o`) |
-| `apify_token` | Apify | 用於 Yellowpages 與 Manufacturer 模式 |
-| `hunter_key` | Hunter.io | 用於找到目標公司聯絡人的 Email |
-| `google_key` | Google Search | (備援) Google Custom Search API Key |
-
-### 3.2 讀取優先級
-1. **User Setting**: 使用者自己設定的 Key。
-2. **Admin Setting**: 管理員 (id:1) 設定的全局 Key。
-3. **Environment**: `.env` 檔案中的變數。
+### 2.2 黃頁模式 (Yellowpages Mode - Original)
+- **目標**：各行業、地區性的中小企業。
+- **流程**：直接呼叫 **Junipr Yellowpages Scraper**。
+- **適用場景**：不僅限於製造商，適用於維修店、各類 B2C 零售、本地服務業。
 
 ---
 
-## 四、日誌與監控 (New in v2.6)
+## 三、監控與日誌
 
-### 4.1 資料庫日誌 (scrape_logs)
-所有的爬蟲步驟、成功新增、跳過原因、網絡錯誤等，現在都會寫入 `scrape_logs` 表，以便在後台「Scrape Monitor」中即時查看。
+### 3.1 爬蟲日誌 (scrape_logs)
+- 每次探勘任務的所有步驟都會記錄在 `scrape_logs`。
+- 管理員可於「Scrape Monitor」查看，一般用戶可於「開發紀錄專區」查看總結果。
 
-### 4.2 任務狀態
+### 3.2 狀態定義
 - `Running`: 正在執行。
-- `Completed`: 任務正常結束。
-- `Failed`: 遭遇不可恢復錯誤。
-- `Retried->#ID`: 該任務已被重試。
-
----
-
-## 五、開發者指南
-
-### 5.1 如何新增工具 Key
-1. 在 `config_utils.py` 的 `mapping` 字典中新增工具對應。
-2. 在 `docs/DATABASE.md` 更新文件。
-3. 使用 `get_api_key(db, "your_tool", user_id)` 讀取設定。
+- `Completed`: 成功結束，顯示最終新增、跳過與錯誤筆數。
+- `Failed`: 遭遇不可恢復錯誤 (如 API 餘額不足)。
 
 ---
 *本文件由 Antigravity AI 持續更新中*
