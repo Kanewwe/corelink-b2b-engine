@@ -698,11 +698,21 @@ def trigger_scrape_simple(req: ScrapeSimpleRequest, background_tasks: Background
     
     if req.miner_mode == "manufacturer":
         import manufacturer_miner
-        async def run_manufacturer_task():
-            for kw in keywords:
-                await manufacturer_miner.manufacturer_mine(kw, req.market, req.pages, current_user.id)
+        import asyncio
         
-        background_tasks.add_task(run_manufacturer_task)
+        def run_manufacturer_task_sync():
+            """同步包裝函式，讓 FastAPI BackgroundTasks 能正確執行 async 任務"""
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                for kw in keywords:
+                    loop.run_until_complete(
+                        manufacturer_miner.manufacturer_mine(kw, req.market, req.pages, current_user.id)
+                    )
+            finally:
+                loop.close()
+        
+        background_tasks.add_task(run_manufacturer_task_sync)
         return {"message": f"Manufacturer Mode mining started for {req.market} with {len(keywords)} keywords"}
     else:
         import scrape_simple as scrape_mod
