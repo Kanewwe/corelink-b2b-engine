@@ -1,16 +1,16 @@
-# 開發與資料庫遷移流程規範 (DEVELOPMENT_WORKFLOW.md v2.6)
+# 開發與資料庫遷移流程規範 (DEVELOPMENT_WORKFLOW.md v2.7.1)
 
-本文件定義了 Linkora 2.0 的開發生命週期，特別是針對 **Schema 變更** 與 **API Key 動態配置** 如何從開發環境安全過渡到正式環境 (PRD) 的標準作業程序。
+本文件定義了 Linkora 2.0 的開發生命週期，特別是針對 **Schema 變更**、**API Key 動態配置** 與 **全域功能控管 (v2.7.1)** 如何從開發環境安全過渡到正式環境 (PRD) 的標準作業程序。
 
 ## 1. 開發階段 (Development)
 - **模型同步**：邊做邊執行，並即時更新遷移指令。
     - 當你在 `models.py` 新增欄位時，**必須同步**在 `backend/migrations.py` 的 `tables_to_patch` 字典中加入該欄位。
     - **禁止**直接操作資料庫介面而不記錄，這會導致 PRD 部署時內容遺失。
-- **外部工具測試**：
-    - 開發新功能時，必須通過 `config_utils.get_api_key(db, "tool_name", user_id)` 來讀取配置，禁止直接使用 `os.getenv`（除非是資料庫連線等核心變數）。
+- **外部工具與全域配置測試**：
+    - 開發新功能時，應通過 `config_utils.get_api_key` 或 `get_general_setting` 來讀取配置，禁止直接使用 `os.getenv`。
 
-## 2. API Key 配置 (Configuration Management v2.6)
-- **動態性**：所有的外部 API Key (OpenAI, Apify, Hunter) 應優先設置於資料庫中的 `system_settings` 表。
+## 2. API Key 與全域配置 (Configuration Management v2.7.1)
+- **動態性**：所有的外部 API Key 與全域開關 (如 `enable_global_sync`) 應優先設置於資料庫中的 `system_settings` 表。
 - **配置步驟**：
     1. 在核心功能的 `view_file` 或 `api.ts` 查找對應的介面。
     2. 通過管理界面（Admin Dashboard -> System Settings）進行測試設置。

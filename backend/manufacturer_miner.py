@@ -207,14 +207,16 @@ async def manufacturer_mine(
 
     stats = {"added": 0, "synced": 0, "skipped": 0, "failed": 0}
     process_limit = 40
+    from config_utils import get_general_setting
+    sync_enabled = get_general_setting(db, "enable_global_sync", default=True, user_id=user_id)
 
     for co in all_companies[:process_limit]:
         company_name = co["company_name"]
         domain_found = co.get("domain", "")
         
         try:
-            # ─── v2.7: 全域隔離池同步邏輯 ───
-            lead_obj, is_synced = sync_from_global_pool(db, user_id, domain_found, company_name)
+            # ─── v2.7.1: 全域隔離池同步邏輯 (考慮 sync_enabled) ───
+            lead_obj, is_synced = sync_from_global_pool(db, user_id, domain_found, company_name, sync_enabled=sync_enabled)
             
             if lead_obj and not is_synced:
                 stats["skipped"] += 1

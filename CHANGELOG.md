@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v2.7.1] - 2026-03-26
+
+### 🚀 全域探勘隔離池 (Global Lead Pool) 與 系統控管中心
+- **Global Lead Pool**: 實作 `GlobalLead` 模型，支援跨使用者的高品質名單同步，大幅降低 API 探勘成本。
+- **System Settings Hub**: 開放「一般 (General)」設定分頁，提供全域池統計、同步開關與資料維護（清空池）功能。
+- **UI 視覺化提示**: 在客戶列表中新增 `GLOBAL SYNC` 與 `LIVE SCRAPE` 標記，提升資料來源透明度。
+- **工業級產業分類**: 整合 v2.7 產業 Taxonomy，優化 AI 標籤精準度與自動分類規則。
+- **Scraper 智慧同步**: 採集重構，支援根據系統設定決定是否與全域池進行同步。
+
+### 🛠️ 技術優化
+- **API 擴展**: 新增 `/api/admin/global-pool/stats` 與 `/api/admin/global-pool/clear` 端點。
+- **配置效能**: 優化 `config_utils` 讀取邏輯，支援 `general_settings` 階層式覆蓋。
+- **TypeScript 強化**: 修復前端型別定義，減少隱含 `any` 造成的潛在風險。
+
 ## [v2.5-postgresql-sync] - 2026-03-26
 
 ### 🚀 PostgreSQL Migration & Environment Isolation

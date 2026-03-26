@@ -403,9 +403,20 @@ const LeadEngine: React.FC = () => {
                 .map((lead: any, idx: number) => (
                   <div key={idx} className="card" style={{ padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--color-text-primary)' }}>{lead.company_name}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--color-text-primary)' }}>{lead.company_name}</div>
+                        {lead.global_id ? (
+                          <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: 'var(--color-primary-glow)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700 }}>
+                            <Globe size={10} /> GLOBAL SYNC
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: 'var(--color-accent-teal-glow)', color: 'var(--color-accent-teal)', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700 }}>
+                            <Zap size={10} /> LIVE SCRAPE
+                          </span>
+                        )}
+                      </div>
                       <div style={{ fontSize: 11, color: 'var(--color-text-muted)', fontFamily: 'monospace', marginTop: 2 }}>
-                        {lead.email || lead.email_candidates || '無聯絡信箱'}
+                        {lead.contact_email || lead.email || lead.email_candidates || '無聯絡信箱'}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 4 }}>

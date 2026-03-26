@@ -1,5 +1,6 @@
 import os
 import json
+from typing import Any
 import models
 from database import SessionLocal
 
@@ -67,3 +68,26 @@ def get_api_key(db, tool_name: str, user_id: int = None) -> str:
 def get_openai_model(db, user_id: int = None) -> str:
     """獲取 OpenAI 模型名稱 (預設 gpt-4o-mini)"""
     return get_api_key(db, "openai_model", user_id) or "gpt-4o-mini"
+
+def get_general_setting(db, key: str, default: Any = None, user_id: int = None) -> Any:
+    """
+    獲取通用設定 (general_settings)
+    優先順序：當前使用者 -> 管理員 (User 1) -> 預設值
+    """
+    try:
+        search_ids = []
+        if user_id: search_ids.append(user_id)
+        if 1 not in search_ids: search_ids.append(1)
+        
+        for uid in search_ids:
+            setting = db.query(models.SystemSetting).filter(
+                models.SystemSetting.user_id == uid,
+                models.SystemSetting.key == "general_settings"
+            ).first()
+            
+            if setting and setting.value:
+                data = json.loads(setting.value)
+                return data.get(key, default)
+    except Exception:
+        pass
+    return default

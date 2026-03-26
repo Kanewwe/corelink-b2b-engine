@@ -61,6 +61,12 @@ export const deleteAdminVendor = (id: number) => fetchWithAuth(`/admin/vendors/$
   method: 'DELETE'
 });
 
+// Admin - Global Pool (v2.7.1)
+export const getGlobalPoolStats = () => fetchWithAuth('/admin/global-pool/stats');
+export const clearGlobalPool = () => fetchWithAuth('/admin/global-pool/clear', {
+  method: 'POST'
+});
+
 // Settings - SMTP
 export const getSmtpSettings = () => fetchWithAuth('/settings/smtp');
 export const saveSmtpSettings = (data: any) => fetchWithAuth('/settings/smtp', {

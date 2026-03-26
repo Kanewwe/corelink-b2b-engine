@@ -36,12 +36,23 @@
 ┌──────────────────────────────────────────────────────────┐
 │                       leads                              │
 ├──────────────────────────────────────────────────────────┤
-│ id (PK)                                                │
-│ user_id (FK) ───────────► users.id                     │
-│ company_name, website_url, domain                       │
-│ email_candidates, ai_tag, status                        │
-│ contact_*, address, phone                               │
-│ source_domain, scrape_location                          │
+│ id (PK)                                                  │
+│ user_id (FK) ───────────► users.id                       │
+│ global_id (FK) ──────────► global_leads.id               │
+│ company_name, website_url, domain                        │
+│ email_candidates, ai_tag, status                         │
+│ contact_*, address, phone                                │
+│ source_domain, scrape_location                           │
+└──────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────┐
+│                   global_leads (Isolation Pool)          │
+├──────────────────────────────────────────────────────────┤
+│ id (PK)                                                  │
+│ domain (UNIQUE), company_name, website_url               │
+│ contact_email, email_candidates, phone, address          │
+│ ai_tag, industry, source                                 │
+│ last_scraped_at, created_at                              │
 └──────────────────────────────────────────────────────────┘
           │
           │ (1:N)
@@ -92,6 +103,8 @@
 | reset_token | VARCHAR(255) | Password reset token |
 | reset_expires | TIMESTAMP | Reset token expiry |
 | last_login_at | TIMESTAMP | Last login time |
+| scrape_location | VARCHAR(50) | Target country code |
+| global_id | INT | (v2.7.1) FK to global_leads.id |
 | created_at | TIMESTAMP | Creation time |
 
 ### sessions
@@ -174,6 +187,45 @@
 | email_sent | BOOLEAN | Email sent flag |
 | email_sent_at | TIMESTAMP | Email sent time |
 
+### global_leads
+全域隔離資料池 (Lead Isolation Pool) - 所有使用者共享的去重資料。
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | SERIAL | Primary key |
+| company_name | VARCHAR | Company name |
+| domain | VARCHAR | Unique normalized domain |
+| website_url | VARCHAR | Company website URL |
+| description | TEXT | Scraped company description |
+| contact_email | VARCHAR | Primary contact email |
+| email_candidates | TEXT | All detected email candidates |
+| phone | VARCHAR | Phone number |
+| address | TEXT | Physical address |
+| ai_tag | VARCHAR | AI-generated industry tag |
+| industry | VARCHAR | Sub-industry category |
+| source | VARCHAR | Data source (thomasnet/yellowpages) |
+| last_scraped_at | TIMESTAMP | Last scrape/refresh time |
+| created_at | TIMESTAMP | Initial creation time |
+
+### global_leads
+全域隔離池 (Isolation Pool) - 跨使用者共享高品質名單 (v2.7.1)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | SERIAL | Primary key |
+| domain | VARCHAR(255) | Unique domain (Primary Key for deduplication) |
+| company_name | VARCHAR(255) | Normalized company name |
+| website_url | TEXT | Company website |
+| contact_email | VARCHAR(255) | Extracted/Verified primary email |
+| email_candidates | TEXT | List of possible emails (comma-separated) |
+| phone | VARCHAR(50) | Contact phone |
+| address | TEXT | Physical address |
+| ai_tag | VARCHAR(100) | v2.7 Taxonomy tag |
+| industry | VARCHAR(100) | Human-readable industry name |
+| source | VARCHAR(50) | Initial extraction source (thomasnet/yellowpages) |
+| last_scraped_at | TIMESTAMP | Last update from any scraper |
+| created_at | TIMESTAMP | Initial creation time |
+
 ### email_templates
 信件模板表
 
@@ -224,6 +276,13 @@ Email 追蹤日誌表
 | value | TEXT (JSON) | Setting values |
 | created_at | TIMESTAMP | Creation time |
 | updated_at | TIMESTAMP | Last update |
+
+#### 常用 Key 與多語系對應 (v2.7.1 更新)
+| Key | 內容結構 | 說明 |
+|-----|---------|------|
+| `api_keys` | `{"openai_key": "...", "apify_token": "..."}` | 存放各類外部服務金鑰 |
+| `variable_mapping` | `{"company_name": "公司名稱", "bd_name": "業務負責人"}` | 定義 Monaco Editor 中的變數中文字幕 |
+| `general_settings` | `{"enable_global_sync": true}` | 控制探勘時是否從全域隔離池同步 |
 
 ### scrape_logs
 爬蟲任務詳細日誌 (新增於 v2.6)

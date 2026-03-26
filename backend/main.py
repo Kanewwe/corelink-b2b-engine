@@ -4,6 +4,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from pydantic import BaseModel
 from typing import List, Optional, Any
 import os
@@ -1097,7 +1098,51 @@ def get_admin_stats(db: Session = Depends(get_db), current_user: models.User = D
     active_tasks = db.query(models.ScrapeTask).filter(models.ScrapeTask.status == 'Running').count()
     completed_tasks = db.query(models.ScrapeTask).filter(models.ScrapeTask.status == 'Completed').count()
     
-    # 計算開信率
+    return {
+        "total_users": total_users,
+        "active_users": active_users,
+        "total_leads": total_leads,
+        "total_emails": total_emails,
+        "admins": admins,
+        "vendors": vendors,
+        "members": members,
+        "new_this_month": new_this_month,
+        "plans": {
+            "free": free_count,
+            "pro": pro_count,
+            "enterprise": enterprise_count
+        },
+        "tasks": {
+            "total": total_tasks,
+            "active": active_tasks,
+            "completed": completed_tasks
+        }
+    }
+
+@app.get("/api/admin/global-pool/stats")
+def get_global_pool_stats(db: Session = Depends(get_db), current_user: models.User = Depends(auth_module.require_role(["admin"]))):
+    """管理員：獲取全域隔離池統計數據 (v2.7.1)"""
+    total_leads = db.query(models.GlobalLead).count()
+    total_domains = db.query(models.GlobalLead).filter(models.GlobalLead.domain != None).count()
+    
+    # 產業分布 (依據 ai_tag)
+    tag_counts = db.query(
+        models.GlobalLead.ai_tag, 
+        func.count(models.GlobalLead.id)
+    ).group_by(models.GlobalLead.ai_tag).all()
+    
+    return {
+        "total_leads": total_leads,
+        "total_domains": total_domains,
+        "tags": {tag: count for tag, count in tag_counts if tag}
+    }
+
+@app.post("/api/admin/global-pool/clear")
+def clear_global_pool(db: Session = Depends(get_db), current_user: models.User = Depends(auth_module.require_role(["admin"]))):
+    """管理員：清空全域隔離池 (v2.7.1)"""
+    db.query(models.GlobalLead).delete()
+    db.commit()
+    return {"message": "全域隔離池已清空"}
     opened_emails = db.query(models.EmailLog).filter(models.EmailLog.opened == True).count()
     open_rate = round(opened_emails / total_emails * 100, 1) if total_emails > 0 else 0
     

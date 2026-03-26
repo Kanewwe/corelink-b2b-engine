@@ -7,15 +7,16 @@ import models
 from datetime import datetime
 from logger import add_log
 
-def sync_from_global_pool(db, user_id: int, domain: str = None, company_name: str = None):
+def sync_from_global_pool(db, user_id: int, domain: str = None, company_name: str = None, sync_enabled: bool = True):
     """
     從全域隔離池 (Global Pool) 同步資料到私有清單。
+    v2.7.1: 支援 sync_enabled 開關。
     回傳: (Lead 對象, is_new: bool)
     """
     if not domain and not company_name:
         return None, False
         
-    # 1. 檢查私有清單是否已有
+    # 1. 檢查私有清單是否已有 (無論開關如何，私有去重都要做)
     existing_private = None
     if domain:
         existing_private = db.query(models.Lead).filter(
@@ -32,7 +33,10 @@ def sync_from_global_pool(db, user_id: int, domain: str = None, company_name: st
     if existing_private:
         return existing_private, False
         
-    # 2. 檢索全域池 (Global Pool)
+    # 2. 檢索全域池 (Global Pool) - 僅在同步開啟時進行 (v2.7.1)
+    if not sync_enabled:
+        return None, False
+
     global_lead = None
     if domain:
         global_lead = db.query(models.GlobalLead).filter(models.GlobalLead.domain == domain).first()

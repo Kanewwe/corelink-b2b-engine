@@ -43,6 +43,8 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
         keywords = ["manufacturer"]
     
     db = SessionLocal()
+    from config_utils import get_general_setting
+    sync_enabled = get_general_setting(db, "enable_global_sync", default=True, user_id=user_id)
     
     # 建立任務記錄
     task_record = models.ScrapeTask(
@@ -83,10 +85,8 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
                         
                         if not name: continue
 
-                        # ─── v2.7: 全域隔離池同步邏輯 ───
-                        # sync_from_global_pool 會處理「私有已有跳過」、「全域池同步」與「全新名單」
-                        # 它會檢查該使用者是否已有該 Domain，若無且全域有，則複製一份。
-                        lead_obj, is_synced = sync_from_global_pool(db, user_id, domain, name)
+                        # ─── v2.7.1: 全域隔離池同步邏輯 (考慮 sync_enabled) ───
+                        lead_obj, is_synced = sync_from_global_pool(db, user_id, domain, name, sync_enabled=sync_enabled)
                         
                         if lead_obj and not is_synced:
                             # 代表私有清單原本就有這家公司 (既存重複)
