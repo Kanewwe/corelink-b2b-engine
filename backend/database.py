@@ -39,6 +39,10 @@ Base = declarative_base()
 def get_db():
     db = SessionLocal()
     try:
+        from sqlalchemy import text
+        from logger import add_log
+        res = db.execute(text("SHOW search_path")).fetchone()
+        add_log(f"DEBUG: get_db search_path={res[0] if res else 'Unknown'}")
         yield db
     finally:
         db.close()
