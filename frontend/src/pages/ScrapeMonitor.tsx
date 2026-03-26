@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
-  getAdminScrapeTasks, getAdminScrapeTaskDetail, retryAdminScrapeTask, 
+  getAdminScrapeTasks, retryAdminScrapeTask, 
   cleanupStaleTasks, getAdminScrapeTaskLogs 
 } from '../services/api';
 import { 
@@ -53,7 +53,6 @@ const ScrapeMonitor: React.FC = () => {
   const [filter, setFilter] = useState<string>('');
   const [expandedTask, setExpandedTask] = useState<number | null>(null);
   const [taskLogs, setTaskLogs] = useState<Record<number, ScrapeLog[]>>({});
-  const [taskDetails, setTaskDetails] = useState<Record<number, ScrapeTask>>({});
   const [loadingLogs, setLoadingLogs] = useState<Record<number, boolean>>({});
   const [cleaning, setCleaning] = useState(false);
   const autoRefreshRef = useRef<NodeJS.Timeout | null>(null);
@@ -96,18 +95,10 @@ const ScrapeMonitor: React.FC = () => {
     if (!taskLogs[taskId]) {
       setLoadingLogs(prev => ({ ...prev, [taskId]: true }));
       try {
-        const [logsResp, detailResp] = await Promise.all([
-          getAdminScrapeTaskLogs(taskId),
-          getAdminScrapeTaskDetail(taskId),
-        ]);
-        
+        const logsResp = await getAdminScrapeTaskLogs(taskId);
         if (logsResp.ok) {
           const data = await logsResp.json();
           setTaskLogs(prev => ({ ...prev, [taskId]: data }));
-        }
-        if (detailResp.ok) {
-          const data = await detailResp.json();
-          setTaskDetails(prev => ({ ...prev, [taskId]: data }));
         }
       } catch {
         toast.error('載入日誌失敗');
