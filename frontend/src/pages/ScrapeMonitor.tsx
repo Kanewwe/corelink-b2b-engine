@@ -101,8 +101,14 @@ const ScrapeMonitor: React.FC = () => {
           getAdminScrapeTaskDetail(taskId),
         ]);
         
-        if (logsResp.ok) setTaskLogs(prev => ({ ...prev, [taskId]: await logsResp.json() }));
-        if (detailResp.ok) setTaskDetails(prev => ({ ...prev, [taskId]: await detailResp.json() }));
+        if (logsResp.ok) {
+          const data = await logsResp.json();
+          setTaskLogs(prev => ({ ...prev, [taskId]: data }));
+        }
+        if (detailResp.ok) {
+          const data = await detailResp.json();
+          setTaskDetails(prev => ({ ...prev, [taskId]: data }));
+        }
       } catch {
         toast.error('載入日誌失敗');
       } finally {
@@ -231,7 +237,6 @@ const ScrapeMonitor: React.FC = () => {
               const isExpanded = expandedTask === task.id;
               const statusCfg = STATUS_CONFIG[task.status] || STATUS_CONFIG.Running;
               const logs = taskLogs[task.id] || [];
-              const detail = taskDetails[task.id];
               
               return (
                 <div key={task.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
