@@ -20,16 +20,8 @@ def add_task_log(db, task_id: int, level: str, message: str,
                  keyword: str = None, page: int = None, items_found: int = None):
     """
     Write a persistent log entry to scrape_logs table.
-    
-    Args:
-        db: SQLAlchemy session
-        task_id: ScrapeTask ID
-        level: 'info' | 'warning' | 'error' | 'success'
-        message: Log message text
-        keyword: Optional keyword being scraped
-        page: Optional page number
-        items_found: Optional count of items found
     """
+    import models
     try:
         log = models.ScrapeLog(
             task_id=task_id,

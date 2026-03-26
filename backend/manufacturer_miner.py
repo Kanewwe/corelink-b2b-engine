@@ -9,16 +9,16 @@ import asyncio
 import httpx
 import random
 import os
+import time
 from urllib.parse import urlparse, quote_plus
 from bs4 import BeautifulSoup
 from typing import List, Dict, Optional
-from logger import add_log
+from logger import add_log, add_task_log
 import models
 from database import SessionLocal
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
-# 注意：這裡使用 GOOGLE_CSE_ID 配合 free_email_hunter 的命名慣例
-GOOGLE_CSE_ID  = os.getenv("GOOGLE_CSE_ID", "")
+GOOGLE_SEARCH_ENGINE_ID = os.getenv("GOOGLE_CSE_ID", "")
 
 # ── 真實瀏覽器 UA ──────────────────────────
 USER_AGENTS = [
@@ -91,8 +91,7 @@ async def search_via_google_cse(
     使用 Google Custom Search API 找製造商公司
     免費 100 次/日，最穩定的來源
     """
-    if not GOOGLE_API_KEY or not GOOGLE_CSE_ID:
-        # add_log("⚠️ 未設定 GOOGLE_API_KEY，跳過 Google CSE")
+    if not GOOGLE_API_KEY or not GOOGLE_SEARCH_ENGINE_ID:
         return []
 
     results = []
@@ -104,24 +103,16 @@ async def search_via_google_cse(
                     "https://www.googleapis.com/customsearch/v1",
                     params={
                         "key": GOOGLE_API_KEY,
-                        "cx": GOOGLE_CSE_ID,
+                        "cx": GOOGLE_SEARCH_ENGINE_ID,
                         "q": query,
                         "num": 10,
                         "start": page * 10 + 1,
-                        "gl": "us",           # 地區偏向美國
+                        "gl": "us",           
                         "lr": "lang_en",
                     }
                 )
                 
-                if resp.status_code == 400:
-                    error_data = resp.json() if resp.text else {}
-                    error_msg = error_data.get('error', {}).get('message', 'Unknown error')
-                    add_log(f"❌ Google CSE 400錯誤")
-                    add_log(f"   API Key: {'✅ 已設定 (' + GOOGLE_API_KEY[:10] + '...)' if GOOGLE_API_KEY else '❌ 未設定'}")
-                    add_log(f"   CSE ID: {'✅ 已設定 (' + GOOGLE_CSE_ID + ')' if GOOGLE_CSE_ID else '❌ 未設定'}")
-                    add_log(f"   錯誤原因: {error_msg}")
-                    add_log(f"   建議: 檢查 GOOGLE_API_KEY 和 GOOGLE_CSE_ID 是否匹配")
-                elif resp.status_code != 200:
+                if resp.status_code != 200:
                     add_log(f"⚠️ Google CSE 回應 {resp.status_code}")
                     break
                 
@@ -185,29 +176,21 @@ def extract_company_from_result(item: Dict) -> Optional[Dict]:
 # Step 2b：Thomasnet 爬取（美國 B2B 目錄）
 # ══════════════════════════════════════════
 
-# ── ScraperAPI Key ──────────────────────────
 SCRAPER_API_KEY = os.getenv("SCRAPER_API_KEY", "c38c4f60be876f7dfd12178cc83b24a0")
 
 async def search_thomasnet(keyword: str, pages: int = 1) -> List[Dict]:
-    """
-    Thomasnet 是美國最大的 B2B 製造商目錄
-    使用 ScraperAPI 避免被擋
-    """
     results = []
     
     async with httpx.AsyncClient(timeout=30) as client:
         for page in range(1, pages + 1):
             try:
                 target_url = f"https://www.thomasnet.com/search/?searchTerm={quote_plus(keyword)}&pg={page}"
-                
-                # 使用 ScraperAPI
                 params = {
                     "api_key": SCRAPER_API_KEY,
                     "url": target_url,
-                    "render": "true",    # Thomasnet 需要 JS
-                    "premium": "true"    # 住宅代理更穩
+                    "render": "true",
+                    "premium": "true"
                 }
-                
                 resp = await client.get("http://api.scraperapi.com", params=params)
                 
                 if resp.status_code != 200:
@@ -215,27 +198,17 @@ async def search_thomasnet(keyword: str, pages: int = 1) -> List[Dict]:
                     break
                 
                 soup = BeautifulSoup(resp.text, "lxml")
-                
-                # Thomasnet 的公司卡片 selector (可能隨時變動，故多列幾種)
                 company_cards = soup.select(".profile-card, .supplier-card, [data-testid='company-card'], .search-result")
                 
                 for card in company_cards:
                     name_el = card.select_one(".company-name, h2, h3, .title")
-                    link_el = card.select_one("a[href*='www.']") # 尋找外部官網連結
+                    link_el = card.select_one("a[href*='www.']")
                     
-                    if not name_el:
-                        continue
+                    if not name_el: continue
                     
                     company_name = name_el.get_text(strip=True)
-                    website = ""
-                    domain = ""
-                    
-                    if link_el:
-                        href = link_el.get("href", "")
-                        # 處理 Thomasnet 的跳轉連結或直接連結
-                        if "http" in href:
-                            website = href
-                            domain = extract_domain(href)
+                    website = link_el.get("href", "") if link_el else ""
+                    domain = extract_domain(website) if website else ""
                     
                     if company_name and len(company_name) > 2:
                         results.append({
@@ -246,13 +219,10 @@ async def search_thomasnet(keyword: str, pages: int = 1) -> List[Dict]:
                         })
                 
                 add_log(f"  🏭 Thomasnet：取得 {len(results)} 筆")
-                # ScraperAPI 已經處理了控速，我們只需小休
                 await asyncio.sleep(1)
-                
             except Exception as e:
                 add_log(f"⚠️ Thomasnet 錯誤：{str(e)[:50]}")
                 break
-    
     return results
 
 
@@ -261,65 +231,33 @@ async def search_thomasnet(keyword: str, pages: int = 1) -> List[Dict]:
 # ══════════════════════════════════════════
 
 async def search_via_bing(query: str) -> List[Dict]:
-    """
-    Bing 搜尋作為 Google CSE 的備援
-    不需要 API Key，但需要控速
-    """
     results = []
-    
     headers = {
         "User-Agent": random.choice(USER_AGENTS),
         "Accept": "text/html,application/xhtml+xml;q=0.9",
-        "Accept-Language": "en-US,en;q=0.9",
     }
-    
     async with httpx.AsyncClient(timeout=15, headers=headers, follow_redirects=True) as client:
         try:
-            resp = await client.get(
-                "https://www.bing.com/search",
-                params={"q": query, "count": 15, "first": 1}
-            )
-            
-            if resp.status_code != 200:
-                return []
-            
+            resp = await client.get("https://www.bing.com/search", params={"q": query, "count": 15})
+            if resp.status_code != 200: return []
             soup = BeautifulSoup(resp.text, "lxml")
-            
-            # Bing 搜尋結果 selector
             for result in soup.select(".b_algo"):
                 title_el = result.select_one("h2 a")
-                snippet_el = result.select_one(".b_caption p")
-                
-                if not title_el:
-                    continue
-                
+                if not title_el: continue
                 url = title_el.get("href", "")
                 title = title_el.get_text(strip=True)
-                snippet = snippet_el.get_text(strip=True) if snippet_el else ""
                 domain = extract_domain(url)
-                
-                skip_domains = [
-                    "yelp.com", "yellowpages.com", "google.com",
-                    "facebook.com", "wikipedia.org", "amazon.com",
-                    "linkedin.com", "instagram.com"
-                ]
-                if not domain or any(s in domain for s in skip_domains):
-                    continue
-                
+                if not domain or any(s in domain for s in ["google", "facebook", "wikipedia", "amazon"]): continue
                 results.append({
                     "company_name": clean_company_name(title),
                     "website": url,
                     "domain": domain,
-                    "snippet": snippet[:200],
                     "source": "bing_search",
                 })
-            
             add_log(f"  🔵 Bing：取得 {len(results)} 筆")
-            await asyncio.sleep(random.uniform(3, 5))
-            
+            await asyncio.sleep(random.uniform(2, 4))
         except Exception as e:
             add_log(f"⚠️ Bing 錯誤：{str(e)[:50]}")
-    
     return results
 
 
@@ -333,17 +271,12 @@ async def manufacturer_mine(
     pages: int = 3,
     user_id: int = None
 ) -> Dict:
-    """
-    製造商模式主入口
-    整合多來源搜尋 + 三層 Email 策略
-    """
-    from free_email_hunter import find_emails_free
+    from free_email_hunter import find_emails_free, auto_discover_domain
     from models import Lead
     
     db = SessionLocal()
     add_log(f"🏭 [製造商模式] 開始探勘：{keyword} | 市場：{market}")
     
-    # ── Create Scrape Task Tracking Record ───
     task_record = models.ScrapeTask(
         user_id=user_id,
         market=market,
@@ -355,177 +288,106 @@ async def manufacturer_mine(
     db.add(task_record)
     db.commit()
     db.refresh(task_record)
-
-    # ── Step 1：建立搜尋查詢 ──────────────────
-    queries = build_manufacturer_queries(keyword, market)
+    task_id = task_record.id
     
-    # ── Step 2：多來源搜尋公司名單 ───────────
+    add_task_log(db, task_id, "info", f"製造商模式啟動 | 市場: {market} | 關鍵字: {keyword}")
+
+    queries = build_manufacturer_queries(keyword, market)
     all_companies = []
     seen_domains = set()
     
-    # 策略：Google CSE (優先) -> 如果失敗或沒結果 -> Bing
     for i, query in enumerate(queries[:4]):
         add_log(f"🔍 搜尋 [{i+1}/4]：{query[:60]}")
+        add_task_log(db, task_id, "info", f"執行搜尋查詢 {i+1}/4: {query[:60]}", keyword=keyword)
         
-        current_results = []
-        if GOOGLE_API_KEY and GOOGLE_CSE_ID:
-            add_log(f"  📍 Google CSE 狀態：")
-            add_log(f"     API Key: ✅ 已設定 ({GOOGLE_API_KEY[:10]}...)")
-            add_log(f"     CSE ID: ✅ 已設定 ({GOOGLE_CSE_ID})")
-            current_results = await search_via_google_cse(query, pages=1)
-        else:
-            add_log(f"  ⚠️ Google CSE 未設定或無效：")
-            if not GOOGLE_API_KEY:
-                add_log(f"     API Key: ❌ 未設定 (GOOGLE_API_KEY)")
-            if not GOOGLE_CSE_ID:
-                add_log(f"     CSE ID: ❌ 未設定 (GOOGLE_CSE_ID)")
-        
-        # 如果 Google 沒結果或 API 失敗，立即使用 Bing 備援
+        current_results = await search_via_google_cse(query, pages=1)
         if not current_results:
-            add_log(f"  🔄 Google CSE 無法使用，切換到 Bing 備援...")
             current_results = await search_via_bing(query)
         
-        # 去重
         for co in current_results:
             domain = co.get("domain", "")
             if domain and domain not in seen_domains:
                 seen_domains.add(domain)
                 all_companies.append(co)
             elif not domain and co.get("company_name"):
-                # 如果沒有 domain 但有公司名，也先放進去，後面再找
                 all_companies.append(co)
-        
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.5)
     
-    # 補充 Thomasnet（針對美國市場且結果不足時）
-    if market == "US" and len(all_companies) < 15:
-        add_log(f"🏭 結果不足，嘗試 Thomasnet 目錄搜尋...")
+    if market == "US" and len(all_companies) < 10:
+        add_task_log(db, task_id, "info", "補充 Thomasnet 數據...", keyword=keyword)
         thomas_results = await search_thomasnet(keyword, pages=1)
         for co in thomas_results:
-            domain = co.get("domain", "")
-            if domain and domain not in seen_domains:
-                seen_domains.add(domain)
+            if co.get("domain") and co["domain"] not in seen_domains:
+                seen_domains.add(co["domain"])
                 all_companies.append(co)
-            elif not domain and co["company_name"] not in [c["company_name"] for c in all_companies]:
-                all_companies.append(co)
-    
-    add_log(f"📊 共找到 {len(all_companies)} 家不重複公司")
-    
+
     if not all_companies:
-        add_log("❌ 製造商模式：找不到任何公司，請換關鍵字")
+        add_task_log(db, task_id, "warning", "找不到任何公司，模式中止")
+        task_record.status = "Completed"
+        task_record.completed_at = datetime.utcnow() if 'datetime' in locals() else None 
+        # Fix datetime later
+        from datetime import datetime
+        task_record.completed_at = datetime.utcnow()
+        db.commit()
         db.close()
         return {"added": 0, "skipped": 0, "failed": 0}
     
-    # ── Step 3：逐家進行三層 Email 探勘 ──────
     stats = {"added": 0, "skipped": 0, "failed": 0}
+    process_limit = 20 if market == "US" else 10
     
-    for co in all_companies[:30]:  # 每次最多處理 30 家
+    for co in all_companies[:process_limit]:
         company_name = co["company_name"]
-        website = co.get("website", "")
         domain_found = co.get("domain", "")
-        
-        add_log(f"🏢 [{company_name}]")
+        add_task_log(db, task_id, "info", f"探勘公司: {company_name}", keyword=keyword)
         
         try:
-            # 去除重複
-            if domain_found:
-                existing = db.query(Lead).filter(
-                    Lead.domain == domain_found,
-                    Lead.user_id == user_id
-                ).first()
-                if existing:
-                    add_log(f"  ⏭️ 已存在，跳過")
-                    stats["skipped"] += 1
-                    continue
-
-            # 三層 Email 策略
             if not domain_found:
-                 # 如果沒有 domain，嘗試自動發現
-                 from free_email_hunter import auto_discover_domain
-                 domain_found = await auto_discover_domain(company_name)
+                domain_found = await auto_discover_domain(company_name)
             
             if not domain_found:
-                add_log(f"  ⚠️ 無法找到 domain，跳過")
                 stats["failed"] += 1
                 continue
 
-            # 調用 email_hunter
             email_result = await find_emails_free(domain_found, company_name)
-            
             best_email_obj = email_result.get("best_email")
-            all_emails = [e["email"] for e in email_result.get("emails", [])]
-            
-            # 整理 Email
             email = best_email_obj["email"] if best_email_obj else f"info@{domain_found}"
-            email_role = best_email_obj.get("role", "unknown") if best_email_obj else "unknown"
             
-            # 產業分類（從 snippet 快速判斷）
-            industry = classify_industry(co.get("snippet", "") + " " + company_name)
-            
-            # 寫入資料庫
             lead = Lead(
-                user_id       = user_id,
-                company_name  = company_name,
-                website_url   = website,
-                domain        = domain_found,
-                contact_email = email,
-                email_candidates = ", ".join(all_emails) if all_emails else email,
-                ai_tag        = industry,
-                status        = "Scraped",
-                assigned_bd   = "Manufacturer-Mode",
-                extracted_keywords = keyword,
-                scrape_location = market
+                user_id=user_id,
+                company_name=company_name,
+                domain=domain_found,
+                contact_email=email,
+                ai_tag=classify_industry(co.get("snippet", "") + " " + company_name),
+                status="Scraped",
+                assigned_bd="Manufacturer-Mode",
+                extracted_keywords=keyword,
+                scrape_location=market
             )
             db.add(lead)
             db.commit()
-            
-            role_icon = {"procurement": "🎯", "owner": "👔", "sales": "💼"}.get(email_role, "📧")
-            add_log(f"  ✅ 新增：{email} {role_icon}[{email_role}] | 產業：{industry}")
+            add_task_log(db, task_id, "success", f"成功發現 Lead: {company_name} ({email})", keyword=keyword)
             stats["added"] += 1
-            
         except Exception as e:
-            add_log(f"  ❌ 處理錯誤：{str(e)[:60]}")
+            add_task_log(db, task_id, "error", f"處理 {company_name} 失敗: {str(e)[:50]}", keyword=keyword)
             stats["failed"] += 1
-        
-        await asyncio.sleep(random.uniform(1.0, 2.0))
+        await asyncio.sleep(random.uniform(0.5, 1))
     
-    # ── Update Scrape Task Record ───
     task_record.status = "Completed"
     task_record.leads_found = stats["added"]
     from datetime import datetime
     task_record.completed_at = datetime.utcnow()
-    try:
-        db.commit()
-        add_log(f"\n🏁 製造商模式完成：新增 {stats['added']} | 跳過 {stats['skipped']} | 失敗 {stats['failed']}")
-    except Exception as e:
-        add_log(f"❌ [製造商模式失敗] {str(e)}", level="error")
-        try:
-            task_record.status = "Failed"
-            from datetime import datetime
-            task_record.completed_at = datetime.utcnow()
-            db.commit()
-        except:
-            pass
-        raise
-    finally:
-        db.close()
+    db.commit()
+    add_task_log(db, task_id, "success", f"探勘完成：新增 {stats['added']} 筆", items_found=stats["added"])
+    db.close()
     return stats
 
 
-# ══════════════════════════════════════════
 # 輔助函數
-# ══════════════════════════════════════════
-
 INDUSTRY_KEYWORDS = {
     "Auto Parts":     ["auto", "car", "vehicle", "automotive", "motor"],
-    "Cable & Wire":   ["cable", "wire", "harness", "electrical wiring"],
     "Electronics":    ["electronic", "circuit", "PCB", "semiconductor"],
     "Plastics":       ["plastic", "injection molding", "polymer", "resin"],
     "Metal Fab":      ["metal", "steel", "aluminum", "fabrication", "casting"],
-    "Machinery":      ["machine", "equipment", "industrial", "CNC"],
-    "Chemical":       ["chemical", "compound", "material", "coating"],
-    "Textile":        ["textile", "fabric", "apparel", "garment"],
-    "Food & Bev":     ["food", "beverage", "packaging", "processing"],
 }
 
 def classify_industry(text: str) -> str:
@@ -536,29 +398,21 @@ def classify_industry(text: str) -> str:
     return "Manufacturing"
 
 def clean_company_name(title: str) -> str:
-    """清理公司名稱"""
-    # 移除常見後綴
     title = re.sub(r'\s*[-|]\s*.+$', '', title)
-    title = re.sub(r'\s*(LLC|Inc|Corp|Ltd|Co\.?|Company|Manufacturer)\.?\s*$', '', title, flags=re.IGNORECASE)
+    title = re.sub(r'\s*(LLC|Inc|Corp|Ltd|Co\.?|Company)\.?\s*$', '', title, flags=re.IGNORECASE)
     return title.strip()
 
 def extract_domain(url: str) -> Optional[str]:
-    if not url:
-        return None
+    if not url: return None
     try:
-        if "://" not in url:
-            url = f"https://{url}"
+        if "://" not in url: url = f"https://{url}"
         parsed = urlparse(url)
         domain = parsed.netloc.lower()
-        if domain.startswith("www."):
-            domain = domain[4:]
+        if domain.startswith("www."): domain = domain[4:]
         return domain or None
-    except Exception:
-        return None
+    except: return None
 
 if __name__ == "__main__":
-    # 測試腳本
     async def test():
         await manufacturer_mine("car battery", "US", 1, 1)
-    
     asyncio.run(test())

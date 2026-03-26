@@ -688,11 +688,16 @@ class ScrapeSimpleRequest(BaseModel):
 def trigger_scrape_simple(req: ScrapeSimpleRequest, background_tasks: BackgroundTasks, current_user: models.User = Depends(get_current_user_id)):
     """Simplified scraper with mode selection."""
     # 支援多組關鍵字
-    keywords = req.keywords if req.keywords else ([req.keyword] if req.keyword else ["manufacturer"])
+    if req.keywords:
+        keywords = req.keywords
+    elif req.keyword:
+        # 如果是逗號分隔的字串，將其拆分為列表
+        keywords = [k.strip() for k in req.keyword.split(',')]
+    else:
+        keywords = ["manufacturer"]
     
     if req.miner_mode == "manufacturer":
         import manufacturer_miner
-        # 使用循環執行多個關鍵字（manufacturer_mine 是一次處理一個關鍵字）
         async def run_manufacturer_task():
             for kw in keywords:
                 await manufacturer_miner.manufacturer_mine(kw, req.market, req.pages, current_user.id)
