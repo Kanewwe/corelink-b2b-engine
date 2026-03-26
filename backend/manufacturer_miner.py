@@ -1,7 +1,7 @@
 """
-製造商模式 (Manufacturer Mode v2.6) - Apify 加強版
+製造商模式 (Manufacturer Mode v2.7) - Apify 加強版
 由 Thomasnet 優先，Yellowpages 為備援
-加強：Email 提取與進階去重 (Domain 優先)
+加強：Email 提取、進階去重 (Domain 優先) 與 全域隔離池 (Global Lead Pool) 同步
 """
 
 import asyncio
@@ -13,6 +13,8 @@ from logger import add_log, add_task_log
 import models
 from database import SessionLocal
 from datetime import datetime
+from scrape_utils import sync_from_global_pool, save_to_global_pool
+import ai_service
 
 # ── 公司規模過濾詞（排除大型跨國企業）──
 ENTERPRISE_BLACKLIST = [
@@ -65,7 +67,7 @@ async def search_via_apify_thomasnet(keyword: str, market: str = "US", max_resul
             "includeDetails": True # 深層資訊提取
         }
 
-        # 優先使用 memo23 的 Actor（較穩定）
+        # 優先使用 memo23 的 Actor
         try:
             run = client.actor("memo23/thomasnet-scraper").call(run_input=run_input)
         except Exception:
@@ -107,7 +109,7 @@ async def search_via_apify_thomasnet(keyword: str, market: str = "US", max_resul
                 "company_name": company_name,
                 "website": website,
                 "domain": domain,
-                "snippet": item.get("description", "")[:200],
+                "description": item.get("description", "")[:500],
                 "email": raw_emails[0] if raw_emails else "",
                 "email_candidates": ", ".join(raw_emails),
                 "source": "apify_thomasnet",
@@ -138,7 +140,7 @@ async def manufacturer_mine(
     db = SessionLocal()
     apify_token = get_api_key(db, "apify", user_id)
     
-    add_log(f"🏭 [製造商模式 - v2.6] 開啟探勘：{keyword} | 市場：{market}")
+    add_log(f"🏭 [製造商模式 - v2.7] 開啟探勘：{keyword}")
 
     task_record = models.ScrapeTask(
         user_id=user_id,
@@ -153,19 +155,17 @@ async def manufacturer_mine(
     db.refresh(task_record)
     task_id = task_record.id
 
-    add_task_log(db, task_id, "info", f"製造商模式 (Enhanced) 啟動 | 關鍵字: {keyword}")
+    add_task_log(db, task_id, "info", f"製造商模式 (GlobalPool Sync) 啟動 | 關鍵字: {keyword}")
 
     # Step 1: Thomasnet
     all_companies = await search_via_apify_thomasnet(keyword, market, max_results=40, db=db, user_id=user_id)
 
-    # Step 2: Yellowpages (Fallback with Enhanced Search)
+    # Step 2: Yellowpages (Fallback)
     if len(all_companies) < 15 and apify_token:
         add_task_log(db, task_id, "info", "結果不足，啟動備援 黃頁尋機...", keyword=keyword)
         try:
             from apify_client import ApifyClient
             client = ApifyClient(apify_token)
-            
-            # 使用更推薦的 junipr Actor
             yp_input = {
                 "searchTerms": [f"{keyword} manufacturer"],
                 "location": "United States" if market == "US" else market,
@@ -173,7 +173,6 @@ async def manufacturer_mine(
                 "extractEmails": True,
                 "includeDetails": True
             }
-            
             run = client.actor("junipr/yellow-pages-scraper").call(run_input=yp_input)
             if run and run.get("defaultDatasetId"):
                 yp_items = client.dataset(run["defaultDatasetId"]).list_items().items
@@ -191,98 +190,93 @@ async def manufacturer_mine(
                             "company_name": name,
                             "website": website,
                             "domain": domain,
+                            "description": item.get("description", ""),
                             "email": raw_emails[0] if raw_emails else "",
                             "email_candidates": ", ".join(raw_emails),
-                            "snippet": "",
                             "source": "apify_yellowpages",
                         })
         except Exception as e:
             add_log(f"⚠️ 備援尋機失敗: {str(e)[:80]}", level="warning")
 
     if not all_companies:
-        add_task_log(db, task_id, "warning", "找不到任何公司，模式中止")
         task_record.status = "Completed"
         task_record.completed_at = datetime.utcnow()
-        task_record.leads_found = 0
         db.commit()
         db.close()
-        return {"added": 0, "skipped": 0, "failed": 0}
+        return {"added": 0, "synced": 0, "skipped": 0}
 
-    # 去重 (Domain 優先)
-    seen_domains = set()
-    unique_companies = []
-    for co in all_companies:
-        domain = co.get("domain", "")
-        if domain:
-            if domain not in seen_domains:
-                seen_domains.add(domain)
-                unique_companies.append(co)
-        else:
-            if co["company_name"] not in [c["company_name"] for c in unique_companies]:
-                unique_companies.append(co)
+    stats = {"added": 0, "synced": 0, "skipped": 0, "failed": 0}
+    process_limit = 40
 
-    add_log(f"📊 去重後共 {len(unique_companies)} 家候選製造商")
-
-    stats = {"added": 0, "skipped": 0, "failed": 0}
-    process_limit = 30 if market == "US" else 20
-
-    for co in unique_companies[:process_limit]:
+    for co in all_companies[:process_limit]:
         company_name = co["company_name"]
         domain_found = co.get("domain", "")
         
         try:
-            # ─── 進階去重邏輯 (Domain 優先 -> 名稱) ───
-            existing = None
-            if domain_found:
-                existing = db.query(models.Lead).filter(
-                    models.Lead.domain == domain_found,
-                    models.Lead.user_id == user_id
-                ).first()
+            # ─── v2.7: 全域隔離池同步邏輯 ───
+            lead_obj, is_synced = sync_from_global_pool(db, user_id, domain_found, company_name)
             
-            if not existing:
-                existing = db.query(models.Lead).filter(
-                    models.Lead.company_name == company_name,
-                    models.Lead.user_id == user_id
-                ).first()
-            
-            if existing:
-                add_log(f"  ⏭️ 已存在 (去重跳過)：{company_name}")
+            if lead_obj and not is_synced:
                 stats["skipped"] += 1
                 continue
+            
+            if is_synced:
+                stats["synced"] += 1
+                continue
 
-            # 取出 Email
+            # ─── 全新名單處理 ───
+            desc = co.get("description", "") or f"Manufacturer found via {co.get('source')}"
+            ai_result = ai_service.analyze_company_and_tag(company_name, desc, use_gpt=False, db=db, user_id=user_id)
+            
             email = co.get("email", "")
             candidates = co.get("email_candidates", "")
             
-            # 若 Apify 沒抓到，嘗試 Auto Discovery
             if not email and domain_found:
                 email_result = await find_emails_free(domain_found, company_name)
                 best_email_obj = email_result.get("best_email")
                 email = best_email_obj["email"] if best_email_obj else f"info@{domain_found}"
             
             if not email:
-                add_log(f"  ⚠️ 無法發現 Email：{company_name}")
                 stats["failed"] += 1
                 continue
 
-            # 儲存 Lead
-            lead = models.Lead(
+            # 儲存私有 Lead
+            new_lead = models.Lead(
                 user_id=user_id,
                 company_name=company_name,
                 website_url=co.get("website", ""),
                 domain=domain_found or "",
+                description=desc,
                 contact_email=email,
                 email_candidates=candidates,
-                ai_tag="AUTO-MANUFACTURER-PRO",
+                ai_tag=ai_result.get("Tag", "AUTO-MANUFACTURER-PRO"),
                 status="Scraped",
-                assigned_bd="v2.6-Miner",
+                assigned_bd=ai_result.get("BD", "v2.7-Miner"),
                 extracted_keywords=keyword,
                 scrape_location=market
             )
-            db.add(lead)
+            db.add(new_lead)
             db.commit()
             
-            add_task_log(db, task_id, "success", f"新增 Lead: {company_name} ({email})", keyword=keyword)
+            # 同步回全域池
+            save_to_global_pool(db, {
+                "company_name": company_name,
+                "domain": domain_found,
+                "website_url": co.get("website"),
+                "description": desc,
+                "contact_email": email,
+                "email_candidates": candidates,
+                "ai_tag": ai_result.get("Tag"),
+                "source": co.get("source")
+            })
+            
+            # 連結 global_id
+            global_rec = db.query(models.GlobalLead).filter(models.GlobalLead.domain == domain_found).first()
+            if global_rec:
+                new_lead.global_id = global_rec.id
+                db.commit()
+
+            add_task_log(db, task_id, "success", f"新增 Lead: {company_name}", keyword=keyword)
             stats["added"] += 1
             
         except Exception as e:
@@ -291,11 +285,11 @@ async def manufacturer_mine(
 
     # 更新任務結束
     task_record.status = "Completed"
-    task_record.leads_found = stats["added"]
+    task_record.leads_found = stats["added"] + stats["synced"]
     task_record.completed_at = datetime.utcnow()
     db.commit()
     
-    summary = f"製造商模式結束 | 新增:{stats['added']} 跳過:{stats['skipped']} 失敗:{stats['failed']}"
+    summary = f"製造商模式結束 | 新增:{stats['added']} 同步:{stats['synced']} 跳過:{stats['skipped']}"
     add_log(f"🏁 [任務 #{task_id}] {summary}")
     add_task_log(db, task_id, "success", summary)
     

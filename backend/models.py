@@ -495,7 +495,57 @@ class Lead(Base):
     employee_count = Column(String, nullable=True)
     revenue_range = Column(String, nullable=True)
 
+    # 關聯到全域池 (Global Pool)
+    global_id = Column(Integer, ForeignKey("global_leads.id"), nullable=True)
+
     email_campaigns = relationship("EmailCampaign", back_populates="lead")
+
+
+class GlobalLead(Base):
+    """
+    全域隔離資料池 (Lead Isolation Pool)
+    存放全系統唯一的公司資訊，供所有使用者共享參考。
+    """
+    __tablename__ = "global_leads"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_name = Column(String(200), index=True)
+    domain = Column(String(100), index=True, unique=True) # Domain 是唯一鍵
+    website_url = Column(String(500))
+    description = Column(Text)
+    
+    # 聯絡資訊
+    contact_email = Column(String(255))
+    email_candidates = Column(Text)
+    phone = Column(String(50))
+    address = Column(Text)
+    
+    # AI 標籤與產業別
+    ai_tag = Column(String(100))
+    industry = Column(String(100))
+    
+    source = Column(String(100)) # e.g., 'apify_thomasnet', 'apify_yellowpages'
+    
+    last_scraped_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "company_name": self.company_name,
+            "domain": self.domain,
+            "website_url": self.website_url,
+            "description": self.description,
+            "contact_email": self.contact_email,
+            "email_candidates": self.email_candidates,
+            "phone": self.phone,
+            "address": self.address,
+            "ai_tag": self.ai_tag,
+            "industry": self.industry,
+            "source": self.source,
+            "last_scraped_at": self.last_scraped_at.isoformat() if self.last_scraped_at else None
+        }
 
 
 class EmailCampaign(Base):

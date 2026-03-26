@@ -10,55 +10,61 @@ def run_migrations():
     import sqlalchemy
     
     tables_to_patch = {
-        "users": ["role", "vendor_id"],
-        "vendors": ["user_id", "company_name", "pricing_config"],
+        "users": ["role", "reset_token", "reset_expires", "verify_token"],
         "leads": [
             "user_id", 
+            "global_id",
             "email_sent", 
             "email_sent_at", 
-            "contact_name", 
-            "contact_role", 
             "contact_email", 
-            "contact_confidence",
             "website_url",
             "domain",
             "email_candidates",
-            "mx_valid",
+            "ai_tag",
             "description",
             "extracted_keywords",
-            "assigned_bd",
-            "phone",
-            "address",
-            "city",
-            "state",
-            "zip_code",
-            "categories",
-            "source_domain",
-            "scrape_location",
-            "employee_count",
-            "revenue_range"
+            "scrape_location"
         ],
-        "email_campaigns": ["user_id", "lead_id"],
-        "email_templates": ["user_id"],
-        "email_logs": ["user_id"]
+        "scrape_tasks": ["miner_mode"],
+        "system_settings": ["user_id", "key", "value"]
     }
 
     print(f"🚀 Starting migration on: {engine.url.render_as_string(hide_password=True)}")
     
     with engine.connect() as conn:
-        # Check existing tables
+        # 1. Ensure global_leads table exists (The Isolation Pool)
+        is_pg = "postgresql" in str(engine.url)
+        create_global_table = """
+            CREATE TABLE IF NOT EXISTS global_leads (
+                id SERIAL PRIMARY KEY,
+                company_name VARCHAR(200),
+                domain VARCHAR(100) UNIQUE,
+                website_url VARCHAR(500),
+                description TEXT,
+                contact_email VARCHAR(255),
+                email_candidates TEXT,
+                phone VARCHAR(50),
+                address TEXT,
+                ai_tag VARCHAR(100),
+                industry VARCHAR(100),
+                source VARCHAR(100),
+                last_scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """
+        if not is_pg:
+            create_global_table = create_global_table.replace("SERIAL PRIMARY KEY", "INTEGER PRIMARY KEY AUTOINCREMENT")
+            create_global_table = create_global_table.replace("TIMESTAMP", "DATETIME")
+        
         try:
-            if "postgresql" in str(engine.url):
-                res = conn.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema='public'"))
-                tables = [row[0] for row in res.fetchall()]
-                print(f"📊 Detected tables: {', '.join(tables)}")
-            else:
-                res = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'"))
-                tables = [row[0] for row in res.fetchall()]
-                print(f"📊 Detected tables: {', '.join(tables)}")
+            conn.execute(text(create_global_table))
+            conn.commit()
+            print("✅ global_leads table ensured")
         except Exception as e:
-            print(f"⚠️ Could not list tables: {e}")
+            print(f"⚠️ Error ensuring global_leads: {e}")
 
+        # 2. Patch existing tables
         for table, columns in tables_to_patch.items():
             print(f"🔎 Checking table: {table}")
             for column in columns:

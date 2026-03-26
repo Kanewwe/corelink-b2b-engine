@@ -36,25 +36,19 @@ def analyze_company_and_tag(company_name: str, description: str, use_gpt: bool =
     【公司簡介】: {description}
 
     分類規則：
-    1. 若需要客製化線束或電纜組件（wire, harness, cable assembly），請標籤為 NA-CABLE, BD 填 Johnny。
-    2. 若生產設備需要銘牌或識別標籤（label, tag, metal marker, identification），請標籤為 NA-NAMEPLATE, BD 填 Richard。
-    3. 若開發新產品需要塑膠射出成型或外殼零件（molding, parts, prototyping），請標籤為 NA-PLASTIC, BD 填 Jason。
+    1. 工業製造: IND-MANUFACTURING (工廠), IND-MACHINING (加工), IND-LABEL (標籤/銘牌)
+    2. 電機電線: ELEC-CABLE (線束), ELEC-CONNECTOR (連接器)
+    3. 塑膠化學: CHEM-PLASTIC (材料), CHEM-MOLDING (射出成型)
+    4. 汽車工業: AUTO-PARTS (零件), AUTO-ENGINE (引擎), AUTO-ELECTRICAL (電系)
+    5. 電子科技: TECH-SEMICONDUCTOR (半導體), TECH-PCB (電路板), TECH-IOT (物聯網)
+    6. 醫療健康: HEALTH-MEDICAL (醫材), HEALTH-PHARMA (製藥)
+    7. 物流快遞: LOGI-WAREHOUSE (倉儲), LOGI-FREIGHT (貨運)
     
-    汽車零組件行業分類（BD 皆為 General）：
-    4. 引擎相關零件（engine, piston, crankshaft, camshaft, valve, timing belt）→ AUTO-ENGINE
-    5. 煞車系統（brake, rotor, caliper, pad, abs）→ AUTO-BRAKE
-    6. 懸吊系統（suspension, shock, strut, spring, control arm）→ AUTO-SUSPENSION
-    7. 汽車電系（alternator, starter, battery, ignition, spark plug, sensor, ecu）→ AUTO-ELECTRICAL
-    8. 車身鈑金（bumper, fender, door, hood, grille, headlight, windshield）→ AUTO-BODY
-    9. 內裝零件（seat, steering wheel, dashboard, carpet, trim, console）→ AUTO-INTERIOR
-    10. 變速箱系統（transmission, gearbox, clutch, drive shaft, differential）→ AUTO-TRANSMISSION
-    11. 排氣系統（exhaust, muffler, catalytic converter, manifold）→ AUTO-EXHAUST
-    12. 冷卻系統（radiator, thermostat, coolant, heater, fan）→ AUTO-COOLING
-
-    此外，也請從【公司簡介】中精準萃取 2 到 4 個技術或終端應用的「核心業務關鍵字」 (例如: wire harness, UL certified, plastic parts 等)，以陣列回傳。
+    技術關鍵字：
+    也請從【公司簡介】中精準萃取 2 到 4 個技術或終端應用的「核心業務關鍵字」。
 
     輸出格式要求：
-    {{"Tag": "[對應標籤]", "BD": "[對應的BD]", "Keywords": ["關鍵字1", "關鍵字2"], "Reason": "[解釋為何分到此類]"}}
+    {"Tag": "[對應標籤]", "BD": "[對應的BD]", "Keywords": ["關鍵字1", "關鍵字2"], "Reason": "[解釋為何分到此類]"}
     """
     
     try:
@@ -94,17 +88,17 @@ def generate_outreach_email(company_name: str, description: str, tag: str, bd_na
     核心關鍵字: {', '.join(keywords)}
 
     【產品線策略與指定模板】
-    若為 NA-CABLE (訴求：Urgent):
+    若為 ELEC-CABLE 或 ELEC-CONNECTOR (BD: Johnny):
     - 署名：Johnny
-    - 核心模板：We support industrial equipment and system manufacturers with custom cable assemblies from Taiwan, helping improve sourcing flexibility. ✔ Custom wire harness ✔ Flexible MOQ ✔ Fast turnaround for urgent projects. If you have any ongoing builds, feel free to share drawings.
+    - 核心模板：We support industrial equipment manufacturers with custom cable assemblies and high-reliability connectors from Taiwan. ✔ Flexible MOQ ✔ Fast turnaround ✔ UL/IPC certified.
     
-    若為 NA-NAMEPLATE (訴求：Stable):
+    若為 IND-LABEL (BD: Richard):
     - 署名：Richard
-    - 核心模板：We support OEM manufacturers with custom industrial nameplates from Taiwan, ensuring consistent quality. ✔ Metal & plastic nameplates ✔ Durable materials ✔ Flexible MOQ. If you have equipment projects requiring nameplates, we'd be glad to support.
-
-    若為 NA-PLASTIC (訴求：Development):
+    - 核心模板：We provide industrial-grade identification solutions, including metal nameplates, serial tags, and warning labels that withstand harsh environments.
+    
+    若為 CHEM-PLASTIC 或 CHEM-MOLDING (BD: Jason):
     - 署名：Jason
-    - 核心模板：We support product teams with custom plastic parts (injection molding / enclosures) from Taiwan. ✔ Prototype to low-volume ✔ Flexible tooling ✔ Fast sampling and iteration support. If you have new product projects, we'd be happy to assist.
+    - 核心模板：Specializing in custom plastic injection molding and precision parts for OEM applications. From prototyping to bulk production, we deliver high-quality components.
 
     【撰寫指示】：
     1. 信件主旨（Subject）必須具有吸引力，並包含客戶的公司名稱。
