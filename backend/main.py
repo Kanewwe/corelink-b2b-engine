@@ -716,7 +716,20 @@ def trigger_scrape_simple(req: ScrapeSimpleRequest, background_tasks: Background
         return {"message": f"Manufacturer Mode mining started for {req.market} with {len(keywords)} keywords"}
     else:
         import scrape_simple as scrape_mod
-        background_tasks.add_task(scrape_mod.scrape_simple, req.market, req.pages, keywords, current_user.id)
+        import asyncio
+        
+        def run_yellowpages_task_sync():
+            """同步包裝函式，讓 FastAPI BackgroundTasks 能正確執行任務"""
+            # 即使 scrape_simple 是 sync，但在 FastAPI 背景執行緒中，
+            # 若內層有 asyncio.run() 可能會與父執行緒 loop 衝突，故採隔離 loop 模式。
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                scrape_mod.scrape_simple(req.market, req.pages, keywords, current_user.id)
+            finally:
+                loop.close()
+        
+        background_tasks.add_task(run_yellowpages_task_sync)
         return {"message": f"Yellowpages Mode mining started for {req.market} with {len(keywords)} keywords"}
 
 @app.get("/api/search-history")
@@ -1194,8 +1207,25 @@ def retry_scrape_task(
     db.commit()
     
     # 啟動背景任務
-    import scrape_simple as scrape_mod
-    background_tasks.add_task(scrape_mod.scrape_simple, task.market, task.pages_requested, keywords, task.user_id)
+    if task.miner_mode == "manufacturer":
+        import manufacturer_miner
+        import asyncio
+        
+        def run_retry_manufacturer_task_sync():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                for kw in keywords:
+                    loop.run_until_complete(
+                        manufacturer_miner.manufacturer_mine(kw, task.market, task.pages_requested, task.user_id)
+                    )
+            finally:
+                loop.close()
+        
+        background_tasks.add_task(run_retry_manufacturer_task_sync)
+    else:
+        import scrape_simple as scrape_mod
+        background_tasks.add_task(scrape_mod.scrape_simple, task.market, task.pages_requested, keywords, task.user_id)
     
     return {"message": f"已建立重試任務 #{new_task.id}", "new_task_id": new_task.id}
 
