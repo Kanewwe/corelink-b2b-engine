@@ -245,8 +245,15 @@ const DetailModal: React.FC<{ memberId: number; onClose: () => void; onUpdated: 
                           const resp = await updateAdminMember(detail.id, { plan: newPlan });
                           if (resp.ok) {
                             toast.success('方案已更新');
-                            fetchDetail(detail.id);
-                            fetchMembers();
+                            // Refresh detail data
+                            const updated = await getAdminMemberDetail(detail.id);
+                            if (updated.ok) {
+                              const d = await updated.json();
+                              setDetail(d);
+                              setEditRole(d.role);
+                            }
+                            // Refresh parent list
+                            onUpdated();
                           } else {
                             toast.error('更新失敗');
                           }

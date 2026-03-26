@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { getAdminStats, getAdminMembers } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { 
-  BarChart3, Users, TrendingUp, Mail, Search, 
-  Zap, Package, CreditCard, Activity, Calendar,
+  Users, Mail, Search, 
+  Zap, Package, Activity,
   ArrowUpRight, ArrowDownRight, RefreshCw
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -30,7 +30,7 @@ interface SystemStats {
 }
 
 const AdminDashboard: React.FC = () => {
-  const { user } = useAuth();
+  useAuth(); // for auth context
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
