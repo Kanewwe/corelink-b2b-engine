@@ -162,14 +162,18 @@ async def catch_exceptions_middleware(request: Request, call_next):
         return await call_next(request)
     except Exception as e:
         import traceback
-        print(f"❌ CRITICAL ERROR: {str(e)}")
-        print(traceback.format_exc())
+        error_msg = f"❌ CRITICAL ERROR: {str(e)}\n{traceback.format_exc()}"
+        add_log(error_msg)
         raise e
 
 # --- Health Check ---
 @app.get("/api/health")
 def health_check():
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+
+@app.get("/api/debug/logs")
+def get_debug_logs():
+    return {"logs": SYSTEM_LOGS}
 
 # --- Pydantic Schemas ---
 class LeadCreateReq(BaseModel):
