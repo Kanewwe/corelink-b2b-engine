@@ -156,6 +156,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def catch_exceptions_middleware(request: Request, call_next):
+    try:
+        return await call_next(request)
+    except Exception as e:
+        import traceback
+        print(f"❌ CRITICAL ERROR: {str(e)}")
+        print(traceback.format_exc())
+        raise e
+
 # --- Health Check ---
 @app.get("/api/health")
 def health_check():
