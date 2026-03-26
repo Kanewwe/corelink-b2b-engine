@@ -1089,6 +1089,112 @@ def get_admin_stats(db: Session = Depends(get_db), current_user: models.User = D
         }
     }
 
+# ══════════════════════════════════════════
+# Admin: 爬蟲監控 API
+# ══════════════════════════════════════════
+
+@app.get("/api/admin/scrape-tasks")
+def list_scrape_tasks(
+    status: Optional[str] = None,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth_module.require_role(["admin"]))
+):
+    """管理員：查看所有爬蟲任務"""
+    query = db.query(models.ScrapeTask)
+    if status:
+        query = query.filter(models.ScrapeTask.status == status)
+    tasks = query.order_by(models.ScrapeTask.id.desc()).limit(limit).all()
+    return [t.to_dict(include_logs=False) for t in tasks]
+
+@app.get("/api/admin/scrape-tasks/{task_id}")
+def get_scrape_task_detail(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth_module.require_role(["admin"]))
+):
+    """管理員：查看爬蟲任務詳情 + 完整日誌"""
+    task = db.query(models.ScrapeTask).filter(models.ScrapeTask.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="找不到該任務")
+    return task.to_dict(include_logs=True)
+
+@app.get("/api/admin/scrape-tasks/{task_id}/logs")
+def get_scrape_task_logs(
+    task_id: int,
+    level: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth_module.require_role(["admin"]))
+):
+    """管理員：查看任務日誌"""
+    query = db.query(models.ScrapeLog).filter(models.ScrapeLog.task_id == task_id)
+    if level:
+        query = query.filter(models.ScrapeLog.level == level)
+    logs = query.order_by(models.ScrapeLog.id.asc()).all()
+    return [log.to_dict() for log in logs]
+
+@app.put("/api/admin/scrape-tasks/{task_id}/retry")
+def retry_scrape_task(
+    task_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth_module.require_role(["admin"]))
+):
+    """管理員：重試失敗的爬蟲任務"""
+    task = db.query(models.ScrapeTask).filter(models.ScrapeTask.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="找不到該任務")
+    if task.status not in ("Failed", "Completed"):
+        raise HTTPException(status_code=400, detail="只能重試失敗或已完成的任務")
+    
+    # 建立新任務
+    keywords = task.keywords.split(",") if task.keywords else ["manufacturer"]
+    new_task = models.ScrapeTask(
+        user_id=task.user_id,
+        market=task.market,
+        keywords=task.keywords,
+        miner_mode=task.miner_mode,
+        pages_requested=task.pages_requested,
+        status="Running"
+    )
+    db.add(new_task)
+    db.commit()
+    db.refresh(new_task)
+    
+    # 標記舊任務
+    task.status = f"Retried->#{new_task.id}"
+    db.commit()
+    
+    # 啟動背景任務
+    import scrape_simple as scrape_mod
+    background_tasks.add_task(scrape_mod.scrape_simple, task.market, task.pages_requested, keywords, task.user_id)
+    
+    return {"message": f"已建立重試任務 #{new_task.id}", "new_task_id": new_task.id}
+
+@app.delete("/api/admin/scrape-tasks/stale")
+def cleanup_stale_tasks(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth_module.require_role(["admin"]))
+):
+    """管理員：清理卡住的 Running 任務（超過 10 分鐘）"""
+    from datetime import datetime, timedelta
+    threshold = datetime.utcnow() - timedelta(minutes=10)
+    
+    stale = db.query(models.ScrapeTask).filter(
+        models.ScrapeTask.status == "Running",
+        models.ScrapeTask.started_at < threshold
+    ).all()
+    
+    count = 0
+    for task in stale:
+        task.status = "Failed"
+        task.error_message = "自動標記為失敗（超時超過 10 分鐘，可能被系統中斷）"
+        task.completed_at = datetime.utcnow()
+        count += 1
+    
+    db.commit()
+    return {"message": f"已清理 {count} 個卡住的任務", "cleaned": count}
+
 @app.put("/api/templates/{template_id}", response_model=EmailTemplateResponse)
 def update_template(template_id: int, template: EmailTemplateCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
     db_template = db.query(models.EmailTemplate).filter(

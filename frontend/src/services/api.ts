@@ -131,3 +131,26 @@ export const resetMemberPassword = (id: number) => fetchWithAuth(`/admin/members
   method: 'POST'
 });
 export const getAdminStats = () => fetchWithAuth('/admin/stats');
+
+// ── Admin: 爬蟲監控 ──
+export const getAdminScrapeTasks = (status?: string, limit: number = 50) => {
+  const params = new URLSearchParams();
+  if (status) params.append('status', status);
+  params.append('limit', limit.toString());
+  return fetchWithAuth(`/admin/scrape-tasks?${params}`);
+};
+
+export const getAdminScrapeTaskDetail = (taskId: number) => 
+  fetchWithAuth(`/admin/scrape-tasks/${taskId}`);
+
+export const getAdminScrapeTaskLogs = (taskId: number, level?: string) => {
+  const params = new URLSearchParams();
+  if (level) params.append('level', level);
+  return fetchWithAuth(`/admin/scrape-tasks/${taskId}/logs?${params}`);
+};
+
+export const retryAdminScrapeTask = (taskId: number) =>
+  fetchWithAuth(`/admin/scrape-tasks/${taskId}/retry`, { method: 'PUT' });
+
+export const cleanupStaleTasks = () =>
+  fetchWithAuth('/admin/scrape-tasks/stale', { method: 'DELETE' });

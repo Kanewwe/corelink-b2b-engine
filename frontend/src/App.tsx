@@ -17,6 +17,7 @@ import SmtpSettings from './pages/SmtpSettings';
 import SystemSettings from './pages/SystemSettings';
 import MemberAdmin from './pages/MemberAdmin';
 import AdminDashboard from './pages/AdminDashboard';
+import ScrapeMonitor from './pages/ScrapeMonitor';
 
 function App() {
   return (
@@ -40,6 +41,11 @@ function App() {
             <Route path="admin/dashboard" element={
               <RoleGuard require={['admin']}>
                 <AdminDashboard />
+              </RoleGuard>
+            } />
+            <Route path="admin/scrape-monitor" element={
+              <RoleGuard require={['admin']}>
+                <ScrapeMonitor />
               </RoleGuard>
             } />
             <Route path="admin/vendors" element={

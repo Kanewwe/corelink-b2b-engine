@@ -7,7 +7,7 @@ import os
 import time
 import models
 from database import SessionLocal
-from logger import add_log
+from logger import add_log, add_task_log
 
 # Apify 整合
 try:
@@ -15,7 +15,6 @@ try:
     APIFY_AVAILABLE = True
 except ImportError:
     APIFY_AVAILABLE = False
-    add_log("⚠️ apify-client 未安裝，將使用 Mock Mode", level="warning")
 
 
 def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, user_id: int = None):
@@ -40,73 +39,95 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
     db.add(task_record)
     db.commit()
     db.refresh(task_record)
+    task_id = task_record.id
 
     stats = {"saved": 0, "skipped": 0, "errors": 0}
     
-    add_log(f"🔍 [Apify 爬蟲] 開始任務")
+    add_log(f"🔍 [Apify 爬蟲] 開始任務 #{task_id}")
     add_log(f"   Market: {market}, Keywords: {keywords}, Pages: {pages}")
+    add_task_log(db, task_id, "info", f"任務啟動 | 市場: {market} | 關鍵字: {keywords} | 頁數: {pages}")
     
-    for keyword in keywords:
-        add_log(f"📌 正在爬取關鍵字: {keyword}")
-        
-        for page in range(1, pages + 1):
-            try:
-                results = scrape_keyword_page_apify(keyword, page, market)
-                
-                for company in results:
-                    name = company.get("name", "")
-                    domain = company.get("domain", "")
-                    
-                    if not name:
-                        continue
-                    
-                    # Check if exists
-                    existing = db.query(models.Lead).filter(
-                        models.Lead.company_name == name
-                    ).first()
-                    
-                    if existing:
-                        stats["skipped"] += 1
-                        continue
-                    
-                    # Create lead
-                    lead = models.Lead(
-                        user_id=user_id,
-                        company_name=name,
-                        website_url=company.get("url", ""),
-                        domain=domain,
-                        phone=company.get("phone", ""),
-                        address=company.get("address", ""),
-                        ai_tag="AUTO-UNKNOWN",
-                        status="Scraped"
-                    )
-                    db.add(lead)
-                    db.commit()
-                    stats["saved"] += 1
-                    add_log(f"✅ [匯入] {name}")
-                
-                add_log(f"   第 {page}/{pages} 頁完成 (取得 {len(results)} 筆)")
-                
-                # Rate limiting
-                time.sleep(2)
-                
-            except Exception as e:
-                stats["errors"] += 1
-                add_log(f"❌ 爬取第 {page} 頁失敗: {str(e)}", level="error")
+    if not APIFY_AVAILABLE:
+        add_task_log(db, task_id, "error", "apify-client 未安裝，降級 Mock Mode")
     
-    # Update Task Record
-    task_record.status = "Completed"
-    task_record.leads_found = stats["saved"]
-    from datetime import datetime
-    task_record.completed_at = datetime.utcnow()
     try:
+        for ki, keyword in enumerate(keywords):
+            add_log(f"📌 正在爬取關鍵字 ({ki+1}/{len(keywords)}): {keyword}")
+            add_task_log(db, task_id, "info", f"開始爬取關鍵字: {keyword} ({ki+1}/{len(keywords)})", keyword=keyword)
+            
+            for page in range(1, pages + 1):
+                try:
+                    add_log(f"   第 {page}/{pages} 頁開始...")
+                    
+                    results = scrape_keyword_page_apify(keyword, page, market, db, task_id)
+                    
+                    for company in results:
+                        name = company.get("name", "")
+                        domain = company.get("domain", "")
+                        
+                        if not name:
+                            continue
+                        
+                        # Check if exists
+                        existing = db.query(models.Lead).filter(
+                            models.Lead.company_name == name
+                        ).first()
+                        
+                        if existing:
+                            stats["skipped"] += 1
+                            continue
+                        
+                        # Create lead
+                        lead = models.Lead(
+                            user_id=user_id,
+                            company_name=name,
+                            website_url=company.get("url", ""),
+                            domain=domain,
+                            phone=company.get("phone", ""),
+                            address=company.get("address", ""),
+                            ai_tag="AUTO-UNKNOWN",
+                            status="Scraped"
+                        )
+                        db.add(lead)
+                        db.commit()
+                        stats["saved"] += 1
+                    
+                    add_log(f"   第 {page}/{pages} 頁完成 (取得 {len(results)} 筆)")
+                    add_task_log(
+                        db, task_id, "success",
+                        f"第 {page}/{pages} 頁完成 | 取得 {len(results)} 筆 | 新增 {stats['saved']} | 跳過 {stats['skipped']}",
+                        keyword=keyword, page=page, items_found=len(results)
+                    )
+                    
+                    # Rate limiting
+                    time.sleep(2)
+                    
+                except Exception as e:
+                    stats["errors"] += 1
+                    err_msg = f"爬取第 {page} 頁失敗: {str(e)[:200]}"
+                    add_log(f"❌ {err_msg}")
+                    add_task_log(db, task_id, "error", err_msg, keyword=keyword, page=page)
+        
+        # Update Task Record
+        task_record.status = "Completed"
+        task_record.leads_found = stats["saved"]
+        from datetime import datetime
+        task_record.completed_at = datetime.utcnow()
         db.commit()
-        add_log(f"🏁 [完成] 新增:{stats['saved']} 跳過:{stats['skipped']} 錯誤:{stats['errors']}")
+        
+        summary = f"完成 | 新增:{stats['saved']} 跳過:{stats['skipped']} 錯誤:{stats['errors']}"
+        add_log(f"🏁 [任務 #{task_id}] {summary}")
+        add_task_log(db, task_id, "success", summary, items_found=stats["saved"])
         return stats
+        
     except Exception as e:
-        add_log(f"❌ [任務失敗] {str(e)}", level="error")
+        err_msg = f"任務失敗: {str(e)[:300]}"
+        add_log(f"❌ [任務 #{task_id}] {err_msg}")
+        add_task_log(db, task_id, "error", err_msg)
+        
         try:
             task_record.status = "Failed"
+            task_record.error_message = str(e)[:500]
             from datetime import datetime
             task_record.completed_at = datetime.utcnow()
             db.commit()
@@ -117,7 +138,7 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
         db.close()
 
 
-def scrape_keyword_page_apify(keyword: str, page: int, market: str = "US") -> list:
+def scrape_keyword_page_apify(keyword: str, page: int, market: str = "US", db=None, task_id: int = None) -> list:
     """
     使用 Apify 官方 Yellow Pages Actor 爬取真實資料
     Actor ID: automation-lab/yellowpages-scraper
@@ -125,7 +146,9 @@ def scrape_keyword_page_apify(keyword: str, page: int, market: str = "US") -> li
     api_token = os.getenv("APIFY_API_TOKEN")
     
     if not api_token or not APIFY_AVAILABLE:
-        add_log("⚠️ Apify 未設定，啟動 Mock Mode", level="warning")
+        add_log("⚠️ Apify 未設定，啟動 Mock Mode")
+        if db and task_id:
+            add_task_log(db, task_id, "warning", "Apify 未設定或不可用，降級 Mock Mode", keyword=keyword, page=page)
         return get_mock_results(keyword, page)
     
     client = ApifyClient(api_token)
@@ -146,7 +169,7 @@ def scrape_keyword_page_apify(keyword: str, page: int, market: str = "US") -> li
     run_input = {
         "searchTerms": keyword,
         "location": location,
-        "maxResults": 30 * page,  # 每頁約 30 筆
+        "maxResults": 30 * page,
     }
     
     try:
@@ -156,7 +179,9 @@ def scrape_keyword_page_apify(keyword: str, page: int, market: str = "US") -> li
         run = client.actor("automation-lab/yellowpages-scraper").call(run_input=run_input)
         
         if not run:
-            add_log("⚠️ Apify Actor 執行失敗，降級 Mock Mode", level="warning")
+            add_log("⚠️ Apify Actor 執行失敗，降級 Mock Mode")
+            if db and task_id:
+                add_task_log(db, task_id, "warning", "Apify Actor 執行回傳 None，降級 Mock Mode", keyword=keyword, page=page)
             return get_mock_results(keyword, page)
         
         # 取回結果
@@ -192,7 +217,10 @@ def scrape_keyword_page_apify(keyword: str, page: int, market: str = "US") -> li
         return results
         
     except Exception as e:
-        add_log(f"❌ Apify 錯誤: {str(e)[:100]}，降級 Mock Mode", level="error")
+        err_msg = f"Apify 錯誤: {str(e)[:200]}，降級 Mock Mode"
+        add_log(f"❌ {err_msg}")
+        if db and task_id:
+            add_task_log(db, task_id, "error", err_msg, keyword=keyword, page=page)
         return get_mock_results(keyword, page)
 
 
@@ -200,7 +228,7 @@ def get_mock_results(keyword: str, page: int) -> list:
     """
     Mock Mode - 當 Apify 失敗時的降級方案
     """
-    add_log(f"💡 [Mock Mode] 生成測試資料...", level="info")
+    add_log(f"💡 [Mock Mode] 生成測試資料...")
     results = []
     for i in range(1, 11):
         results.append({

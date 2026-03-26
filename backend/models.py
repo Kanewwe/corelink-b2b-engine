@@ -357,13 +357,63 @@ class ScrapeTask(Base):
     
     status = Column(String(50), default="Running") # Running, Completed, Failed
     leads_found = Column(Integer, default=0)
+    error_message = Column(Text, nullable=True)
     
     started_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
 
+    # 關聯日誌
+    logs = relationship("ScrapeLog", back_populates="task", order_by="ScrapeLog.id")
+
+    def to_dict(self, include_logs=False):
+        data = {
+            "id": self.id,
+            "user_id": self.user_id,
+            "market": self.market,
+            "keywords": self.keywords,
+            "miner_mode": self.miner_mode,
+            "pages_requested": self.pages_requested,
+            "status": self.status,
+            "leads_found": self.leads_found or 0,
+            "error_message": self.error_message,
+            "started_at": self.started_at.strftime("%Y-%m-%d %H:%M:%S") if self.started_at else None,
+            "completed_at": self.completed_at.strftime("%Y-%m-%d %H:%M:%S") if self.completed_at else None,
+        }
+        if include_logs:
+            data["logs"] = [log.to_dict() for log in self.logs]
+        return data
 
 
-    completed_at = Column(DateTime, nullable=True)
+class ScrapeLog(Base):
+    """Detailed log entries for scraping tasks"""
+    __tablename__ = "scrape_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("scrape_tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    level = Column(String(20), default="info")  # info, warning, error, success
+    message = Column(Text, nullable=False)
+    
+    # 可選的元數據
+    keyword = Column(String(255), nullable=True)
+    page = Column(Integer, nullable=True)
+    items_found = Column(Integer, nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    task = relationship("ScrapeTask", back_populates="logs")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "task_id": self.task_id,
+            "level": self.level,
+            "message": self.message,
+            "keyword": self.keyword,
+            "page": self.page,
+            "items_found": self.items_found,
+            "created_at": self.created_at.strftime("%H:%M:%S") if self.created_at else None,
+        }
 
 
 class Vendor(Base):

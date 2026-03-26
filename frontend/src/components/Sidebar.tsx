@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   Search, FileText, Send, BarChart2, Clock, Settings, Users, LogOut, Cpu, UserCog,
-  ChevronLeft, ChevronRight, Monitor, type LucideIcon
+  ChevronLeft, ChevronRight, Monitor, Bug, type LucideIcon
 } from 'lucide-react';
 
 interface NavItemData {
@@ -50,6 +50,7 @@ const NAV_SECTIONS: NavSection[] = [
     adminOnly: true,
     items: [
       { to: '/admin/dashboard', icon: Monitor, label: '系統監控' },
+      { to: '/admin/scrape-monitor', icon: Bug, label: '爬蟲監控' },
       { to: '/admin/members', icon: UserCog, label: '會員管理' },
       { to: '/admin/vendors', icon: Users, label: '廠商管理' },
       { to: '/admin/settings', icon: Cpu, label: '系統控制中心' },
