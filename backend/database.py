@@ -52,6 +52,7 @@ def init_db():
         from sqlalchemy import text
         with engine.connect() as conn:
             schema_name = "uat" if APP_ENV == "uat" else "public"
+            print(f"DEBUG: database.py init_db using schema_name={schema_name}, env={os.getenv('APP_ENV')}")
             if schema_name != "public":
                 print(f"🛠️ [Database] Ensuring schema '{schema_name}' exists...")
                 conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema_name}"))

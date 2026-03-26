@@ -700,9 +700,12 @@ def trigger_scrape_simple(req: ScrapeSimpleRequest, background_tasks: Background
 @app.get("/api/search-history")
 def get_search_history(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
     """獲取用戶的所有探勘歷史記錄"""
+    import os
+    print(f"DEBUG: get_search_history for user_id={current_user.id}, email={current_user.email}, env={os.getenv('APP_ENV')}")
     tasks = db.query(models.ScrapeTask).filter(
         models.ScrapeTask.user_id == current_user.id
     ).order_by(models.ScrapeTask.id.desc()).all()
+    print(f"DEBUG: Found {len(tasks)} tasks")
     
     return [
         {
