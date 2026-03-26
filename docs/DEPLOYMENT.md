@@ -115,6 +115,7 @@ CNAME   www   →   your-service.onrender.com
 ### Required
 ```bash
 DATABASE_URL=postgresql://user:password@host:5432/dbname
+APP_ENV=production  # 或 uat
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
 ADMIN_PASSWORD=your_secure_password
 APP_BASE_URL=https://your-domain.com

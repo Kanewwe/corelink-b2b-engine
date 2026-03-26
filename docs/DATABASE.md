@@ -249,6 +249,18 @@ CREATE INDEX idx_leads_user ON leads(user_id);
 CREATE INDEX idx_email_logs_uuid ON email_logs(log_uuid);
 ```
 
+## Deployment Environment Variables
+
+| 設定 | 值 | 說明 |
+|------|-----|------|
+| **Name** | `linkora-api` (PRD) / `linkora-api-uat` (UAT) | 服務名稱 |
+| **Region** | `oregon` (與資料庫同區) | 部署區域 |
+| **Runtime** | `Docker` | 執行環境 |
+| **Branch** | `prd` (正式) / `uat` (測試) | Git 分支對應 |
+| `DATABASE_URL` | (from PostgreSQL) | PostgreSQL 連線字串 |
+| `APP_ENV` | `production` 或 `uat` | 環境切換 (Schema 選項) |
+| `OPENAI_API_KEY` | `sk-...` | OpenAI API Key |
+
 ## Migration from v1.0
 
 ```sql
@@ -273,4 +285,23 @@ ALTER TABLE leads ALTER COLUMN user_id SET NOT NULL;
 ALTER TABLE email_campaigns ALTER COLUMN user_id SET NOT NULL;
 ALTER TABLE email_templates ALTER COLUMN user_id SET NOT NULL;
 ALTER TABLE email_logs ALTER COLUMN user_id SET NOT NULL;
+```
+
+## Migration to v2.5 (PostgreSQL)
+
+本專案已全面遷移至 PostgreSQL。詳細的環境管理（PRD/UAT Schema 切換）請參閱：
+- **[DATABASE_ENV.md](./DATABASE_ENV.md)**
+
+### 手動遷移步驟 (v1.0 → v2.5)
+
+```sql
+-- 1. 建立 UAT Schema (如需要)
+CREATE SCHEMA IF NOT EXISTS uat;
+
+-- 2. 修改 Search Path (預設為 public)
+SET search_path TO public;
+
+-- 3. 套用累積的欄位變更 (見 migrations.py)
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS user_id INT;
+-- ... 其他變更
 ```

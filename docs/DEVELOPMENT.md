@@ -33,7 +33,7 @@ The lifecycle follows a **Test-Driven & UAT-First** approach to maximize platfor
 ### Phase 4: Promotion to Production (Branch: `prd`)
 - Only after obtaining User approval, the `uat` branch is merged into `prd`.
 - Merge and Push: `git checkout prd` -> `git merge uat` -> `git push origin prd`.
-- Render automatically updates the **Live Production Services**.
+- Render automatically updates the **Live Production Services** (會自動使用 `APP_ENV=production` 並連至 `public` schema)。
 
 ---
 

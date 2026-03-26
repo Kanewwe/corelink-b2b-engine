@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v2.5-postgresql-sync] - 2026-03-26
+
+### 🚀 PostgreSQL Migration & Environment Isolation
+- **Database Migration**: Fully migrated from SQLite to PostgreSQL on Render.
+- **Schema-based Isolation**: Implemented `public` (PRD) and `uat` (UAT) schema switching via `APP_ENV`.
+- **Auth Unification**: Updated `auth.py` and `main.py` to support both Bearer tokens and Session cookies.
+- **Initialization**: Automated schema and table creation in `init_db`.
+
+### 📚 New Documentation
+- **[DATABASE_ENV.md]**: Guide for environment management and schema switching.
+- **[DEVELOPMENT_WORKFLOW.md]**: Formalized UAT-to-PRD release and migration process.
+- **[RENDER_SETUP_GUIDE.md]**: Technical insights on Render API and Postgres setup.
+
 ## [v2.4-stabilization] - 2026-03-25
 
 ### 🚀 Formalized Deployment Lifecycle
