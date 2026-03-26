@@ -1,7 +1,7 @@
 # Linkora V2 — UI/UX 設計規範
 
-> **版本：** 2.0.0 | **最後更新：** 2026-03-25 23:02 | **維護者：** Ann (AI)
-> **狀態：** ✅ P0 + P1 + P2 全部完成 | 手機版 RWD (M1-M10) 完成
+> **版本：** 2.1.0 | **最後更新：** 2026-03-26 10:00 | **維護者：** Ann (AI)
+> **狀態：** ✅ P0 + P1 + P2 全部完成 | 手機版 RWD (M1-M10) 完成 | Sidebar 雙模式完成
 
 ---
 
@@ -123,9 +123,10 @@ frontend/src/
 | `/analytics` | 成效分析雷達 | Performance Radar | `Linkora - 成效分析雷達` |
 | `/history` | 開發紀錄專區 | Campaign Archive | `Linkora - 開發紀錄專區` |
 | `/smtp` | 發信通道配置 | Email Channels | `Linkora - 發信通道配置` |
-| `/admin/vendors` | 廠商管理 | Vendor Management | `Linkora - 委外廠商管理` |
+| `/admin/vendors` | 廠商管理 | Vendor Management | `Linkora - 廠商管理` |
 | `/admin/settings` | 系統控制中心 | System Hub | `Linkora - 系統控制中心` |
 | `/admin/members` | 會員管理中心 | Member Management | `Linkora - 會員管理` |
+| `/admin/dashboard` | 系統監控 | System Monitor | `Linkora - 系統監控` |
 
 ---
 
@@ -286,7 +287,151 @@ if (loading) {
 
 ---
 
-## 六、手機版 RWD 規範（M1-M10）
+## 六、Sidebar 雙模式規範 (M11)
+
+### 概述
+
+Sidebar 提供兩種操作模式，使用者可透過底部切換按鈕自由切換。
+
+### 展開模式 (Full Mode) — 250px
+
+```
+┌──────────────────────┐
+│  L  Linkora           │
+│                       │
+│  主要功能             │
+│  🔍 精準開發雷達      │
+│                       │
+│  寄信作業             │
+│  📄 智慧行銷劇本      │
+│  📤 自動化投遞        │
+│                       │
+│  分析                 │
+│  📊 成效分析雷達      │
+│  🕐 開發紀錄專區      │
+│                       │
+│  設定                 │
+│  ⚙️ 發信通道配置      │
+│                       │
+│  管理 (Admin)         │  ← 僅 admin 角色可見
+│  📺 系統監控          │
+│  👤 會員管理          │
+│  👥 廠商管理          │
+│  🖥️ 系統控制中心      │
+│                       │
+│  ◀ 收合選單           │  ← 切換按鈕
+│  [A] Admin ▌ 🚪       │  ← 使用者資訊 + 登出
+└──────────────────────┘
+```
+
+**特徵：**
+- 寬度 250px
+- 完整顯示 icon + 文字標籤
+- Section 標題以文字顯示（10px, uppercase, tracking-widest）
+- Active 項目：藍色左邊框 + 背景色
+- 使用者區域：頭像 + 名稱 + 角色 + 登出按鈕
+
+### 收合模式 (Mini Mode) — 68px
+
+```
+┌──────┐
+│  L   │
+│      │
+│  🔍  │  ← hover 顯示 tooltip「精準開發雷達」
+│ ──── │  ← Section 分隔線 (6px, 白色10%)
+│  📄  │  ← hover 顯示 tooltip「智慧行銷劇本」
+│  📤  │
+│ ──── │
+│  📊  │
+│  🕐  │
+│ ──── │
+│  ⚙️  │
+│ ──── │
+│  📺  │  ← Admin only
+│  👤  │
+│  👥  │
+│  🖥️  │
+│      │
+│  ▶   │  ← hover 顯示「展開選單」
+│  A   │  ← hover 顯示 email
+└──────┘
+```
+
+**特徵：**
+- 寬度 68px
+- 僅顯示 icon（20px, 居中）
+- Section 標題以 6px 分隔線代替
+- Hover 時顯示 tooltip（右側彈出，帶三角箭頭）
+- Active 項目：藍色光暈背景
+- 使用者區域：僅頭像，hover 顯示 email
+
+### Tooltip 規範
+
+```tsx
+<div className="relative group">
+  <NavLink to={to} className="...">
+    <Icon size={20} />
+  </NavLink>
+  {/* Tooltip */}
+  <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 
+    px-3 py-1.5 bg-[#1e2538] text-white text-xs font-medium 
+    rounded-lg shadow-xl border border-white/10 
+    whitespace-nowrap 
+    opacity-0 invisible group-hover:opacity-100 group-hover:visible 
+    transition-all z-50 pointer-events-none">
+    {label}
+    <div className="absolute right-full top-1/2 -translate-y-1/2 
+      border-4 border-transparent border-r-[#1e2538]" />
+  </div>
+</div>
+```
+
+### 動畫規範
+
+```css
+/* Sidebar 寬度切換動畫 */
+transition-all duration-300 ease-in-out
+
+/* 展開: 250px */
+/* 收合: 68px */
+```
+
+### 捲動行為
+
+- `nav` 區塊設為 `flex-1 overflow-y-auto overflow-x-hidden`
+- Logo 區域：`shrink-0`（固定不動）
+- 底部切換按鈕 + 使用者區域：`shrink-0`（固定不動）
+- 中間導覽區：可捲動，細捲軸 (`scrollbar-thin`)
+
+### 角色權限
+
+Admin 專屬區塊（`user?.role === 'admin'`）：
+- 系統監控 (`/admin/dashboard`)
+- 會員管理 (`/admin/members`)
+- 廠商管理 (`/admin/vendors`)
+- 系統控制中心 (`/admin/settings`)
+
+### Icon 對照表
+
+| 頁面 | Icon | Lucide Icon Name |
+|------|------|-----------------|
+| 精準開發雷達 | 🔍 | `Search` |
+| 智慧行銷劇本 | 📄 | `FileText` |
+| 自動化投遞 | 📤 | `Send` |
+| 成效分析雷達 | 📊 | `BarChart2` |
+| 開發紀錄專區 | 🕐 | `Clock` |
+| 發信通道配置 | ⚙️ | `Settings` |
+| 系統監控 | 📺 | `Monitor` |
+| 會員管理 | 👤 | `UserCog` |
+| 廠商管理 | 👥 | `Users` |
+| 系統控制中心 | 🖥️ | `Cpu` |
+| 登出 | 🚪 | `LogOut` |
+| 收合 | ◀ | `ChevronLeft` |
+| 展開 | ▶ | `ChevronRight` |
+
+---
+
+## 七、手機版 RWD 規範（M1-M10）（M1-M10）
 
 ### Breakpoints
 
@@ -442,7 +587,7 @@ if (loading) {
 
 ---
 
-## 七、禁止事項
+## 八、禁止事項
 
 | ❌ 禁止 | ✅ 改用 |
 |---------|---------|
@@ -457,7 +602,7 @@ if (loading) {
 
 ---
 
-## 八、完成狀態 Checklist
+## 九、完成狀態 Checklist
 
 ### ✅ P0 — 立即修正（全部完成）
 - [x] Campaigns SMTP 橫幅文字排版
@@ -496,9 +641,18 @@ if (loading) {
 - [x] M9: 表格 → Card 模式 (data-label)
 - [x] M10: Monaco Editor 高度優化
 
+### ✅ Sidebar 雙模式（M11 完成）
+- [x] 展開模式 (250px): icon + 文字標籤
+- [x] 收合模式 (68px): 僅 icon + hover tooltip
+- [x] Section 標題收合時變分隔線 + tooltip
+- [x] 底部切換按鈕 (◀/▶)
+- [x] 使用者區域收合時僅顯示頭像
+- [x] Admin 管理區塊完整可捲動
+- [x] 寬度切換 transition 動畫 300ms
+
 ---
 
-## 九、待完成項目（下一階段）
+## 十、待完成項目（下一階段）
 
 ### 新功能開發
 - [ ] 中英文切換 (i18n) — DB 驅動 + localStorage 快取
@@ -513,4 +667,4 @@ if (loading) {
 ---
 
 *本文件由 Ann 自動生成並維護，每次 UI 重構後請同步更新。*
-*最後驗收日期：2026-03-25 23:02 GMT+8*
+*最後驗收日期：2026-03-26 10:00 GMT+8*
