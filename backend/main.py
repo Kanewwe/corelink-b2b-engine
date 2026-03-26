@@ -18,8 +18,9 @@ from contextlib import asynccontextmanager
 import email_sender_job
 from logger import add_log, SYSTEM_LOGS
 
-# Create database tables automatically
-Base.metadata.create_all(bind=engine)
+# Create database tables automatically (supports schema switching)
+from database import init_db
+init_db()
 
 # Initialize default plans on startup
 def init_default_plans():
@@ -435,8 +436,13 @@ def get_subscription(session_id: str = Cookie(None), db: Session = Depends(get_d
     return auth_module.get_user_full_info(db, session.user)
 
 # --- Authentication Dependency ---
-def get_current_user_id(session_id: str = Cookie(None), db: Session = Depends(get_db)) -> models.User:
-    """取得當前用戶（Session 驗證）"""
+def get_current_user_id(request: Request, session_id: str = Cookie(None), db: Session = Depends(get_db)) -> models.User:
+    """取得當前用戶（支援 Cookie 與 Authorization Header）"""
+    # 支援 Bearer Token
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        session_id = auth_header.split(" ")[1]
+
     if not session_id:
         raise HTTPException(status_code=401, detail="請先登入")
     session = auth_module.get_session(db, session_id)

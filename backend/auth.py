@@ -135,10 +135,15 @@ def require_role(allowed_roles: list):
     用法：@app.get("/admin", dependencies=[Depends(require_role(["admin"]))])
     """
     def checker(
+        request: Request,
         session_id: Optional[str] = Cookie(None),
-        request: Request = None,
         db: Session = Depends(get_db)
     ):
+        # 優先從 Authorization Header 取得 Token (Bearer Token)
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            session_id = auth_header.split(" ")[1]
+
         if not session_id:
             raise HTTPException(status_code=401, detail="請先登入")
         
@@ -260,10 +265,16 @@ def check_usage_limit(limit_type: str):
 # ══════════════════════════════════════════
 
 async def get_current_user(
+    request: Request,
     session_id: Optional[str] = Cookie(None),
     db: Session = Depends(get_db)
 ) -> User:
-    """取得當前登入用戶"""
+    """取得當前登入用戶 (支援 Cookie 與 Authorization Header)"""
+    # 支援 Bearer Token 
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        session_id = auth_header.split(" ")[1]
+
     if not session_id:
         raise HTTPException(status_code=401, detail="請先登入")
     

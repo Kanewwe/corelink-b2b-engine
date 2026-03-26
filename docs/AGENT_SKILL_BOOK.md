@@ -50,7 +50,7 @@ This guide is optimized for AI agents to quickly understand Linkora 2.0 and avoi
 - `id`: PK
 - `user_id`: FK(users.id, unique), links to the vendor user account.
 - `company_name`: Vendor company name.
-- `pricing_config`: JSON (Wholesale price per lead, e.g., `{"per_lead": 50}`).
+- `pricing_config`: JSON (Multi-dimensional pricing, e.g., `{"outreach": 5, "reach": 20, "conversion": 500}`).
 
 ### `leads` (Scraped Data)
 - `id`: PK
@@ -108,9 +108,9 @@ Instead of reading the whole tree, focus on these files:
 ---
 
 ## 💰 Resource & Billing Logic
-- **Vendors** are outsourcing shops. They pay Linkora based on usage.
-- **Billing Query**: Check `GET /api/engagements` in `main.py`. 
-- **Calculation**: Lead Count * Vendor Price (from `vendors.pricing_config`).
+- **Vendors** are signatory partners. They pay Linkora based on three dimensions: **Outreach** (Sent), **Reach** (Opened/Clicked), and **Conversion** (Order Confirmed).
+- **Billing Query**: Managed via Admin Invoice/Audit (Calculated from `EmailLog` stats and `Lead` status).
+- **Calculation**: (Outreach Count * Price) + (Reach Count * Price) + (Conversion Count * Price).
 
 ---
 

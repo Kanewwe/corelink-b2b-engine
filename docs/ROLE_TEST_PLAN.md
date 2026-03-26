@@ -18,16 +18,16 @@
 | 智慧行銷劇本 (模板) | ✅ | ✅ | ✅ |
 | 自動化投遞 (寄信) | ✅ | ✅ | ✅ |
 | **分析功能** | | | |
-| 成效分析雷達 | ✅ 全系統 | ✅ 旗下會員 | ✅ 個人資料 |
-| 開發紀錄專區 | ✅ 全系統 | ✅ 旗下會員 | ✅ 個人資料 |
+| 成效分析雷達 | ✅ 全系統 | ✅ 個人/公司資料 | ✅ 個人資料 |
+| 開發紀錄專區 | ✅ 全系統 | ✅ 個人/公司資料 | ✅ 個人資料 |
 | **管理功能** | | | |
 | 發信通道配置 | ✅ | ✅ | ✅ |
 | 會員管理 | ✅ | ❌ | ❌ |
 | 委外廠商管理 | ✅ | ❌ | ❌ |
 | 系統控制中心 | ✅ | ❌ | ❌ |
 | **帳務功能** | | | |
-| 批發對帳 (Vendor) | ❌ | ✅ 查看自己 | ❌ |
-| 用量監控 | ✅ 全系統 | ✅ 旗下會員 | ✅ 個人資料 |
+| 批發對帳 (Vendor) | ❌ | ✅ 三維度對帳 | ❌ |
+| 用量監控 | ✅ 全系統 | ✅ 各維度累計 | ✅ 個人資料 |
 
 ---
 
@@ -139,13 +139,11 @@
 ### 3.1 Vendor → Member 關係
 
 ```
-測試場景：
-1. Admin 建立 Vendor A (vendor_id = 10)
-2. Vendor A 登入，查看「成效分析」→ 應該無數據
-3. Admin 建立 Member B，設定 vendor_id = 10
-4. Member B 執行爬蟲，產生 5 leads
-5. Vendor A 再次查看「成效分析」→ 應該顯示 5 leads
-6. Admin 查看「成效分析」→ 應該可切換看到 Vendor A 的 5 leads
+### 3.1 平台資源分配測試 (Admin → Vendor)
+1. Admin 建立 Vendor A (簽約合約)
+2. Admin 為 Vendor A 設定 `pricing_config` (發送$0, 觸及$5, 成交$500)
+3. Vendor A 執行大量開發任務
+4. Admin 查核該 Vendor A 的對帳報表是否正確彙總三維度數據
 ```
 
 ### 3.2 權限隔離測試
@@ -153,9 +151,9 @@
 | 測試項 | 操作 | 預期結果 |
 |--------|------|---------|
 | X1 | Member A 嘗試查看 Member B 的 leads | 403 Forbidden |
-| X2 | Vendor A 嘗試查看 Vendor B 的會員 | 403 Forbidden |
-| X3 | Vendor A 嘗試修改 Member B 資料 | 403 Forbidden |
-| X4 | Admin 查看任意會員/廠商 | 200 OK |
+| X2 | Vendor A 嘗試查看 Vendor B 的資料 | 403 Forbidden |
+| X3 | Vendor A 嘗試查看 Admin 下的 Member | 403 Forbidden |
+| X4 | Admin 查看任意用戶資料 | 200 OK |
 
 ---
 
