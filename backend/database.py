@@ -39,10 +39,6 @@ Base = declarative_base()
 def get_db():
     db = SessionLocal()
     try:
-        from sqlalchemy import text
-        from logger import add_log
-        res = db.execute(text("SHOW search_path")).fetchone()
-        add_log(f"DEBUG: get_db search_path={res[0] if res else 'Unknown'}")
         yield db
     finally:
         db.close()
@@ -56,8 +52,6 @@ def init_db():
         from sqlalchemy import text
         with engine.connect() as conn:
             schema_name = "uat" if APP_ENV == "uat" else "public"
-            from logger import add_log
-            add_log(f"DEBUG: database.py init_db using schema_name={schema_name}, env={os.getenv('APP_ENV')}")
             if schema_name != "public":
                 print(f"🛠️ [Database] Ensuring schema '{schema_name}' exists...")
                 conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema_name}"))

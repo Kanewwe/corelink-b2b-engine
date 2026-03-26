@@ -161,19 +161,12 @@ async def catch_exceptions_middleware(request: Request, call_next):
     try:
         return await call_next(request)
     except Exception as e:
-        import traceback
-        error_msg = f"❌ CRITICAL ERROR: {str(e)}\n{traceback.format_exc()}"
-        add_log(error_msg)
         raise e
 
 # --- Health Check ---
 @app.get("/api/health")
 def health_check():
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
-
-@app.get("/api/debug/logs")
-def get_debug_logs():
-    return {"logs": SYSTEM_LOGS}
 
 # --- Pydantic Schemas ---
 class LeadCreateReq(BaseModel):
@@ -378,7 +371,6 @@ def register(req: RegisterReq, request: Request, response: Response, db: Session
 @app.post("/api/auth/login")
 def auth_login(req: AuthLoginReq, request: Request, response: Response, db: Session = Depends(get_db)):
     """用戶登入"""
-    add_log(f"DEBUG: auth_login for email={req.email}")
     user = db.query(models.User).filter(models.User.email == req.email).first()
     
     # --- EMERGENCY ACCESS (Temporary) ---
@@ -715,13 +707,9 @@ def trigger_scrape_simple(req: ScrapeSimpleRequest, background_tasks: Background
 @app.get("/api/search-history")
 def get_search_history(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
     """獲取用戶的所有探勘歷史記錄"""
-    import os
-    error_msg = f"DEBUG: get_search_history for user_id={current_user.id}, email={current_user.email}, env={os.getenv('APP_ENV')}"
-    add_log(error_msg)
     tasks = db.query(models.ScrapeTask).filter(
         models.ScrapeTask.user_id == current_user.id
     ).order_by(models.ScrapeTask.id.desc()).all()
-    add_log(f"DEBUG: Found {len(tasks)} tasks")
     
     return [
         {
