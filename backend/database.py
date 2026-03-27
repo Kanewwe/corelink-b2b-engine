@@ -65,6 +65,8 @@ def _run_migrations(engine):
     """v3.2: 為已存在的資料表新增 v3.2 新增的欄位"""
     from sqlalchemy import text
     
+    schema_name = "uat" if APP_ENV == "uat" else "public"
+    
     migrations = [
         # leads 表新增 AI 評分欄位
         ("leads", "ai_score", "INTEGER DEFAULT 0"),
@@ -72,23 +74,19 @@ def _run_migrations(engine):
         ("leads", "ai_brief", "TEXT"),
         ("leads", "ai_suggestions", "TEXT"),
         ("leads", "ai_scored_at", "TIMESTAMP"),
-        # leads 表新增 error_message (爬蟲錯誤)
         ("leads", "error_message", "TEXT"),
     ]
     
     with engine.connect() as conn:
+        # 確保 search_path 正確
+        conn.execute(text(f"SET search_path TO {schema_name}"))
+        
         for table, column, column_type in migrations:
             try:
                 conn.execute(text(
-                    f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {column_type}"
+                    f"ALTER TABLE {schema_name}.{table} ADD COLUMN IF NOT EXISTS {column} {column_type}"
                 ))
                 conn.commit()
             except Exception as e:
-                # 忽略已經存在的欄位錯誤
                 if "already exists" not in str(e).lower():
-                    print(f"⚠️ Migration warning: {table}.{column}: {e}")
-        # 确保 commit
-        try:
-            conn.commit()
-        except:
-            pass
+                    print(f"⚠️ Migration: {table}.{column}: {e}")
