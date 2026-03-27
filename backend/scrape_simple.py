@@ -206,10 +206,13 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
                             description=description,
                             phone=item.get("phone", ""),
                             address=item.get("address", ""),
+                            city=item.get("city", ""),
+                            state=item.get("state", ""),
+                            zip_code=item.get("zipCode", ""),
                             contact_email=contact_email,
                             email_candidates=email_candidates_str,
                             ai_tag=ai_result.get("Tag", "AUTO-YELLOWPAGES"),
-                            industry_taxonomy=ai_result.get("Taxonomy"), # v3.0
+                            industry_taxonomy=ai_result.get("Taxonomy"),
                             status="Scraped",
                             scrape_location=market,
                             extracted_keywords=keyword,
@@ -288,44 +291,66 @@ def scrape_keyword_page_apify(keyword: str, page: int, market: str = "US", db=No
     
     # 支援新版 Actor (junipr)
     actor_id = "junipr/yellow-pages-scraper"
+    # v3.2: searchTerms 應為字串（非陣列），否則返回垃圾資料
     run_input = {
-        "searchTerms": [keyword],
+        "searchTerms": keyword,
         "location": location,
         "maxResults": 20,
         "extractEmails": True,
         "includeDetails": True
     }
     
+    def _log(level, msg):
+        if db and task_id:
+            add_task_log(db, task_id, level, msg, keyword=keyword)
+    
     try:
-        add_log(f"🌐 [Apify] 呼叫 Actor: {actor_id} | 頁面: {page}")
+        _log("info", f"🌐 呼叫 Apify: {actor_id} | 關鍵字: {keyword}")
         run = client.actor(actor_id).call(run_input=run_input)
         
         if not run or not run.get("defaultDatasetId"):
-            # 備援
+            _log("warning", "主 Actor 無 dataset，切換備援 Actor")
             run = client.actor("automation-lab/yellowpages-scraper").call(run_input={
                 "searchTerms": keyword, "location": location, "maxResults": 20
             })
 
-        if not run or not run.get("defaultDatasetId"): return []
+        if not run or not run.get("defaultDatasetId"): 
+            _log("error", "所有 Actor 都無法取得 dataset")
+            return []
             
         dataset = client.dataset(run["defaultDatasetId"])
         items = dataset.list_items().items
         
+        _log("info", f"📦 Apify 回傳 {len(items)} 筆原始資料")
+        
         results = []
         for item in items:
+            name = item.get("businessName") or item.get("name") or ""
+            website = item.get("website") or item.get("url") or ""
+            # v3.2: 過濾明顯的垃圾資料（餐廳常見名）
+            bad_patterns = ["restaurant", "pizza", "cafe", "coffee", "bar ", "grill", "diner", "bakery", "deli"]
+            if name and any(bp in name.lower() for bp in bad_patterns):
+                _log("warning", f"⚠️ 過濾非目標公司: {name}")
+                continue
+            
             results.append({
-                "name": item.get("businessName") or item.get("name", ""),
-                "url": item.get("website") or item.get("url", ""),
+                "name": name,
+                "url": website,
                 "phone": item.get("phone", ""),
                 "description": item.get("description", ""),
                 "address": item.get("address", "") or item.get("street", ""),
                 "email": item.get("email"),
                 "emails": item.get("emails"),
-                "contactEmail": item.get("contactEmail")
+                "contactEmail": item.get("contactEmail"),
+                "city": item.get("city", ""),
+                "state": item.get("state", ""),
+                "zipCode": item.get("zipCode", "")
             })
+        
+        _log("info", f"✅ 過濾後有效資料: {len(results)} 筆")
         return results
     except Exception as e:
-        add_log(f"❌ Apify API 失敗: {str(e)}")
+        _log("error", f"❌ Apify API 失敗: {str(e)[:100]}")
         return []
 
 if __name__ == "__main__":
