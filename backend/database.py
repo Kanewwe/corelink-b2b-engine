@@ -4,24 +4,24 @@ import os
 
 # DATABASE_URL from env (Render auto-injects for managed PostgreSQL)
 # Supports separate schemas for PRD/UAT on a single instance
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./corelink.db")
+# ─── DATABASE_URL from env (Enforced: PostgreSQL) ───
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise EnvironmentError("❌ [CRITICAL] DATABASE_URL is not set! SQLite is deprecated. Please configure PostgreSQL.")
+
 APP_ENV = os.getenv("APP_ENV", "production")  # 'production' or 'uat'
 
 # Fix Render's postgres:// -> postgresql://
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# PostgreSQL Connection Arguments
+# ─── PostgreSQL Connection Arguments ───
 connect_args = {}
 
-if "sqlite" in DATABASE_URL:
-    connect_args["check_same_thread"] = False
-else:
-    # PostgreSQL specific configs
-    # 1. SSL is required for Render PG
-    # 2. Schema switching via search_path
-    schema_name = "public" if APP_ENV == "production" else "uat"
-    connect_args["options"] = f"-c search_path={schema_name}"
+# 1. SSL is required for Render PG
+# 2. Schema switching via search_path
+schema_name = "public" if APP_ENV == "production" else "uat"
+connect_args["options"] = f"-c search_path={schema_name}"
     
     # Ensure SSL is active for remote connections
     if "render.com" in DATABASE_URL:

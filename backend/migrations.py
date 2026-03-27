@@ -33,7 +33,6 @@ def run_migrations():
     
     with engine.connect() as conn:
         # 1. Ensure global_leads table exists (The Isolation Pool)
-        is_pg = "postgresql" in str(engine.url)
         create_global_table = """
             CREATE TABLE IF NOT EXISTS global_leads (
                 id SERIAL PRIMARY KEY,
@@ -53,14 +52,11 @@ def run_migrations():
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """
-        if not is_pg:
-            create_global_table = create_global_table.replace("SERIAL PRIMARY KEY", "INTEGER PRIMARY KEY AUTOINCREMENT")
-            create_global_table = create_global_table.replace("TIMESTAMP", "DATETIME")
         
         try:
             conn.execute(text(create_global_table))
             conn.commit()
-            print("✅ global_leads table ensured")
+            print("✅ global_leads table ensured (PostgreSQL)")
         except Exception as e:
             print(f"⚠️ Error ensuring global_leads: {e}")
 
