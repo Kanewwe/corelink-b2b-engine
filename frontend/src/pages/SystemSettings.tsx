@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Shield, Cpu, Database, Sparkles, Save, RefreshCw, Trash2, Plus, X } from 'lucide-react';
+import * as React from 'react';
+import { useState, useEffect } from 'react';
+import { Shield, Cpu, Database, Sparkles, Save, RefreshCw, Trash2, Plus, X, Clock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { 
   getSystemSettings, 
@@ -12,23 +13,31 @@ import {
   getAdminAllLeads
 } from '../services/api';
 
-interface GlobalLead {
-  id: number;
-  domain: string;
-  company_name: string;
-  industry?: string;
-  contact_email?: string;
-}
+
 
 interface GlobalProposal {
   id: number;
+  user_id: number;
+  user_name: string;
   global_id: number;
+  global_company_name: string;
   field_name: string;
+  current_value: any;
   suggested_value: string;
-  proposed_by: number;
   status: 'Pending' | 'Approved' | 'Rejected';
-  global_lead?: GlobalLead;
+  reason?: string;
+  created_at: string;
 }
+
+// ── Utility: Format UTC ISO to Local time ──
+const formatToLocalTime = (isoString: string) => {
+  if (!isoString) return 'N/A';
+  try {
+    return new Date(isoString).toLocaleString();
+  } catch (e) {
+    return isoString;
+  }
+};
 
 const SystemSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'apis' | 'mapping' | 'general' | 'explorer'>('apis');
@@ -397,14 +406,14 @@ const SystemSettings: React.FC = () => {
                   <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--color-accent-teal)' }}>{globalStats?.total_domains || 0}</div>
                 </div>
                 <div className="card" style={{ padding: '16px', background: 'rgba(255, 170, 0, 0.05)', border: '1px solid rgba(255, 170, 100, 0.2)' }}>
-                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>待審核提案</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: '#ffaa00' }}>{(globalStats as any)?.pending_proposals || 0}</div>
-                </div>
-                <div className="card" style={{ padding: '16px', background: 'rgba(0, 200, 255, 0.05)', border: '1px solid rgba(0, 200, 255, 0.2)' }}>
-                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>已驗證 Facts</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: '#00c8ff' }}>{(globalStats as any)?.verified_leads || 0}</div>
-                </div>
+                <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>待審核提案</div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: '#ffaa00' }}>{(globalStats as any)?.pending_proposals || 0}</div>
               </div>
+              <div className="card" style={{ padding: '16px', background: 'rgba(0, 200, 255, 0.05)', border: '1px solid rgba(0, 200, 255, 0.2)' }}>
+                <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>已驗證 Facts</div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: '#00c8ff' }}>{(globalStats as any)?.verified_leads || 0}</div>
+              </div>
+            </div>
 
               <div className="page-banner page-banner--info" style={{ margin: 0, padding: '16px 20px', background: 'var(--color-primary-glow)', borderLeft: '4px solid var(--color-primary)' }}>
                 <Sparkles size={18} style={{ flexShrink: 0, color: 'var(--color-primary)' }} />
@@ -587,17 +596,20 @@ const SystemSettings: React.FC = () => {
                     <div className="flex justify-between items-start">
                       <div>
                         <span className="text-xs font-bold text-primary uppercase tracking-wider">{p.field_name}</span>
-                        <h4 className="font-bold text-white">{p.global_lead?.company_name || '未知公司'}</h4>
-                        <p className="text-xs text-text-muted">{p.global_lead?.domain}</p>
+                        <h4 className="font-bold text-white">{p.global_company_name || '未知公司'}</h4>
+                        <div className="text-[10px] text-text-muted mt-1">
+                          <Clock size={10} style={{ display: 'inline', marginRight: 4 }} />
+                          {formatToLocalTime(p.created_at)}
+                        </div>
                       </div>
                       <div className="text-right text-xs text-text-muted">
-                        提交者 ID: #{p.proposed_by}
+                        提交者: {p.user_name} (ID: #{p.user_id})
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4 pt-2">
                       <div className="p-3 bg-red-500/5 border border-red-500/10 rounded-lg">
                         <div className="text-[10px] text-red-400 uppercase font-bold mb-1">目前數值</div>
-                        <div className="text-sm text-white opacity-60 line-through">{p.global_lead ? (p.global_lead as any)[p.field_name] : '無'}</div>
+                        <div className="text-sm text-white opacity-60 line-through">{p.current_value || '無'}</div>
                       </div>
                       <div className="p-3 bg-emerald-500/5 border border-emerald-500/10 rounded-lg">
                         <div className="text-[10px] text-emerald-400 uppercase font-bold mb-1">提案建議值</div>

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
+import { useState, useEffect } from 'react';
 import { 
   getDashboardStats, 
   getLeads, 
@@ -36,7 +37,7 @@ interface LeadDetailDrawerProps {
   onUpdate: () => void;
 }
 
-const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ lead, onClose, onUpdate }) => {
+const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ lead, onClose, onUpdate }: LeadDetailDrawerProps) => {
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState({
     override_name: lead.override_name || '',

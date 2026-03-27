@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getSearchHistory } from '../services/api';
 import { RotateCw, Download, ChevronDown, ChevronUp, Clock, CheckCircle, XCircle } from 'lucide-react';
@@ -15,6 +16,23 @@ interface ScrapeTask {
   started_at: string;
   completed_at: string;
 }
+
+// ── Utility: Format UTC ISO to Local time ──
+const formatToLocalTime = (isoString: string) => {
+  if (!isoString) return '';
+  try {
+    return new Date(isoString).toLocaleString('zh-TW', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  } catch (e) {
+    return isoString;
+  }
+};
 
 const History: React.FC = () => {
   const [tasks, setTasks] = useState<ScrapeTask[]>([]);
@@ -108,7 +126,7 @@ const History: React.FC = () => {
                       <span className="badge badge--neutral" style={{ fontSize: 10 }}>{task.miner_mode}</span>
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Clock size={11} />{task.started_at}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Clock size={11} />{formatToLocalTime(task.started_at)}</span>
                       <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>{task.leads_found} 筆資料</span>
                       <span>市場: {task.market}</span>
                     </div>
@@ -140,7 +158,7 @@ const History: React.FC = () => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       <span><span style={{ color: 'var(--color-text-secondary)' }}>Pages:</span> {task.pages_requested}</span>
                       <span><span style={{ color: 'var(--color-text-secondary)' }}>Status:</span> {task.status}</span>
-                      <span><span style={{ color: 'var(--color-text-secondary)' }}>Completed:</span> {task.completed_at || 'Running...'}</span>
+                      <span><span style={{ color: 'var(--color-text-secondary)' }}>Completed:</span> {formatToLocalTime(task.completed_at) || 'Running...'}</span>
                     </div>
                   </div>
                 </div>

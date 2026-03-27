@@ -742,89 +742,98 @@ def trigger_scrape_simple(
     """
     from scrape_utils import sync_leads_from_pool_by_keyword
     
-    # 支援多組關鍵字
-    if req.keywords:
-        keywords = req.keywords
-    elif req.keyword:
-        keywords = [k.strip() for k in req.keyword.split(',')]
-    else:
-        keywords = ["manufacturer"]
-    
-    target_total = req.pages * 10
-    total_found_in_intel = 0
-    synced_from_pool = 0
-    
-    # --- Step 1 & 2: Pool Check ---
-    for kw in keywords:
-        # a. 統計現有私有匹配 (De-duplication happens at DB level during sync)
-        existing_count = db.query(models.Lead).filter(
-            models.Lead.user_id == current_user.id,
-            (models.Lead.company_name.ilike(f"%{kw}%")) | (models.Lead.extracted_keywords.ilike(f"%{kw}%"))
-        ).count()
-        
-        # b. 從全域池同步差額
-        rem_for_kw = max(0, 10 - existing_count) # 每個關鍵字目標 10 筆
-        if rem_for_kw > 0:
-            synced = sync_leads_from_pool_by_keyword(db, current_user.id, kw, limit=rem_for_kw)
-            synced_from_pool += synced
-            total_found_in_intel += (existing_count + synced)
+    try:
+        # 支援多組關鍵字
+        if req.keywords:
+            keywords = req.keywords
+        elif req.keyword:
+            keywords = [k.strip() for k in req.keyword.split(',')]
         else:
-            total_found_in_intel += existing_count
+            keywords = ["manufacturer"]
+        
+        # 過濾空關鍵字
+        keywords = [k for k in keywords if k.strip()]
+        if not keywords:
+            keywords = ["manufacturer"]
+        
+        target_total = req.pages * 10
+        total_found_in_intel = 0
+        synced_from_pool = 0
+        
+        # --- Step 1 & 2: Pool Check ---
+        for kw in keywords:
+            # a. 統計現有私有匹配
+            existing_count = db.query(models.Lead).filter(
+                models.Lead.user_id == current_user.id,
+                (models.Lead.company_name.ilike(f"%{kw}%")) | (models.Lead.extracted_keywords.ilike(f"%{kw}%"))
+            ).count()
+            
+            # b. 從全域池同步差額
+            rem_for_kw = max(0, 10 - existing_count) 
+            if rem_for_kw > 0:
+                synced = sync_leads_from_pool_by_keyword(db, current_user.id, kw, limit=rem_for_kw)
+                synced_from_pool += synced
+                total_found_in_intel += (existing_count + synced)
+            else:
+                total_found_in_intel += existing_count
 
-    # --- Step 3: Scrape Decision ---
-    if total_found_in_intel >= target_total:
+        # --- Step 3: Scrape Decision ---
+        if total_found_in_intel >= target_total:
+            return {
+                "success": True,
+                "message": f"Intelligence Pool has enough data ({total_found_in_intel} leads). No scraper needed.",
+                "found_in_intel": total_found_in_intel,
+                "synced_from_pool": synced_from_pool,
+                "scraper_started": False
+            }
+
+        # If count < target, trigger background scrape
+        rem_target = target_total - total_found_in_intel
+        adj_pages = max(1, (rem_target + 9) // 10)
+
+        if req.miner_mode == "manufacturer":
+            import manufacturer_miner
+            import asyncio
+            
+            def run_manufacturer_task_sync():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    for kw in keywords:
+                        loop.run_until_complete(
+                            manufacturer_miner.manufacturer_mine(kw, req.market, adj_pages, current_user.id)
+                        )
+                finally:
+                    loop.close()
+            
+            background_tasks.add_task(run_manufacturer_task_sync)
+            scrape_msg = f"Manufacturer Mode started for remaining {rem_target} leads."
+        else:
+            import scrape_simple as scrape_mod
+            import asyncio
+            
+            def run_yellowpages_task_sync():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    scrape_mod.scrape_simple(req.market, adj_pages, keywords, current_user.id)
+                finally:
+                    loop.close()
+            
+            background_tasks.add_task(run_yellowpages_task_sync)
+            scrape_msg = f"Yellowpages Mode started for remaining {rem_target} leads."
+
         return {
             "success": True,
-            "message": f"Intelligence Pool has enough data ({total_found_in_intel} leads). No scraper needed.",
+            "message": f"Found {total_found_in_intel} in Intelligence. {scrape_msg}",
             "found_in_intel": total_found_in_intel,
             "synced_from_pool": synced_from_pool,
-            "scraper_started": False
+            "scraper_started": True,
+            "remaining_target": rem_target
         }
-
-    # If count < target, trigger background scrape
-    rem_target = target_total - total_found_in_intel
-    adj_pages = max(1, (rem_target + 9) // 10)
-
-    if req.miner_mode == "manufacturer":
-        import manufacturer_miner
-        import asyncio
-        
-        def run_manufacturer_task_sync():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                for kw in keywords:
-                    loop.run_until_complete(
-                        manufacturer_miner.manufacturer_mine(kw, req.market, adj_pages, current_user.id)
-                    )
-            finally:
-                loop.close()
-        
-        background_tasks.add_task(run_manufacturer_task_sync)
-        scrape_msg = f"Manufacturer Mode started for remaining {rem_target} leads."
-    else:
-        import scrape_simple as scrape_mod
-        import asyncio
-        
-        def run_yellowpages_task_sync():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                scrape_mod.scrape_simple(req.market, adj_pages, keywords, current_user.id)
-            finally:
-                loop.close()
-        
-        background_tasks.add_task(run_yellowpages_task_sync)
-        scrape_msg = f"Yellowpages Mode started for remaining {rem_target} leads."
-
-    return {
-        "success": True,
-        "message": f"Found {total_found_in_intel} in Intelligence. {scrape_msg}",
-        "found_in_intel": total_found_in_intel,
-        "synced_from_pool": synced_from_pool,
-        "scraper_started": True,
-        "remaining_target": rem_target
-    }
+    except Exception as e:
+        add_log(f"🚨 [ScrapeError] {str(e)}")
+        raise HTTPException(status_code=500, detail=f"啟動探勘引擎失敗: {str(e)}")
 
 @app.get("/api/search-history")
 def get_search_history(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
@@ -842,8 +851,8 @@ def get_search_history(db: Session = Depends(get_db), current_user: models.User 
             "pages_requested": t.pages_requested,
             "status": t.status,
             "leads_found": t.leads_found,
-            "started_at": t.started_at.strftime("%Y-%m-%d %H:%M:%S") if t.started_at else "",
-            "completed_at": t.completed_at.strftime("%Y-%m-%d %H:%M:%S") if t.completed_at else ""
+            "started_at": t.started_at.isoformat() if t.started_at else "",
+            "completed_at": t.completed_at.isoformat() if t.completed_at else ""
         }
         for t in tasks
     ]
