@@ -30,11 +30,13 @@ interface Lead {
 }
 
 // ── Lead Detail Drawer Component ──
-const LeadDetailDrawer: React.FC<{
+interface LeadDetailDrawerProps {
   lead: Lead;
   onClose: () => void;
   onUpdate: () => void;
-}> = ({ lead, onClose, onUpdate }) => {
+}
+
+const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ lead, onClose, onUpdate }) => {
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState({
     override_name: lead.override_name || '',
@@ -307,9 +309,15 @@ const LeadEngine: React.FC = () => {
       });
       
       if (resp.ok) {
-        toast.success("探勘背景任務已成功啟動！", { id: loadingToast });
+        const result = await resp.json();
+        if (result.found_in_intel > 0) {
+          toast.success(`從情報庫即時恢復了 ${result.found_in_intel} 筆公司資料！`, { id: loadingToast, duration: 5000 });
+        } else {
+          toast.success("探勘背景任務已成功啟動！", { id: loadingToast });
+        }
         setActiveKeywords([]);
         setKeywordInput('');
+        fetchDashboardData();
       } else {
         const err = await resp.json();
         toast.error(err.detail || "啟動失敗", { id: loadingToast });
@@ -588,8 +596,8 @@ const LeadEngine: React.FC = () => {
               </div>
             ) : (
               leads
-                .filter((l: any) => !search || l.display_name?.toLowerCase().includes(search.toLowerCase()))
-                .map((lead: any) => (
+                .filter((l: Lead) => !search || l.display_name?.toLowerCase().includes(search.toLowerCase()))
+                .map((lead: Lead) => (
                   <div 
                     key={lead.id} 
                     className="group card p-4 hover:border-primary/40 hover:bg-primary/[0.02] cursor-pointer transition-all flex items-center justify-between"

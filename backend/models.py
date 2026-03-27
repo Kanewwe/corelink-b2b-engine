@@ -507,6 +507,9 @@ class Lead(Base):
     # 關聯到全域池 (Global Pool)
     global_id = Column(Integer, ForeignKey("global_leads.id"), nullable=True)
 
+    # 關聯到使用者 (v3.1)
+    user = relationship("User", backref="leads")
+
     email_campaigns = relationship("EmailCampaign", back_populates="lead")
 
     def to_dict(self):
@@ -526,6 +529,7 @@ class Lead(Base):
             "status": self.status,
             "assigned_bd": self.assigned_bd,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            "user_email": self.user.email if self.user else "Hidden/System", # v3.1
             
             # v3.0 Effective Fields (Frontend 優先顯示這些)
             "display_name": effective_name,
@@ -606,7 +610,8 @@ class GlobalLead(Base):
             "is_verified": self.is_verified,
             "confidence_score": self.confidence_score,
             "source": self.source,
-            "last_scraped_at": self.last_scraped_at.isoformat() if self.last_scraped_at else None
+            "last_scraped_at": self.last_scraped_at.isoformat() if self.last_scraped_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None
         }
 
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Cpu, Database, Sparkles, Save, RefreshCw, Trash2, Plus, CheckCircle2, X } from 'lucide-react';
+import { Shield, Cpu, Database, Sparkles, Save, RefreshCw, Trash2, Plus, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { 
   getSystemSettings, 
@@ -7,7 +7,9 @@ import {
   getGlobalPoolStats, 
   clearGlobalPool,
   getAdminProposals,
-  resolveProposal
+  resolveProposal,
+  getAdminGlobalLeads,
+  getAdminAllLeads
 } from '../services/api';
 
 interface GlobalLead {
@@ -29,7 +31,7 @@ interface GlobalProposal {
 }
 
 const SystemSettings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'apis' | 'mapping' | 'general'>('apis');
+  const [activeTab, setActiveTab] = useState<'apis' | 'mapping' | 'general' | 'explorer'>('apis');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [globalStats, setGlobalStats] = useState<{total_leads: number, total_domains: number, tags: Record<string, number>} | null>(null);
@@ -56,6 +58,13 @@ const SystemSettings: React.FC = () => {
   const [variableMapping, setVariableMapping] = useState<Record<string, string>>({});
   const [newMappingKey, setNewMappingKey] = useState('');
   const [newMappingLabel, setNewMappingLabel] = useState('');
+  
+  // Explorer State
+  const [globalLeads, setGlobalLeads] = useState<any[]>([]);
+  const [allUserLeads, setAllUserLeads] = useState<any[]>([]);
+  const [loadingExplorer, setLoadingExplorer] = useState(false);
+  const [explorerTab, setExplorerTab] = useState<'global' | 'users'>('global');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const fetchGlobalStats = async () => {
     setRefreshing(true);
@@ -166,6 +175,26 @@ const SystemSettings: React.FC = () => {
     if (showProposals) fetchProposals();
   }, [showProposals]);
 
+  const fetchExplorerData = async () => {
+    setLoadingExplorer(true);
+    try {
+      const [gResp, uResp] = await Promise.all([
+        getAdminGlobalLeads(),
+        getAdminAllLeads()
+      ]);
+      if (gResp.ok) setGlobalLeads(await gResp.json());
+      if (uResp.ok) setAllUserLeads(await uResp.json());
+    } catch (e) {
+      toast.error("讀取探勘資料失敗");
+    } finally {
+      setLoadingExplorer(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'explorer') fetchExplorerData();
+  }, [activeTab]);
+
   const addMapping = () => {
     if (!newMappingKey || !newMappingLabel) {
       toast.error("請輸入完整鍵值與標籤");
@@ -214,7 +243,8 @@ const SystemSettings: React.FC = () => {
         {[
           { id: 'apis',    label: 'API 接口管理',  icon: Cpu,      disabled: false },
           { id: 'mapping', label: '變數標籤映射',  icon: Database, disabled: false },
-          { id: 'general', label: '隔離池與通用參數',  icon: Shield,   disabled: false }
+          { id: 'general', label: '隔離池設定',  icon: Shield,   disabled: false },
+          { id: 'explorer', label: '情資庫檢視器',  icon: Sparkles, disabled: false }
         ].map(tab => (
           <button
             key={tab.id}
@@ -348,7 +378,7 @@ const SystemSettings: React.FC = () => {
                     <h3 className="card__title" style={{ margin: 0 }}>
                       共享領先情報庫 (Shared Lead Intelligence)
                     </h3>
-                    <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>v3.0 雙層架構：共享事實層 + 私人覆寫層</p>
+                    <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>v3.1 雙層架構：共享事實層 + 私人覆寫層</p>
                   </div>
                 </div>
                 <button onClick={fetchGlobalStats} disabled={refreshing} className="btn-icon-sm">
@@ -383,7 +413,7 @@ const SystemSettings: React.FC = () => {
                     從「快取池」進化為「情報庫」
                   </p>
                   <p style={{ margin: 0, fontSize: 12, lineHeight: 1.6, color: 'var(--color-text-muted)' }}>
-                    Linkora v3.0 採用雙層模型：<b>共享層 (Canonical)</b> 存放經 AI 或管理員驗證的公司事實；<b>工作區層 (Overlay)</b> 則儲存您私人的修改、標註與筆記。開啟同步可大幅降低重複採集的點數消耗。
+                    Linkora v3.1 採用雙層模型：優先檢索共享層 (Canonical) 與工作區層 (Overlay) 以降低重複採集點數消耗。
                   </p>
                 </div>
               </div>
@@ -406,14 +436,6 @@ const SystemSettings: React.FC = () => {
                       onChange={e => setGeneralSettings({ ...generalSettings, enable_global_sync: e.target.checked })} 
                     />
                   </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div>
-                      <p style={{ margin: 0, fontSize: 13 }}>優先顯示個人覆寫 (Personal Overrides)</p>
-                      <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>若您修改了公司名，系統將在清單中優先呈現您的修改</p>
-                    </div>
-                    <CheckCircle2 size={16} style={{ color: 'var(--color-accent-teal)' }} />
-                  </div>
                 </div>
 
                 <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -424,10 +446,10 @@ const SystemSettings: React.FC = () => {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div>
                       <p style={{ margin: 0, fontSize: 13 }}>修正提案審核機制</p>
-                      <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>當使用者建議修改共享層資料時，需經管理員確認</p>
+                      <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>使用者建議需開發者管理端確認</p>
                     </div>
                     <button onClick={() => setShowProposals(true)} className="btn-outline" style={{ fontSize: 11, padding: '6px 12px' }}>
-                      查看待審提案 ({(globalStats as any)?.pending_proposals || 0})
+                      查看提案 ({(globalStats as any)?.pending_proposals || 0})
                     </button>
                   </div>
 
@@ -448,6 +470,95 @@ const SystemSettings: React.FC = () => {
                   {saving ? <><div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />儲存中...</> : <><Save size={14} />儲存情報策略</>}
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'explorer' && (
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div className="card__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 className="card__title">管理員情資庫檢視器 (Admin Explorer)</h3>
+                <p className="card__subtitle">檢索全系統共享情報與所有成員的工作區名單</p>
+              </div>
+              <div className="tab-nav" style={{ margin: 0, padding: 4, background: 'var(--color-background-offset)', borderRadius: 12 }}>
+                <button 
+                  onClick={() => setExplorerTab('global')}
+                  className={`tab-nav__item ${explorerTab === 'global' ? 'active' : ''}`}
+                  style={{ padding: '6px 16px', fontSize: 12 }}
+                >
+                  <Database size={12} /> 全域池 (Shared)
+                </button>
+                <button 
+                  onClick={() => setExplorerTab('users')}
+                  className={`tab-nav__item ${explorerTab === 'users' ? 'active' : ''}`}
+                  style={{ padding: '6px 16px', fontSize: 12 }}
+                >
+                  <Shield size={12} /> 用戶工作區 (Private)
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <input 
+                type="text" 
+                placeholder="搜尋公司名、Domain 或信箱..." 
+                className="form-input"
+                style={{ flex: 1 }}
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+              />
+              <button onClick={fetchExplorerData} className="btn-outline">
+                <RefreshCw size={14} className={loadingExplorer ? 'animate-spin' : ''} />
+              </button>
+            </div>
+
+            <div style={{ overflowX: 'auto', border: '1px solid var(--color-neutral-glow)', borderRadius: 12 }}>
+              <table className="leads-table">
+                <thead>
+                  <tr>
+                    <th>公司名稱</th>
+                    <th>網域 / 網址</th>
+                    <th>聯絡信箱</th>
+                    {explorerTab === 'users' && <th>所屬成員</th>}
+                    <th>AI 標籤</th>
+                    <th>來源/狀態</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loadingExplorer ? (
+                    <tr><td colSpan={explorerTab === 'users' ? 6 : 5} style={{ textAlign: 'center', padding: '40px 0' }}>載入中...</td></tr>
+                  ) : (explorerTab === 'global' ? globalLeads : allUserLeads)
+                      .filter((l: any) => 
+                        !searchTerm || 
+                        l.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        l.domain?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        (l.user_email && l.user_email.toLowerCase().includes(searchTerm.toLowerCase()))
+                      )
+                      .map((lead: any) => (
+                    <tr key={lead.id}>
+                      <td className="font-bold">{lead.company_name}</td>
+                      <td>
+                        <div style={{ fontSize: 12 }}>{lead.domain}</div>
+                        <div className="text-text-muted" style={{ fontSize: 10 }}>{lead.website_url}</div>
+                      </td>
+                      <td>{lead.contact_email || lead.display_email || <span className="text-text-muted italic">無</span>}</td>
+                      {explorerTab === 'users' && <td className="text-primary font-medium">{lead.user_email}</td>}
+                      <td>
+                        <span className={`tag tag--${lead.ai_tag?.toLowerCase() || 'default'}`}>
+                          {lead.ai_tag}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ fontSize: 11 }}>{lead.source || lead.status}</div>
+                        <div className="text-text-muted" style={{ fontSize: 10 }}>
+                          {lead.created_at ? new Date(lead.created_at).toLocaleDateString() : '-'}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}

@@ -121,7 +121,8 @@ async def search_via_apify_thomasnet(keyword: str, market: str = "US", max_resul
 
     except Exception as e:
         add_log(f"❌ Apify Thomasnet 執行錯誤: {str(e)[:120]}", level="error")
-        return []
+        # Ensure we return what we found so far rather than an empty list
+        return results if results else []
 
 
 # ══════════════════════════════════════════
@@ -208,8 +209,10 @@ async def manufacturer_mine(
     if not all_companies:
         task_record.status = "Completed"
         task_record.completed_at = datetime.utcnow()
+        task_record.leads_found = 0
         db.commit()
         db.close()
+        add_log(f"⚠️ [任務 #{task_id}] 未找到任何製造商資料")
         return {"added": 0, "synced": 0, "skipped": 0}
 
     stats = {"added": 0, "synced": 0, "skipped": 0, "failed": 0}
@@ -222,28 +225,33 @@ async def manufacturer_mine(
         domain_found = co.get("domain", "")
         
         try:
-            # ─── v2.7.1: 全域隔離池同步邏輯 (考慮 sync_enabled) ───
+            # ─── v2.7.1: 全域隔離池同步邏輯 ───
             lead_obj, is_synced = sync_from_global_pool(db, user_id, domain_found, company_name, sync_enabled=sync_enabled)
-            
-            if lead_obj and not is_synced:
-                stats["skipped"] += 1
-                continue
             
             if is_synced:
                 stats["synced"] += 1
                 continue
+                
+            if lead_obj:
+                # 代表私有工作區已有 (既存重複)
+                stats["skipped"] += 1
+                continue
 
-            # ─── 全新名單處理 ───
+            # ─── 行業與標籤處理 (v3.0) ───
             desc = co.get("description", "") or f"Manufacturer found via {co.get('source')}"
             ai_result = ai_service.analyze_company_and_tag(company_name, desc, use_gpt=False, db=db, user_id=user_id)
             
             email = co.get("email", "")
             candidates = co.get("email_candidates", "")
             
+            # 若無 Email 且有 Domain，嘗試找尋
             if not email and domain_found:
-                email_result = await find_emails_free(domain_found, company_name)
-                best_email_obj = email_result.get("best_email")
-                email = best_email_obj["email"] if best_email_obj else f"info@{domain_found}"
+                try:
+                    email_result = await find_emails_free(domain_found, company_name)
+                    best_email_obj = email_result.get("best_email")
+                    email = best_email_obj["email"] if best_email_obj else f"info@{domain_found}"
+                except Exception:
+                    email = f"info@{domain_found}" if domain_found else ""
             
             if not email:
                 stats["failed"] += 1
@@ -258,10 +266,10 @@ async def manufacturer_mine(
                 description=desc,
                 contact_email=email,
                 email_candidates=candidates,
-                ai_tag=ai_result.get("Tag", "AUTO-MANUFACTURER-PRO"),
-                industry_taxonomy=ai_result.get("Taxonomy"), # v3.0
+                ai_tag=ai_result.get("Tag", "AUTO-MAN"),
+                industry_taxonomy=ai_result.get("Taxonomy"),
                 status="Scraped",
-                assigned_bd=ai_result.get("BD", "v2.7-Miner"),
+                assigned_bd=ai_result.get("BD", "v3.1-Miner"),
                 extracted_keywords=keyword,
                 scrape_location=market
             )
@@ -269,7 +277,7 @@ async def manufacturer_mine(
             db.commit()
             db.refresh(new_lead)
             
-            # 同步回全域池 (Shared Intelligence Layer - v3.0)
+            # 同步回全域池 (Shared Intelligence)
             global_rec = save_to_global_pool(db, {
                 "company_name": company_name,
                 "domain": domain_found,
@@ -285,17 +293,12 @@ async def manufacturer_mine(
             if global_rec:
                 new_lead.global_id = global_rec.id
                 db.commit()
-            
-            # 連結 global_id
-            global_rec = db.query(models.GlobalLead).filter(models.GlobalLead.domain == domain_found).first()
-            if global_rec:
-                new_lead.global_id = global_rec.id
-                db.commit()
 
             add_task_log(db, task_id, "success", f"新增 Lead: {company_name}", keyword=keyword)
             stats["added"] += 1
             
         except Exception as e:
+            db.rollback() 
             add_log(f"❌ 處理 {company_name} 時出錯: {str(e)[:100]}", level="error")
             stats["failed"] += 1
 

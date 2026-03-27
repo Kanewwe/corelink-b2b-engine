@@ -728,52 +728,103 @@ class ScrapeSimpleRequest(BaseModel):
     miner_mode: str = "yellowpages"  # "yellowpages" 為原版, "manufacturer" 為新版製造商模式
 
 @app.post("/api/scrape-simple")
-def trigger_scrape_simple(req: ScrapeSimpleRequest, background_tasks: BackgroundTasks, current_user: models.User = Depends(get_current_user_id)):
-    """Simplified scraper with mode selection."""
+def trigger_scrape_simple(
+    req: ScrapeSimpleRequest, 
+    background_tasks: BackgroundTasks, 
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user_id)
+):
+    """
+    Simplified scraper with Tiered Retrieval (v3.1)
+    1. Check Private Workspace
+    2. Sync from Global Pool
+    3. Scrape ONLY if count < Target
+    """
+    from scrape_utils import sync_leads_from_pool_by_keyword
+    
     # 支援多組關鍵字
     if req.keywords:
         keywords = req.keywords
     elif req.keyword:
-        # 如果是逗號分隔的字串，將其拆分為列表
         keywords = [k.strip() for k in req.keyword.split(',')]
     else:
         keywords = ["manufacturer"]
     
+    target_total = req.pages * 10
+    total_found_in_intel = 0
+    synced_from_pool = 0
+    
+    # --- Step 1 & 2: Pool Check ---
+    for kw in keywords:
+        # a. 統計現有私有匹配 (De-duplication happens at DB level during sync)
+        existing_count = db.query(models.Lead).filter(
+            models.Lead.user_id == current_user.id,
+            (models.Lead.company_name.ilike(f"%{kw}%")) | (models.Lead.extracted_keywords.ilike(f"%{kw}%"))
+        ).count()
+        
+        # b. 從全域池同步差額
+        rem_for_kw = max(0, 10 - existing_count) # 每個關鍵字目標 10 筆
+        if rem_for_kw > 0:
+            synced = sync_leads_from_pool_by_keyword(db, current_user.id, kw, limit=rem_for_kw)
+            synced_from_pool += synced
+            total_found_in_intel += (existing_count + synced)
+        else:
+            total_found_in_intel += existing_count
+
+    # --- Step 3: Scrape Decision ---
+    if total_found_in_intel >= target_total:
+        return {
+            "success": True,
+            "message": f"Intelligence Pool has enough data ({total_found_in_intel} leads). No scraper needed.",
+            "found_in_intel": total_found_in_intel,
+            "synced_from_pool": synced_from_pool,
+            "scraper_started": False
+        }
+
+    # If count < target, trigger background scrape
+    rem_target = target_total - total_found_in_intel
+    adj_pages = max(1, (rem_target + 9) // 10)
+
     if req.miner_mode == "manufacturer":
         import manufacturer_miner
         import asyncio
         
         def run_manufacturer_task_sync():
-            """同步包裝函式，讓 FastAPI BackgroundTasks 能正確執行 async 任務"""
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
                 for kw in keywords:
                     loop.run_until_complete(
-                        manufacturer_miner.manufacturer_mine(kw, req.market, req.pages, current_user.id)
+                        manufacturer_miner.manufacturer_mine(kw, req.market, adj_pages, current_user.id)
                     )
             finally:
                 loop.close()
         
         background_tasks.add_task(run_manufacturer_task_sync)
-        return {"message": f"Manufacturer Mode mining started for {req.market} with {len(keywords)} keywords"}
+        scrape_msg = f"Manufacturer Mode started for remaining {rem_target} leads."
     else:
         import scrape_simple as scrape_mod
         import asyncio
         
         def run_yellowpages_task_sync():
-            """同步包裝函式，讓 FastAPI BackgroundTasks 能正確執行任務"""
-            # 即使 scrape_simple 是 sync，但在 FastAPI 背景執行緒中，
-            # 若內層有 asyncio.run() 可能會與父執行緒 loop 衝突，故採隔離 loop 模式。
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
-                scrape_mod.scrape_simple(req.market, req.pages, keywords, current_user.id)
+                scrape_mod.scrape_simple(req.market, adj_pages, keywords, current_user.id)
             finally:
                 loop.close()
         
         background_tasks.add_task(run_yellowpages_task_sync)
-        return {"message": f"Yellowpages Mode mining started for {req.market} with {len(keywords)} keywords"}
+        scrape_msg = f"Yellowpages Mode started for remaining {rem_target} leads."
+
+    return {
+        "success": True,
+        "message": f"Found {total_found_in_intel} in Intelligence. {scrape_msg}",
+        "found_in_intel": total_found_in_intel,
+        "synced_from_pool": synced_from_pool,
+        "scraper_started": True,
+        "remaining_target": rem_target
+    }
 
 @app.get("/api/search-history")
 def get_search_history(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
@@ -1193,6 +1244,24 @@ def clear_global_pool(db: Session = Depends(get_db), current_user: models.User =
     db.query(models.GlobalLead).delete()
     db.commit()
     return {"message": "全域隔離池已清空"}
+
+@app.get("/api/admin/global-leads")
+def get_admin_global_leads(
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(auth_module.require_role(["admin"]))
+):
+    """管理員：查看全域情報池所有資料 (v3.1)"""
+    leads = db.query(models.GlobalLead).order_by(models.GlobalLead.id.desc()).all()
+    return [l.to_dict() for l in leads]
+
+@app.get("/api/admin/all-leads")
+def get_admin_all_leads(
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(auth_module.require_role(["admin"]))
+):
+    """管理員：查看所有用戶的工作區資料 (v3.1)"""
+    leads = db.query(models.Lead).order_by(models.Lead.id.desc()).all()
+    return [l.to_dict() for l in leads]
 # ══════════════════════════════════════════
 # Shared Intelligence: 資料修正提案 (v3.0)
 # ══════════════════════════════════════════

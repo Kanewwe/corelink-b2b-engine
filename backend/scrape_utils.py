@@ -91,7 +91,9 @@ def sync_from_global_pool(db, user_id: int, domain: str = None, company_name: st
             override_name=None,
             override_email=None,
             personal_notes=None,
-            custom_tags=None
+            custom_tags=None,
+            # 輔助標記
+            extracted_keywords=company_name # 保存觸發同步的關鍵字
         )
         db.add(new_lead)
         db.commit()
@@ -100,6 +102,27 @@ def sync_from_global_pool(db, user_id: int, domain: str = None, company_name: st
         return new_lead, True
         
     return None, False
+
+def sync_leads_from_pool_by_keyword(db, user_id: int, keyword: str, limit: int = 50) -> int:
+    """
+    依據關鍵字從全域池批量同步名單到個人工作區 (v3.1)
+    回傳: 成功同步的筆數
+    """
+    # 1. 在全域池中尋找匹配的公司 (透過名稱或產業別)
+    global_matches = db.query(models.GlobalLead).filter(
+        (models.GlobalLead.company_name.ilike(f"%{keyword}%")) | 
+        (models.GlobalLead.industry_taxonomy.ilike(f"%{keyword}%")) |
+        (models.GlobalLead.ai_tag.ilike(f"%{keyword}%"))
+    ).limit(limit).all()
+    
+    synced_count = 0
+    for g_lead in global_matches:
+        # 使用現有的同步邏輯 (會自動檢查私有重複)
+        _, is_new = sync_from_global_pool(db, user_id, domain=g_lead.domain, company_name=g_lead.company_name)
+        if is_new:
+            synced_count += 1
+            
+    return synced_count
 
 def save_to_global_pool(db, lead_data: dict):
     """
