@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Send, Search, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Send, Search, RefreshCw, AlertTriangle, Clock, TrendingUp } from 'lucide-react';
+import { getOptimalSendTime } from '../services/api';
+import { toast } from 'react-hot-toast';
 
 const STATUS_OPTIONS = ['已寄出', '已送達', '已開信', '已點擊', '已回覆', '退信', '失敗'];
 
@@ -20,11 +22,38 @@ const Campaigns: React.FC = () => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [searchText, setSearchText] = useState('');
-  const [hasSmtp] = useState(false); // TODO: 從 context 取得 SMTP 狀態
+  const [hasSmtp] = useState(false);
+  // v3.2: 最佳寄信時間
+  const [optimalTime, setOptimalTime] = useState<any>(null);
+  const [loadingOptimal, setLoadingOptimal] = useState(false);
 
   useEffect(() => {
     if (campaigns.length < 0) setCampaigns([]);
   }, []);
+
+  // v3.2: 載入最佳寄信時間
+  useEffect(() => {
+    const fetchOptimal = async () => {
+      setLoadingOptimal(true);
+      try {
+        const resp = await getOptimalSendTime();
+        const data = await resp.json();
+        if (data.success) setOptimalTime(data);
+      } catch (e) { /* silent */ }
+      finally { setLoadingOptimal(false); }
+    };
+    fetchOptimal();
+  }, []);
+
+  const handleApplyOptimalTime = () => {
+    if (!optimalTime?.best_day || !optimalTime?.best_hour) return;
+    const now = new Date();
+    const days: Record<string, number> = { Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6 };
+    const targetDay = days[optimalTime.best_day] ?? 2;
+    now.setDate(now.getDate() + ((targetDay - now.getDay() + 7) % 7 || 7));
+    now.setHours(optimalTime.best_hour, 0, 0, 0);
+    toast.success(`已設定寄信時間為 ${optimalTime.best_time_display || optimalTime.best_day + ' ' + optimalTime.best_hour + ':00'}`);
+  };
 
   const filtered = campaigns.filter(c => {
     if (statusFilter && c.status !== statusFilter) return false;
@@ -43,7 +72,7 @@ const Campaigns: React.FC = () => {
               自動化投遞
               <span className="page-title__en">Automated Outreach</span>
             </h1>
-            <span className="version-badge">LINKORA V2</span>
+            <span className="version-badge">LINKORA V3.2 (AI Outreach)</span>
           </div>
           <p className="page-subtitle">追蹤所有開發信的寄送狀態、開信率與互動記錄。</p>
         </div>
@@ -53,6 +82,54 @@ const Campaigns: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* v3.2: AI 最佳寄信時間推薦 */}
+      {optimalTime && (
+        <div className="card mb-4" style={{
+          background: 'linear-gradient(135deg, rgba(78,205,196,0.08) 0%, rgba(91,127,255,0.05) 100%)',
+          borderColor: 'rgba(78,205,196,0.2)'
+        }}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-accent-teal/20 rounded-xl flex items-center justify-center">
+                <Clock size={18} style={{ color: 'var(--color-accent-teal)' }} />
+              </div>
+              <div>
+                <div className="text-sm font-black text-white">🤖 AI 最佳寄信時間</div>
+                <div className="text-xs text-text-muted mt-0.5">
+                  {optimalTime.reason || `根據您的歷史數據分析`}
+                  {optimalTime.total_opened > 0 && <span className="ml-2 text-accent-teal">（已分析 {optimalTime.total_opened} 封開信）</span>}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              {optimalTime.best_day && optimalTime.best_hour !== undefined && (
+                <>
+                  <div className="text-center">
+                    <div className="text-lg font-black text-accent-teal">{optimalTime.best_time_display || `${optimalTime.best_day} ${String(optimalTime.best_hour).padStart(2,'0')}:00`}</div>
+                    <div className="text-[10px] text-text-muted">
+                      信心度：
+                      <span className={optimalTime.confidence === 'high' ? 'text-emerald-400' : optimalTime.confidence === 'medium' ? 'text-yellow-400' : 'text-slate-400'}>
+                        {optimalTime.confidence === 'high' ? '高' : optimalTime.confidence === 'medium' ? '中' : '低（數據不足）'}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleApplyOptimalTime}
+                    className="btn-outline btn--sm flex items-center gap-1.5"
+                    style={{ borderColor: 'var(--color-accent-teal)', color: 'var(--color-accent-teal)' }}
+                  >
+                    <TrendingUp size={13} /> 套用建議
+                  </button>
+                </>
+              )}
+              {optimalTime.confidence === 'low' && (
+                <span className="text-xs text-text-muted">{optimalTime.recommendation || '請持續累積開信數據'}</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── SMTP 警告橫幅（未設定時顯示）── */}
       {!hasSmtp && (

@@ -525,3 +525,111 @@ async def generate_weekly_report_summary(stats: dict, period_start: str, period_
             "summary": f"期間寄送 {stats.get('sent', 0)} 封，開信率 {stats.get('open_rate', 0)}%。",
             "insights": ["數據不足，請持續累積後再看趨勢"]
         }
+
+
+async def recommend_optimal_send_time(db, user_id: int) -> dict:
+    """
+    v3.2: 分析用戶歷史數據，推薦最佳寄信時間。
+    """
+    api_key = get_api_key(db, "openai", user_id)
+    model = get_openai_model(db, user_id)
+    
+    from models import EmailLog
+    from datetime import datetime, timezone
+    
+    # 分析歷史數據
+    email_logs = db.query(EmailLog).filter(
+        EmailLog.user_id == user_id,
+        EmailLog.opened == True,
+        EmailLog.created_at.isnot(None)
+    ).all()
+    
+    # 統計各時段開信率
+    hour_counts = {}
+    day_counts = {}
+    
+    for log in email_logs:
+        if log.created_at:
+            local_ts = log.created_at.astimezone(timezone.utc) if log.created_at.tzinfo else log.created_at
+            hour = local_ts.hour
+            weekday = local_ts.strftime('%A')
+            
+            hour_counts[hour] = hour_counts.get(hour, 0) + 1
+            day_counts[weekday] = day_counts.get(weekday, 0) + 1
+    
+    if not hour_counts:
+        return {
+            "best_day": "Tuesday",
+            "best_hour": 9,
+            "confidence": "low",
+            "reason": "數據不足，請累積至少 10 封開信記錄後再分析",
+            "recommendation": "一般建議：週二至週四、上午 9-11 點"
+        }
+    
+    # 找出最佳時段
+    best_hour = max(hour_counts, key=hour_counts.get)
+    best_day = max(day_counts, key=day_counts.get) if day_counts else "Tuesday"
+    
+    confidence = "high" if len(email_logs) >= 30 else "medium" if len(email_logs) >= 10 else "low"
+    
+    # 格式化時段
+    hour_display = f"{best_hour:02d}:00"
+    if best_hour < 12:
+        period = "上午"
+    elif best_hour < 17:
+        period = "下午"
+    else:
+        period = "晚間"
+    
+    return {
+        "best_day": best_day,
+        "best_hour": best_hour,
+        "best_time_display": f"{best_day} {hour_display} ({period})",
+        "confidence": confidence,
+        "total_opened": len(email_logs),
+        "hour_breakdown": dict(sorted(hour_counts.items())),
+        "reason": f"根據您過去 {len(email_logs)} 封開信記錄分析，{best_day} {hour_display} 的開信率最高"
+    }
+
+
+async def analyze_reply_intent(email_body: str, db = None, user_id: int = None) -> dict:
+    """
+    v3.2: 分析回信意圖，分類為：有興趣 / 需要更多資訊 / 拒絕 / 需要跟進
+    """
+    api_key = get_api_key(db, "openai", user_id)
+    model = get_openai_model(db, user_id)
+    
+    if not api_key:
+        return {"intent": "unknown", "confidence": "low", "analysis": "請設定 OpenAI API Key"}
+    
+    openai.api_key = api_key
+    
+    prompt = f"""
+分析以下這封回信的意圖，並給出分類與後續建議。
+
+【回信內容】：
+{email_body[:1000]}
+
+分類選項：
+- positive：有興趣，想進一步瞭解或安排會議
+- needs_info：需要更多資訊或報價
+- declined：明確拒絕或表示不需要
+- follow_up：表示有興趣但時機不對，需要後續跟進
+- out_of_office：出差/不在辦公室
+
+輸出 JSON：
+{{"intent": "分類", "confidence": "高/中/低", "analysis": "一句話分析", "next_action": "建議的後續動作"}}
+"""
+    
+    try:
+        response = openai.ChatCompletion.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "你是 B2B 銷售分析師，輸出嚴格 JSON。"},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3
+        )
+        return json.loads(response.choices[0].message.content)
+    except Exception as e:
+        return {"intent": "unknown", "confidence": "low", "analysis": str(e)}

@@ -1076,6 +1076,28 @@ async def generate_analytics_summary(
     
     return {"success": True, **stats, **result}
 
+
+@app.post("/api/analytics/optimal-send-time")
+async def get_optimal_send_time(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user_id)
+):
+    """AI 最佳寄信時間推薦（v3.2）"""
+    result = await ai_service.recommend_optimal_send_time(db, current_user.id)
+    return {"success": True, **result}
+
+
+@app.post("/api/analytics/reply-intent")
+async def analyze_reply_intent(
+    req: dict,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user_id)
+):
+    """AI 回覆意圖分類（v3.2）"""
+    email_body = req.get("email_body", "")
+    result = await ai_service.analyze_reply_intent(email_body, db, current_user.id)
+    return {"success": True, **result}
+
 @app.get("/api/templates")
 def get_templates(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
     templates = db.query(models.EmailTemplate).filter(

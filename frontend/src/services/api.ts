@@ -204,3 +204,13 @@ export const generateABVersions = (companyName: string, tag: string = '', keywor
 
 export const generateAnalyticsSummary = () =>
   fetchWithAuth('/analytics/ai-summary', { method: 'POST' });
+
+// ── v3.2: 最佳寄信時間 & 回覆意圖 ──
+export const getOptimalSendTime = () =>
+  fetchWithAuth('/analytics/optimal-send-time', { method: 'POST' });
+
+export const analyzeReplyIntent = (emailBody: string) =>
+  fetchWithAuth('/analytics/reply-intent', {
+    method: 'POST',
+    body: JSON.stringify({ email_body: emailBody })
+  });
