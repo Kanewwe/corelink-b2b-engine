@@ -1,57 +1,60 @@
-# Linkora 爬蟲系統技術文件 (v3.1.8)
+# Linkora 探勘引擎：運作原理解析 (v3.1.8)
 
-> **版本：** 3.1.8 (Resilience Update)  
-> **更新日期：** 2026-03-27  
-> **維護者：** Antigravity AI  
+本文件以最直白的方式，說明當您在介面按下「開始探勘」後，系統後台到底發生了什麼事。
 
 ---
 
-## 一、核心爬取策略 (v3.1.8 升級)
+## 1. 核心流程：四階段發現法
 
-### 1.1 爬蟲驅動與 Actor 選用
+系統不是直接去 Google 亂搜，而是經過精密的過濾與增強：
 
-為了應對 Thomasnet 等網站轉強的反爬蟲機制，系統已於 v3.1.8 進行以下升級：
+### 階段一：情報庫預檢 (The Reservoir Check)
+- **目的**: 節省金錢 (API 點數) 與時間。
+- **動作**: 系統先在資料庫的 **`global_leads` (全域情報池)** 尋找是否有匹配該關鍵字與地區的公司。
+- **結果**: 
+    - 若有，直接將資料「克隆」到您的帳號下（即時完成）。
+    - 若無，才進入下一階段。
 
-- **推薦 Actor**:
-  - `zen-studio/thomasnet-suppliers-scraper` (2026 首選：具備更高的動態解析能力與欄位完整度)。
-  - `junipr/yellow-pages-scraper` (黃頁模式備援)。
-- **防卡死機制 (Execution Guard)**:
-  - 所有的外部 API 呼叫現在強制封裝在 `asyncio.wait_for(..., timeout=180)`。
-  - **超時處理**: 若 Actor 在 3 分鐘內未完成，引擎將自動終止該執行序並記錄超時錯誤，隨後進入備援模式，確保背景任務不掛起。
+### 階段二：精準雲端探勘 (Deep Scrape)
+- **目的**: 獲取最新實時資料。
+- **動作**: 啟動 Apify 雲端爬蟲。
+    - **製造商模式**: 呼叫 `zen-studio/thomasnet-suppliers-scraper` (針對 B2B 深度優化)。
+    - **黃頁模式**: 呼叫 `junipr/yellow-pages-scraper` (針對地區服務業優化)。
+- **保護機制**: 每個任務限時 **180 秒**。若超過時間，系統會強制關閉該爬蟲，防止後台卡死。
 
-### 1.2 高階 Email 發現率優化 (Accuracy)
+### 階段三：Email 深度補強 (Email Enrichment)
+- **目的**: 解決「抓到公司但沒 Email」的痛點。
+- **動作**: 如果爬蟲沒抓到 Email，系統會觸發自動擴充：
+    1. **Hunter 探測**: 掃描官網隱含的聯絡資訊。
+    2. **前綴猜測 (Prefix Guessing)**: 自動嘗試 `info@`, `sales@`, `admin@` 該公司網域。
+- **效果**: 確保大多數名單都能直接用於開發信寄送。
 
-針對製造商數據通常缺乏公開 Email 的痛點，新增了三層獲取邏輯：
-
-1. **Direct Extraction**: 優先抓取爬蟲回傳的 `email`, `emails`, `contactEmail` 欄位。
-2. **Hunter/Discovery**: 若為空，呼叫 `free_email_hunter` 進行網域探測。
-3. **Prefix Guessing (v3.1.8)**: 若上述皆失敗，系統會根據網域自動生成常見別名：
-   - `info@{domain}`, `sales@{domain}`, `contact@{domain}` 等。
-   - 此舉能將製造商名單的「可開發率」從 40% 提升至 85% 以上。
-
-### 1.3 進階去重與全球情報庫 (Global Lead Pool)
-
-- **隔離表 (Global Isolation Table)**: 所有採集到的公司資料均存儲於 `global_leads`。
-- **Pool-First 策略**: 系統在啟動爬蟲前，會優先檢索情報庫，若命中則直接「克隆」至該用戶的私有工作區，實現零點數消耗獲取資料。
-
----
-
-## 二、模式說明
-
-### 2.1 製造商模式 (Manufacturer Mode - PRO)
-- **流程**: Thomasnet (Active) -> Email Guessing (Fallback) -> Yellowpages (Backup)。
-- **黑名單**: 內建企業過濾器，自動剔除跨國巨頭，專注於中小型精準供應商。
-
-### 2.2 黃頁模式 (Yellowpages Mode)
-- **流程**: 直接呼叫 Yellowpages Scraper，適用於地區性服務業。
+### 階段四：入庫與同步 (Persistence)
+- **動作**: 
+    - 資料會同時存入您的 **私有名單 (`leads`)**。
+    - 同時備份一份到 **全域情報池 (`global_leads`)**，供全系統未來共享（情報沉澱）。
 
 ---
 
-## 三、監控與日誌
+## 2. 韌性設計 (Why it won't hang)
 
-### 3.1 心跳日誌 (Heartbeat)
-- **回報頻率**: 每處理 5 筆資料回傳一次進度。
-- **日誌位置**: 數據引擎 -> 探勘紀錄 -> 檢視日誌。
+以往爬蟲常會「轉圈圈停不住」，我們在 v3.1.8 徹底改進：
+
+| 機制 | 說明 |
+|------|------|
+| **180s Timeout** | 任何外部對接若 3 分鐘不回應，系統會直接拋出超時錯誤並跳過，不影響後續任務。 |
+| **Atomic Sync** | 若存儲某一筆資料失敗，系統會回退 (Rollback) 該筆事務，不影響整批任務的完整性。 |
+| **Heartbeat Logs** | 每處理 5 筆資料就噴一次日誌，讓您能實時看到進度，而非盲目等待。 |
 
 ---
-*Verified & Stabilized (v3.1.8)*
+
+## 3. 如何調優與修改？
+
+如果您是開發者，想修改邏輯：
+
+- **想換爬蟲來源？** 修改 `backend/manufacturer_miner.py` 中的 `actor_id`。
+- **想改去重條件？** 修改 `backend/scrape_utils.py` 中的 `sync_from_global_pool`。
+- **想增加抓取欄位？** 修改 `backend/models.py` 的 `Lead` 模型與資料庫 Schema。
+
+---
+*本文件旨在讓非技術人員也能秒懂 Linkora 的核心心臟——探勘引擎。*
