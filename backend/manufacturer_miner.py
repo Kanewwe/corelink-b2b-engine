@@ -70,19 +70,34 @@ async def search_via_apify_thomasnet(keyword: str, market: str = "US", max_resul
             "includeDetails": True # 深層資訊提取
         }
 
-        # 優先使用 memo23 的 Actor
+        # 🚀 升級 Actor: 使用 zen-studio/thomasnet-suppliers-scraper (Rising Star 2026)
+        actor_id = "zen-studio/thomasnet-suppliers-scraper"
+        
         try:
             if db and task_id:
-                add_task_log(db, task_id, "info", "🚀 [Apify] 正在執行 Thomasnet 深度探勘 (這可能需要 2-5 分鐘)...")
-            # 使用 to_thread 避免阻塞事件迴圈
-            run = await asyncio.to_thread(client.actor("memo23/thomasnet-scraper").call, run_input=run_input)
-        except Exception:
+                add_task_log(db, task_id, "info", f"🚀 [Apify] 正在執行 Thomasnet 深度探勘 ({actor_id})...")
+            
+            # 🛡️ 加上 180 秒強制超時，防卡死
+            run = await asyncio.wait_for(
+                asyncio.to_thread(client.actor(actor_id).call, run_input=run_input),
+                timeout=180
+            )
+        except asyncio.TimeoutError:
+            add_log(f"🚨 [Apify] Thomasnet Actor ({actor_id}) 超時被終止", level="error")
+            run = None
+        except Exception as e:
+            add_log(f"⚠️ Thomasnet Actor 執行失敗: {str(e)[:100]}，嘗試進入備援方案...", level="warning")
             run = None
 
         if not run or not run.get("defaultDatasetId"):
-            add_log("⚠️ 嘗試備援 Thomasnet Actor...", level="warning")
+            # 備援 Actor
+            backup_actor = "jeeves_is_my_copilot/thomasnet-supplier-directory-scraper"
+            add_log(f"⚠️ 嘗試備援 Thomasnet Actor: {backup_actor}...", level="warning")
             try:
-                run = await asyncio.to_thread(client.actor("jeeves_is_my_copilot/thomasnet-supplier-directory-scraper").call, run_input=run_input)
+                run = await asyncio.wait_for(
+                    asyncio.to_thread(client.actor(backup_actor).call, run_input=run_input),
+                    timeout=120
+                )
             except Exception:
                 run = None
 
@@ -257,10 +272,22 @@ async def manufacturer_mine(
                     try:
                         email_result = await find_emails_free(domain_found, company_name)
                         best_email_obj = email_result.get("best_email")
-                        email = best_email_obj["email"] if best_email_obj else f"info@{domain_found}"
+                        if best_email_obj:
+                            email = best_email_obj["email"]
                     except Exception:
-                        email = f"info@{domain_found}" if domain_found else ""
+                        pass
                 
+                # 🛡️ 最終備援: Common Prefix Guessing (v3.1.8)
+                if not email and domain_found:
+                    # 製造商常見的通用信箱前綴
+                    for prefix in ["info", "sales", "contact", "hello", "admin", "office"]:
+                        guess = f"{prefix}@{domain_found}"
+                        # 簡單驗證格式 (後續可接入 SMTP 驗證)
+                        if len(guess) > 5:
+                            email = guess
+                            add_log(f"💡 [Miner] 使用 Guessing Fallback: {email}")
+                            break
+                            
                 if not email:
                     stats["failed"] += 1
                     continue
@@ -302,8 +329,10 @@ async def manufacturer_mine(
                     new_lead.global_id = global_rec.id
                     db.commit()
 
-                add_task_log(db, task_id, "success", f"新增 Lead: {company_name}", keyword=keyword)
                 stats["added"] += 1
+                # 💓 心跳日誌：每 5 筆回報一次
+                if stats["added"] % 5 == 0:
+                    add_task_log(db, task_id, "info", f"探勘進度: 已新增 {stats['added']} 筆, 同步 {stats['synced']} 筆...", keyword=keyword)
                 
             except Exception as e:
                 db.rollback() 
