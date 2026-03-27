@@ -1,6 +1,6 @@
-import { Plus, Folder, Paperclip, Save, Trash2, Edit, Check, Sparkles, RotateCcw, FileCode, Eye, Layout, Languages, Type } from 'lucide-react';
+import { Plus, Folder, Paperclip, Save, Trash2, Edit, Check, Sparkles, RotateCcw, FileCode, Eye, Layout, Languages, Type, Wand2, GitBranch } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { getTemplates, createTemplate, updateTemplate, deleteTemplate, generateAiTemplate } from '../services/api';
+import { getTemplates, createTemplate, updateTemplate, deleteTemplate, generateAiTemplate, optimizeEmailSubject, generateABVersions } from '../services/api';
 import Editor from "@monaco-editor/react";
 import React, { useState, useEffect } from 'react';
 
@@ -34,6 +34,15 @@ const Templates: React.FC = () => {
   const [aiLanguage, setAiLanguage] = useState('English');
   const [isGenerating, setIsGenerating] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  
+  // v3.2: AI 主旨優化
+  const [subjectSuggestions, setSubjectSuggestions] = useState<string[]>([]);
+  const [optimizingSubject, setOptimizingSubject] = useState(false);
+  
+  // v3.2: A/B 雙版本
+  const [abVersions, setAbVersions] = useState<{version_a: {subject: string, body: string}, version_b: {subject: string, body: string}} | null>(null);
+  const [generatingAB, setGeneratingAB] = useState(false);
+  const [showABModal, setShowABModal] = useState(false);
   
   const [form, setForm] = useState({
     name: '',
@@ -106,6 +115,77 @@ const Templates: React.FC = () => {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  // v3.2: AI 主旨優化
+  const handleOptimizeSubject = async () => {
+    if (!form.subject) {
+      toast.error("請先填寫主旨");
+      return;
+    }
+    setOptimizingSubject(true);
+    const loadingToast = toast.loading("AI 正在優化主旨...");
+    try {
+      const resp = await optimizeEmailSubject(form.subject, form.name || '');
+      const data = await resp.json();
+      if (data.success && data.suggestions && data.suggestions.length > 0) {
+        setSubjectSuggestions(data.suggestions);
+        toast.success(`產生 ${data.suggestions.length} 個建議！`, { id: loadingToast });
+      } else {
+        toast.error(data.message || "優化失敗", { id: loadingToast });
+      }
+    } catch (e) {
+      toast.error("網路錯誤", { id: loadingToast });
+    } finally {
+      setOptimizingSubject(false);
+    }
+  };
+
+  // v3.2: 套用選擇的主旨
+  const applySubject = (subject: string) => {
+    setForm(prev => ({ ...prev, subject }));
+    setSubjectSuggestions([]);
+    toast.success("已套用主旨");
+  };
+
+  // v3.2: A/B 雙版本生成
+  const handleGenerateAB = async () => {
+    if (!form.name && !aiPrompt) {
+      toast.error("請填寫公司名稱或描述內容");
+      return;
+    }
+    setGeneratingAB(true);
+    const loadingToast = toast.loading("AI 正在生成 A/B 雙版本...");
+    try {
+      const resp = await generateABVersions(
+        form.name || aiPrompt.slice(0, 50),
+        form.tag,
+        []
+      );
+      const data = await resp.json();
+      if (data.success && data.version_a && data.version_b) {
+        setAbVersions(data);
+        setShowABModal(true);
+        toast.success("A/B 版本已生成！", { id: loadingToast });
+      } else {
+        toast.error(data.message || "生成失敗", { id: loadingToast });
+      }
+    } catch (e) {
+      toast.error("網路錯誤", { id: loadingToast });
+    } finally {
+      setGeneratingAB(false);
+    }
+  };
+
+  // v3.2: 套用選擇的 A/B 版本
+  const applyABVersion = (version: 'version_a' | 'version_b') => {
+    if (!abVersions) return;
+    const v = abVersions[version];
+    setForm(prev => ({ ...prev, subject: v.subject, body: `<html><body>\n${v.body}\n</body></html>` }));
+    setShowABModal(false);
+    setAbVersions(null);
+    setEditorMode('split');
+    toast.success(`已套用版本 ${version === 'version_a' ? 'A' : 'B'}`);
   };
 
   const insertVariable = (v: string) => {
@@ -182,7 +262,7 @@ const Templates: React.FC = () => {
               智慧行銷劇本
               <span className="page-title__en">AI Scripts</span>
             </h1>
-            <span className="version-badge">LINKORA V2</span>
+            <span className="version-badge">LINKORA V3.2 (AI Scripts)</span>
           </div>
           <p className="page-subtitle">建立、管理並以 AI 輔助生成個性化開發信模板。</p>
         </div>
@@ -245,13 +325,45 @@ const Templates: React.FC = () => {
 
               <div className="mt-6 space-y-2">
                 <label className="text-xs font-bold text-text-muted uppercase tracking-widest ml-1">郵件主旨 (Subject) *</label>
-                <input 
-                  type="text" 
-                  value={form.subject}
-                  onChange={e => setForm({...form, subject: e.target.value})}
-                  placeholder="Hello {{company_name}}, interesting opportunity for you"
-                  className="form-input"
-                />
+                {/* v3.2: 主旨輸入 + AI 優化按鈕 */}
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    value={form.subject}
+                    onChange={e => setForm({...form, subject: e.target.value})}
+                    placeholder="Hello {{company_name}}, interesting opportunity for you"
+                    className="form-input flex-1"
+                  />
+                  <button
+                    onClick={handleOptimizeSubject}
+                    disabled={optimizingSubject || !form.subject}
+                    className="btn-outline btn--sm flex items-center gap-1.5 flex-shrink-0"
+                    style={{ borderColor: 'var(--color-accent-teal)', color: 'var(--color-accent-teal)' }}
+                    title="AI 優化主旨"
+                  >
+                    {optimizingSubject ? <RotateCcw className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                    ✨ 優化
+                  </button>
+                </div>
+                {/* v3.2: AI 建議主旨 */}
+                {subjectSuggestions.length > 0 && (
+                  <div className="bg-accent-teal/5 border border-accent-teal/20 rounded-xl p-4 space-y-2">
+                    <div className="text-xs font-bold text-accent-teal mb-2">✨ AI 建議主旨（點擊套用）</div>
+                    {subjectSuggestions.map((s, i) => (
+                      <div
+                        key={i}
+                        onClick={() => applySubject(s)}
+                        className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-white/5 cursor-pointer transition-all group"
+                      >
+                        <span className={`w-5 h-5 rounded border flex items-center justify-center text-[10px] font-black flex-shrink-0 ${
+                          i === 0 ? 'border-accent-teal text-accent-teal' : 'border-white/20 text-text-muted'
+                        }`}>{String.fromCharCode(65 + i)}</span>
+                        <span className="text-xs text-white group-hover:text-accent-teal transition-colors flex-1">{s}</span>
+                        <span className="text-[9px] text-text-muted opacity-0 group-hover:opacity-100 transition-opacity">套用 →</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <p className="text-[10px] text-text-muted flex items-center gap-1.5 mt-2">
                   <span className="bg-white/10 px-1.5 py-0.5 rounded text-white flex items-center">Tip</span>
                   支援變數動態替換：<code>{"{{company_name}}"}</code>, <code>{"{{contact_name}}"}</code>
@@ -323,7 +435,17 @@ const Templates: React.FC = () => {
                           className="bg-primary hover:bg-primary-dark text-white px-6 py-2 rounded-xl text-xs font-black transition-all shadow-lg shadow-primary/20 flex items-center gap-2 disabled:opacity-50"
                        >
                           {isGenerating ? <RotateCcw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                          讓 AI 生成 HTML
+                          AI 生成 HTML
+                       </button>
+                       {/* v3.2: A/B 雙版本生成 */}
+                       <button
+                          onClick={handleGenerateAB}
+                          disabled={generatingAB}
+                          className="bg-accent-teal/10 hover:bg-accent-teal/20 border border-accent-teal/30 text-accent-teal px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 disabled:opacity-50"
+                          title="生成理性版與感性版供 A/B 測試"
+                       >
+                          {generatingAB ? <RotateCcw className="w-3.5 h-3.5 animate-spin" /> : <GitBranch className="w-3.5 h-3.5" />}
+                          ⚡ A/B 雙版本
                        </button>
                        <button 
                           onClick={() => {setAiPrompt(''); setAiStyle('formal');}}
@@ -446,6 +568,85 @@ const Templates: React.FC = () => {
                   )}
                </button>
             </div>
+
+            {/* v3.2: A/B 雙版本 Modal */}
+            {showABModal && abVersions && (
+              <>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50" onClick={() => setShowABModal(false)} />
+                <div className="fixed inset-4 md:inset-10 z-50 flex items-center justify-center">
+                  <div className="bg-slate-900 rounded-2xl border border-white/10 w-full max-w-5xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+                    {/* Modal Header */}
+                    <div className="p-6 border-b border-white/10 flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-black text-white flex items-center gap-2">
+                          <GitBranch className="w-5 h-5 text-accent-teal" />
+                          A/B 測試雙版本
+                        </h3>
+                        <p className="text-xs text-text-muted mt-1">版本 A 為理性/數據型，版本 B 為故事/情感型。選擇一個套用。</p>
+                      </div>
+                      <button onClick={() => setShowABModal(false)} className="btn-icon-sm">✕</button>
+                    </div>
+                    {/* Modal Body */}
+                    <div className="flex-1 overflow-y-auto p-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Version A */}
+                        <div className="border border-blue-500/30 rounded-2xl overflow-hidden bg-blue-500/5">
+                          <div className="bg-blue-500/10 px-5 py-3 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="bg-blue-500 text-white text-xs font-black w-6 h-6 rounded flex items-center justify-center">A</span>
+                              <span className="font-bold text-blue-400 text-sm">理性 / 數據型</span>
+                            </div>
+                            <span className="text-[9px] text-blue-400/60 uppercase tracking-widest">Data-Driven</span>
+                          </div>
+                          <div className="p-5 space-y-3">
+                            <div>
+                              <div className="text-[10px] text-text-muted uppercase tracking-widest mb-1">主旨</div>
+                              <div className="text-sm font-bold text-white bg-white/5 rounded-lg p-3">{abVersions.version_a.subject}</div>
+                            </div>
+                            <div>
+                              <div className="text-[10px] text-text-muted uppercase tracking-widest mb-1">內容預覽</div>
+                              <div className="text-xs text-slate-300 bg-white/5 rounded-lg p-3 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">{abVersions.version_a.body}</div>
+                            </div>
+                            <button
+                              onClick={() => applyABVersion('version_a')}
+                              className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-xl text-xs font-black transition-all"
+                            >
+                              使用版本 A
+                            </button>
+                          </div>
+                        </div>
+                        {/* Version B */}
+                        <div className="border border-amber-500/30 rounded-2xl overflow-hidden bg-amber-500/5">
+                          <div className="bg-amber-500/10 px-5 py-3 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="bg-amber-500 text-white text-xs font-black w-6 h-6 rounded flex items-center justify-center">B</span>
+                              <span className="font-bold text-amber-400 text-sm">故事 / 情感型</span>
+                            </div>
+                            <span className="text-[9px] text-amber-400/60 uppercase tracking-widest">Story-Driven</span>
+                          </div>
+                          <div className="p-5 space-y-3">
+                            <div>
+                              <div className="text-[10px] text-text-muted uppercase tracking-widest mb-1">主旨</div>
+                              <div className="text-sm font-bold text-white bg-white/5 rounded-lg p-3">{abVersions.version_b.subject}</div>
+                            </div>
+                            <div>
+                              <div className="text-[10px] text-text-muted uppercase tracking-widest mb-1">內容預覽</div>
+                              <div className="text-xs text-slate-300 bg-white/5 rounded-lg p-3 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">{abVersions.version_b.body}</div>
+                            </div>
+                            <button
+                              onClick={() => applyABVersion('version_b')}
+                              className="w-full bg-amber-600 hover:bg-amber-500 text-white py-2.5 rounded-xl text-xs font-black transition-all"
+                            >
+                              使用版本 B
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
 

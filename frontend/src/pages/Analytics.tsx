@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getEngagements, getAdminVendors } from '../services/api';
+import { getEngagements, getAdminVendors, generateAnalyticsSummary } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { BarChart3, Users, DollarSign, Calendar, Building2 } from 'lucide-react';
+import { BarChart3, Users, DollarSign, Calendar, Building2, Brain, RotateCcw, Lightbulb, TrendingUp, AlertTriangle } from 'lucide-react';
 
 interface BillingInfo {
   total_leads: number;
@@ -17,7 +17,10 @@ const Analytics: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [vendors, setVendors] = useState<any[]>([]);
   const [selectedVendor, setSelectedVendor] = useState<number | undefined>(undefined);
-
+  // v3.2: AI 成效摘要
+  const [aiSummary, setAiSummary] = useState<any>(null);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+  
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -42,6 +45,42 @@ const Analytics: React.FC = () => {
     fetchData();
   }, [selectedVendor]);
 
+  // v3.2: AI 成效摘要
+  const fetchAiSummary = async () => {
+    setLoadingSummary(true);
+    try {
+      const resp = await generateAnalyticsSummary();
+      const result = await resp.json();
+      if (result.success) {
+        setAiSummary(result);
+      }
+    } catch (e) {
+      console.error("AI summary failed", e);
+    } finally {
+      setLoadingSummary(false);
+    }
+  };
+
+  useEffect(() => {
+    if (data?.billing) {
+      fetchAiSummary();
+    }
+  }, [data]);
+
+  // v3.2: Helper for rendering AI tags
+  const renderAIBadges = (tags: string[]) => {
+    const colors: Record<string, string> = {
+      '高': 'bg-emerald-500/20 text-emerald-400',
+      '開': 'bg-blue-500/20 text-blue-400',
+      '優': 'bg-accent-teal/20 text-accent-teal',
+      '⚠': 'bg-yellow-500/20 text-yellow-400',
+      '💡': 'bg-purple-500/20 text-purple-400',
+    };
+    return tags.map((tag, i) => (
+      <span key={i} className={`text-xs px-2 py-0.5 rounded-full ${colors[tag[0]] || 'bg-slate-700 text-slate-300'}`}>{tag}</span>
+    ));
+  };
+
   if (loading && !data) {
     return (
       <div className="page-loading">
@@ -64,7 +103,7 @@ const Analytics: React.FC = () => {
               成效分析雷達
               <span className="page-title__en">Performance Radar</span>
             </h1>
-            <span className="version-badge">LINKORA V2</span>
+            <span className="version-badge">LINKORA V3.2 (AI Radar)</span>
           </div>
           <p className="page-subtitle">
             {user?.role === 'admin' ? '全系統營運數據監控' : '委外專案執行進度與結算額'}
@@ -93,6 +132,79 @@ const Analytics: React.FC = () => {
             <p className="empty-state__title">尚無分析資料</p>
             <p className="empty-state__desc">完成第一次探勘並發送開發信後，成效數據將自動顯示於此。</p>
           </div>
+        </div>
+      )}
+
+      {/* v3.2: AI 成效摘要 Report */}
+      {aiSummary && (
+        <div className="card mb-6" style={{
+          background: 'linear-gradient(135deg, rgba(91,127,255,0.08) 0%, rgba(78,205,196,0.05) 100%)',
+          borderColor: 'rgba(91,127,255,0.2)'
+        }}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 bg-primary/20 rounded-lg flex items-center justify-center">
+                <Brain size={16} style={{ color: 'var(--color-primary)' }} />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-white">🤖 AI 成效摘要</h3>
+                <p className="text-[10px] text-text-muted">
+                  {aiSummary.period_start || ''} ~ {aiSummary.period_end || ''} 期間分析
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={fetchAiSummary}
+              disabled={loadingSummary}
+              className="btn-outline btn--sm flex items-center gap-1.5"
+            >
+              {loadingSummary ? <RotateCcw className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+              重新生成
+            </button>
+          </div>
+          
+          {/* Summary text */}
+          <div className="bg-white/[0.03] rounded-xl p-4 mb-4">
+            <p className="text-sm text-white/90 leading-relaxed">{aiSummary.summary}</p>
+          </div>
+          
+          {/* Stats row */}
+          <div className="grid grid-cols-4 gap-3 mb-4">
+            {[
+              { label: '寄送', value: aiSummary.sent || 0, color: 'var(--color-primary)' },
+              { label: '開信率', value: `${aiSummary.open_rate || 0}%`, color: 'var(--color-accent-teal)' },
+              { label: '點擊率', value: `${aiSummary.click_rate || 0}%`, color: 'var(--color-warning)' },
+              { label: '退信率', value: `${aiSummary.bounce_rate || 0}%`, color: aiSummary.bounce_rate > 5 ? 'var(--color-danger)' : 'var(--color-success)' },
+            ].map(stat => (
+              <div key={stat.label} className="bg-white/[0.03] rounded-xl p-3 text-center">
+                <div className="text-lg font-black" style={{ color: stat.color }}>{stat.value}</div>
+                <div className="text-[10px] text-text-muted mt-0.5">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+          
+          {/* Insights */}
+          {aiSummary.insights && aiSummary.insights.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-[10px] font-bold text-text-muted uppercase tracking-widest flex items-center gap-1.5">
+                <Lightbulb size={12} /> 改善建議
+              </div>
+              {aiSummary.insights.map((insight: string, i: number) => (
+                <div key={i} className="flex items-start gap-2 text-xs text-slate-300 bg-white/[0.02] rounded-lg px-3 py-2">
+                  <span className="text-accent-teal mt-0.5 flex-shrink-0">💡</span>
+                  <span>{insight}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Highlight */}
+          {aiSummary.highlight && (
+            <div className="mt-3 flex items-start gap-2 text-xs text-emerald-300 bg-emerald-500/10 rounded-lg px-3 py-2">
+              <TrendingUp size={12} className="mt-0.5 flex-shrink-0" />
+              <span>{aiSummary.highlight}</span>
+            </div>
+          )}
         </div>
       )}
 
