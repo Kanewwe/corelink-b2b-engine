@@ -311,11 +311,9 @@ const LeadEngine: React.FC = () => {
       
       if (resp.ok) {
         const result = await resp.json();
-        if (result.found_in_intel > 0) {
-          toast.success(`從情報庫即時恢復了 ${result.found_in_intel} 筆公司資料！`, { id: loadingToast, duration: 5000 });
-        } else {
-          toast.success("探勘背景任務已成功啟動！", { id: loadingToast });
-        }
+        // 使用後端傳回的精確訊息 (包含即時恢復與背景進度)
+        toast.success(result.message || "探勘背景任務已啟動！", { id: loadingToast, duration: 6000 });
+        
         setActiveKeywords([]);
         setKeywordInput('');
         fetchDashboardData();

@@ -768,8 +768,8 @@ def trigger_scrape_simple(
                 (models.Lead.company_name.ilike(f"%{kw}%")) | (models.Lead.extracted_keywords.ilike(f"%{kw}%"))
             ).count()
             
-            # b. 從全域池同步差額
-            rem_for_kw = max(0, 10 - existing_count) 
+            # b. 從全域池同步差額 (改為動態 target_total)
+            rem_for_kw = max(0, target_total - existing_count) 
             if rem_for_kw > 0:
                 synced = sync_leads_from_pool_by_keyword(db, current_user.id, kw, limit=rem_for_kw)
                 synced_from_pool += synced
@@ -781,7 +781,7 @@ def trigger_scrape_simple(
         if total_found_in_intel >= target_total:
             return {
                 "success": True,
-                "message": f"Intelligence Pool has enough data ({total_found_in_intel} leads). No scraper needed.",
+                "message": f"💡 情報庫已有充足資料（共 {total_found_in_intel} 筆），已立即恢復至您的工作區，無需重新探勘。",
                 "found_in_intel": total_found_in_intel,
                 "synced_from_pool": synced_from_pool,
                 "scraper_started": False
@@ -807,7 +807,7 @@ def trigger_scrape_simple(
                     loop.close()
             
             background_tasks.add_task(run_manufacturer_task_sync)
-            scrape_msg = f"Manufacturer Mode started for remaining {rem_target} leads."
+            scrape_msg = f"已啟動製造商模式，預計探勘剩餘 {rem_target} 筆名單。"
         else:
             import scrape_simple as scrape_mod
             import asyncio
@@ -821,11 +821,11 @@ def trigger_scrape_simple(
                     loop.close()
             
             background_tasks.add_task(run_yellowpages_task_sync)
-            scrape_msg = f"Yellowpages Mode started for remaining {rem_target} leads."
+            scrape_msg = f"已啟動黃頁模式，預計探勘剩寧 {rem_target} 筆名單。"
 
         return {
             "success": True,
-            "message": f"Found {total_found_in_intel} in Intelligence. {scrape_msg}",
+            "message": f"✅ 已從情報庫恢復 {total_found_in_intel} 筆資料。{scrape_msg}",
             "found_in_intel": total_found_in_intel,
             "synced_from_pool": synced_from_pool,
             "scraper_started": True,

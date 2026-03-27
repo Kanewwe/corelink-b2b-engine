@@ -53,6 +53,8 @@ async def search_via_apify_thomasnet(keyword: str, market: str = "US", max_resul
     try:
         from apify_client import ApifyClient
         client = ApifyClient(apify_token)
+        if db and task_id:
+            add_task_log(db, task_id, "info", "🏭 [Apify] 已連線至 Apify API，準備啟動 Thomasnet Actor...")
     except ImportError:
         add_log("❌ 未安裝 apify-client 庫", level="error")
         return []
@@ -70,14 +72,17 @@ async def search_via_apify_thomasnet(keyword: str, market: str = "US", max_resul
 
         # 優先使用 memo23 的 Actor
         try:
-            run = client.actor("memo23/thomasnet-scraper").call(run_input=run_input)
+            if db and task_id:
+                add_task_log(db, task_id, "info", "🚀 [Apify] 正在執行 Thomasnet 深度探勘 (這可能需要 2-5 分鐘)...")
+            # 使用 to_thread 避免阻塞事件迴圈
+            run = await asyncio.to_thread(client.actor("memo23/thomasnet-scraper").call, run_input=run_input)
         except Exception:
             run = None
 
         if not run or not run.get("defaultDatasetId"):
             add_log("⚠️ 嘗試備援 Thomasnet Actor...", level="warning")
             try:
-                run = client.actor("jeeves_is_my_copilot/thomasnet-supplier-directory-scraper").call(run_input=run_input)
+                run = await asyncio.to_thread(client.actor("jeeves_is_my_copilot/thomasnet-supplier-directory-scraper").call, run_input=run_input)
             except Exception:
                 run = None
 
@@ -117,6 +122,8 @@ async def search_via_apify_thomasnet(keyword: str, market: str = "US", max_resul
             })
 
         add_log(f"✅ [Apify Thomasnet] 成功取得 {len(results)} 筆資料")
+        if db and task_id:
+            add_task_log(db, task_id, "success", f"✅ [Apify] Thomasnet 探勘完成，取得 {len(results)} 筆原始資料")
         return results
 
     except Exception as e:
@@ -175,7 +182,7 @@ async def manufacturer_mine(
                 "extractEmails": True,
                 "includeDetails": True
             }
-            run = client.actor("junipr/yellow-pages-scraper").call(run_input=yp_input)
+            run = await asyncio.to_thread(client.actor("junipr/yellow-pages-scraper").call, run_input=yp_input)
             if run and run.get("defaultDatasetId"):
                 yp_items = client.dataset(run["defaultDatasetId"]).list_items().items
                 for item in yp_items:
@@ -301,8 +308,8 @@ async def manufacturer_mine(
             db.rollback() 
             add_log(f"❌ 處理 {company_name} 時出錯: {str(e)[:100]}", level="error")
             stats["failed"] += 1
-
-    # 更新任務結束
+            
+    # --- 正常結束邏輯 (與 for 迴圈對齊) ---
     task_record.status = "Completed"
     task_record.leads_found = stats["added"] + stats["synced"]
     task_record.completed_at = datetime.utcnow()
@@ -312,5 +319,20 @@ async def manufacturer_mine(
     add_log(f"🏁 [任務 #{task_id}] {summary}")
     add_task_log(db, task_id, "success", summary)
     
-    db.close()
     return stats
+
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        add_log(f"🚨 [ManufacturerMiner] 嚴重錯誤: {str(e)}", level="error")
+        if 'task_id' in locals():
+            task_ref = db.query(models.ScrapeTask).filter(models.ScrapeTask.id == task_id).first()
+            if task_ref:
+                task_ref.status = "Failed"
+                task_ref.error_message = f"系統錯誤: {str(e)[:200]}"
+                task_ref.completed_at = datetime.utcnow()
+                db.commit()
+            add_task_log(db, task_id, "error", f"❌ 任務執行失敗: {str(e)[:100]}")
+        return {"added": 0, "synced": 0, "skipped": 0, "error": str(e)}
+    finally:
+        db.close()

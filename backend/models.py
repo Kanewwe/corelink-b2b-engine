@@ -376,8 +376,8 @@ class ScrapeTask(Base):
             "status": self.status,
             "leads_found": self.leads_found or 0,
             "error_message": self.error_message,
-            "started_at": self.started_at.strftime("%Y-%m-%d %H:%M:%S") if self.started_at else None,
-            "completed_at": self.completed_at.strftime("%Y-%m-%d %H:%M:%S") if self.completed_at else None,
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
         }
         if include_logs:
             data["logs"] = [log.to_dict() for log in self.logs]
@@ -412,7 +412,7 @@ class ScrapeLog(Base):
             "keyword": self.keyword,
             "page": self.page,
             "items_found": self.items_found,
-            "created_at": self.created_at.strftime("%H:%M:%S") if self.created_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
 
