@@ -1,10 +1,15 @@
 """
-Scrape Utilities (v2.7) - Lead Isolation Pool Sync
+Scrape Utilities (v2.7.2) - Lead Isolation Pool Sync
 處理 GlobalPool 與 Private Leads 之間的同步邏輯。
+
+v2.7.2 修復:
+- BUG-2: domain 空字串處理，避免 unique constraint 問題
+- BUG-4: company_name 改用 ilike 做模糊比對
+- BUG-6: 更新時補足 industry_taxonomy
 """
 
 import models
-from datetime import datetime
+from datetime import datetime, timezone
 from logger import add_log
 
 def extract_best_email(item: dict):
@@ -24,7 +29,6 @@ def extract_best_email(item: dict):
     if emails and isinstance(emails, list):
         for e in emails:
             if e and isinstance(e, str) and "@" in e:
-                # 排除一些常見的垃圾/通用前綴 (可加強)
                 return e.strip().lower()
     
     # 3. 檢查單一 email 欄位
@@ -34,12 +38,25 @@ def extract_best_email(item: dict):
         
     return ""
 
+def _normalize_domain(domain: str) -> str:
+    """正規化 domain，空字串轉為 None"""
+    if not domain:
+        return None
+    domain = domain.strip().lower()
+    if domain in ['', 'n/a', 'none', '-']:
+        return None
+    return domain
+
 def sync_from_global_pool(db, user_id: int, domain: str = None, company_name: str = None, sync_enabled: bool = True):
     """
     從全域隔離池 (Global Pool) 同步資料到私有清單。
     v2.7.1: 支援 sync_enabled 開關。
-    回傳: (Lead 對象, is_new: bool)
+    v2.7.2: domain 空字串處理 + company_name 模糊比對。
+    回傳: (Lead 對象, is_synced: bool)
     """
+    # 正規化 domain
+    domain = _normalize_domain(domain)
+    
     if not domain and not company_name:
         return None, False
         
@@ -51,9 +68,10 @@ def sync_from_global_pool(db, user_id: int, domain: str = None, company_name: st
             models.Lead.user_id == user_id
         ).first()
     
-    if not existing_private:
+    if not existing_private and company_name:
+        # v2.7.2: 使用 ilike 做模糊比對 (大小寫不敏感)
         existing_private = db.query(models.Lead).filter(
-            models.Lead.company_name == company_name,
+            models.Lead.company_name.ilike(company_name.strip()),
             models.Lead.user_id == user_id
         ).first()
         
@@ -68,8 +86,11 @@ def sync_from_global_pool(db, user_id: int, domain: str = None, company_name: st
     if domain:
         global_lead = db.query(models.GlobalLead).filter(models.GlobalLead.domain == domain).first()
     
-    if not global_lead:
-        global_lead = db.query(models.GlobalLead).filter(models.GlobalLead.company_name == company_name).first()
+    if not global_lead and company_name:
+        # v2.7.2: 使用 ilike 做模糊比對
+        global_lead = db.query(models.GlobalLead).filter(
+            models.GlobalLead.company_name.ilike(company_name.strip())
+        ).first()
         
     if global_lead:
         # 同步回私有清單 (v3.0: 雙層架構)
@@ -84,16 +105,14 @@ def sync_from_global_pool(db, user_id: int, domain: str = None, company_name: st
             phone=global_lead.phone,
             address=global_lead.address,
             ai_tag=global_lead.ai_tag,
-            industry_taxonomy=global_lead.industry_taxonomy, # v3.0
+            industry_taxonomy=global_lead.industry_taxonomy,
             status="Synced",
             assigned_bd="Global-Pool-Sync",
-            # 初始化 Overlay 欄位為 None
             override_name=None,
             override_email=None,
             personal_notes=None,
             custom_tags=None,
-            # 輔助標記
-            extracted_keywords=company_name # 保存觸發同步的關鍵字
+            extracted_keywords=company_name
         )
         db.add(new_lead)
         db.commit()
@@ -108,7 +127,6 @@ def sync_leads_from_pool_by_keyword(db, user_id: int, keyword: str, limit: int =
     依據關鍵字從全域池批量同步名單到個人工作區 (v3.1)
     回傳: 成功同步的筆數
     """
-    # 1. 在全域池中尋找匹配的公司 (透過名稱或產業別)
     global_matches = db.query(models.GlobalLead).filter(
         (models.GlobalLead.company_name.ilike(f"%{keyword}%")) | 
         (models.GlobalLead.industry_taxonomy.ilike(f"%{keyword}%")) |
@@ -117,7 +135,6 @@ def sync_leads_from_pool_by_keyword(db, user_id: int, keyword: str, limit: int =
     
     synced_count = 0
     for g_lead in global_matches:
-        # 使用現有的同步邏輯 (會自動檢查私有重複)
         _, is_new = sync_from_global_pool(db, user_id, domain=g_lead.domain, company_name=g_lead.company_name)
         if is_new:
             synced_count += 1
@@ -127,9 +144,12 @@ def sync_leads_from_pool_by_keyword(db, user_id: int, keyword: str, limit: int =
 def save_to_global_pool(db, lead_data: dict):
     """
     將採集到的資料存入/更新全域隔離池。
+    v2.7.2: 
+    - domain 空字串轉為 None
+    - 更新時補足 industry_taxonomy
     回傳: GlobalLead 對象
     """
-    domain = lead_data.get("domain")
+    domain = _normalize_domain(lead_data.get("domain"))
     name = lead_data.get("company_name")
     
     if not domain and not name:
@@ -139,13 +159,17 @@ def save_to_global_pool(db, lead_data: dict):
     global_lead = None
     if domain:
         global_lead = db.query(models.GlobalLead).filter(models.GlobalLead.domain == domain).first()
-    else:
-        global_lead = db.query(models.GlobalLead).filter(models.GlobalLead.company_name == name).first()
+    
+    if not global_lead and name:
+        # v2.7.2: 使用 ilike 做模糊比對
+        global_lead = db.query(models.GlobalLead).filter(
+            models.GlobalLead.company_name.ilike(name.strip())
+        ).first()
         
     if not global_lead:
         global_lead = models.GlobalLead(
             company_name=name,
-            domain=domain,
+            domain=domain,  # 已正規化，空字串會是 None
             website_url=lead_data.get("website_url"),
             description=lead_data.get("description"),
             contact_email=lead_data.get("contact_email"),
@@ -153,6 +177,7 @@ def save_to_global_pool(db, lead_data: dict):
             phone=lead_data.get("phone"),
             address=lead_data.get("address"),
             ai_tag=lead_data.get("ai_tag"),
+            industry_taxonomy=lead_data.get("industry_taxonomy"),  # v2.7.2: 新增時寫入
             source=lead_data.get("source")
         )
         db.add(global_lead)
@@ -169,9 +194,15 @@ def save_to_global_pool(db, lead_data: dict):
             add_log(f"📧 [GlobalPool] 補足 Email：{name} -> {new_email}")
             
         if lead_data.get("description") and (not global_lead.description or len(lead_data.get("description")) > len(global_lead.description)):
-             global_lead.description = lead_data.get("description")
+            global_lead.description = lead_data.get("description")
+        
+        # v2.7.2: 補足 industry_taxonomy
+        new_taxonomy = lead_data.get("industry_taxonomy")
+        if new_taxonomy and not global_lead.industry_taxonomy:
+            global_lead.industry_taxonomy = new_taxonomy
+            add_log(f"🏷️ [GlobalPool] 補足產業分類：{name} -> {new_taxonomy}")
              
-        global_lead.last_scraped_at = datetime.utcnow()
+        global_lead.last_scraped_at = datetime.now(timezone.utc)
         
     db.commit()
     db.refresh(global_lead)

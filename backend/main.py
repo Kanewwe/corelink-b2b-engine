@@ -8,7 +8,7 @@ from sqlalchemy import func
 from pydantic import BaseModel
 from typing import List, Optional, Any
 import os
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 from database import engine, Base, get_db
 import models
@@ -18,6 +18,9 @@ import auth as auth_module
 from contextlib import asynccontextmanager
 import email_sender_job
 from logger import add_log, SYSTEM_LOGS
+
+# 台灣時區常數
+TAIPEI_TZ = timezone(timedelta(hours=8))
 
 # Create database tables automatically (supports schema switching)
 from database import init_db
@@ -662,7 +665,8 @@ def get_all_campaign_logs(db: Session = Depends(get_db), current_user: models.Us
                 "subject": c.subject,
                 "content": c.content,
                 "status": c.status,
-                "created_at": c.created_at.strftime("%Y-%m-%d %H:%M:%S") if c.created_at else ""
+                # v2.7.2: 使用 ISO format 帶時區，讓前端處理本地化
+                "created_at": c.created_at.isoformat() if c.created_at else ""
             })
     return result
 
@@ -672,12 +676,15 @@ def get_system_logs(current_user: models.User = Depends(get_current_user_id)):
 
 @app.get("/api/dashboard/stats")
 def get_dashboard_stats(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
-    """取得儀表板統計數據"""
+    """取得儀表板統計數據 (v2.7.2: 使用台灣時間計算月份)"""
     total_leads = db.query(models.Lead).filter(models.Lead.user_id == current_user.id).count()
     
-    # 計算本月寄信數
-    now = datetime.utcnow()
-    month_start = datetime(now.year, now.month, 1)
+    # v2.7.2: 使用台灣時間計算本月
+    from datetime import timezone, timedelta
+    TAIPEI_TZ = timezone(timedelta(hours=8))
+    now_taipei = datetime.now(TAIPEI_TZ)
+    month_start = datetime(now_taipei.year, now_taipei.month, 1, tzinfo=timezone.utc)
+    
     sent_month = db.query(models.EmailLog).filter(
         models.EmailLog.user_id == current_user.id,
         models.EmailLog.created_at >= month_start
@@ -1249,10 +1256,15 @@ def get_global_pool_stats(db: Session = Depends(get_db), current_user: models.Us
 
 @app.post("/api/admin/global-pool/clear")
 def clear_global_pool(db: Session = Depends(get_db), current_user: models.User = Depends(auth_module.require_role(["admin"]))):
-    """管理員：清空全域隔離池 (v2.7.1)"""
+    """管理員：清空全域隔離池 (v2.7.2 - 修復 FK 懸空問題)"""
+    # 先清除所有私域 Lead 的 global_id 引用，避免 FK 懸空
+    db.query(models.Lead).filter(models.Lead.global_id.isnot(None)).update(
+        {models.Lead.global_id: None}, synchronize_session=False
+    )
+    # 再清空全域池
     db.query(models.GlobalLead).delete()
     db.commit()
-    return {"message": "全域隔離池已清空"}
+    return {"message": "全域隔離池已清空，私域引用已解除"}
 
 @app.get("/api/admin/global-leads")
 def get_admin_global_leads(
@@ -1316,7 +1328,7 @@ class ProposalResolve(BaseModel):
 
 @app.post("/api/admin/proposals/{proposal_id}/resolve")
 def resolve_proposal(proposal_id: int, payload: ProposalResolve, db: Session = Depends(get_db), current_user: models.User = Depends(auth_module.require_role(["admin"]))):
-    """管理員：審核提案"""
+    """管理員：審核提案 (v2.7.2 - 同步更新私域)"""
     proposal = db.query(models.GlobalProposal).filter(models.GlobalProposal.id == proposal_id).first()
     if not proposal:
         raise HTTPException(status_code=404, detail="找不到提案")
@@ -1330,7 +1342,41 @@ def resolve_proposal(proposal_id: int, payload: ProposalResolve, db: Session = D
         global_lead = db.query(models.GlobalLead).filter(models.GlobalLead.id == proposal.global_id).first()
         if global_lead:
             setattr(global_lead, proposal.field_name, proposal.suggested_value)
-            global_lead.is_verified = True # 經過審核即視為驗證過
+            global_lead.is_verified = True
+            
+            # v2.7.2: 同步更新所有私域 Lead (只更新未被個人覆寫的)
+            # 對應欄位映射: 全域欄位 -> 私域覆寫欄位
+            overlay_field_map = {
+                "company_name": "override_name",
+                "contact_email": "override_email"
+            }
+            overlay_field = overlay_field_map.get(proposal.field_name)
+            
+            # 只更新沒有被個人覆寫的私域 Lead
+            if proposal.field_name == "company_name":
+                db.query(models.Lead).filter(
+                    models.Lead.global_id == proposal.global_id,
+                    models.Lead.override_name.is_(None)  # 未被覆寫
+                ).update(
+                    {models.Lead.company_name: proposal.suggested_value},
+                    synchronize_session=False
+                )
+            elif proposal.field_name == "contact_email":
+                db.query(models.Lead).filter(
+                    models.Lead.global_id == proposal.global_id,
+                    models.Lead.override_email.is_(None)
+                ).update(
+                    {models.Lead.contact_email: proposal.suggested_value},
+                    synchronize_session=False
+                )
+            else:
+                # 其他欄位直接更新
+                db.query(models.Lead).filter(
+                    models.Lead.global_id == proposal.global_id
+                ).update(
+                    {getattr(models.Lead, proposal.field_name): proposal.suggested_value},
+                    synchronize_session=False
+                )
             
     db.commit()
     return {"message": f"提案已 {payload.status}", "proposal_id": proposal_id}

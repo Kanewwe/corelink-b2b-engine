@@ -277,16 +277,23 @@ async def manufacturer_mine(
                     except Exception:
                         pass
                 
+                # v2.7.2: Email Guessing 標記來源，避免污染全域池高信心資料
+                email_source_type = "verified"  # 預設為已驗證
+                guessed_email = None
+                
                 # 🛡️ 最終備援: Common Prefix Guessing (v3.1.8)
                 if not email and domain_found:
                     # 製造商常見的通用信箱前綴
                     for prefix in ["info", "sales", "contact", "hello", "admin", "office"]:
                         guess = f"{prefix}@{domain_found}"
-                        # 簡單驗證格式 (後續可接入 SMTP 驗證)
                         if len(guess) > 5:
-                            email = guess
-                            add_log(f"💡 [Miner] 使用 Guessing Fallback: {email}")
+                            guessed_email = guess
+                            add_log(f"💡 [Miner] 使用 Guessing Fallback: {guessed_email}")
                             break
+                    
+                    if guessed_email:
+                        email = guessed_email
+                        email_source_type = "guessed"  # 標記為猜測，信心較低
                             
                 if not email:
                     stats["failed"] += 1
@@ -312,14 +319,17 @@ async def manufacturer_mine(
                 db.commit()
                 db.refresh(new_lead)
                 
-                # 同步回全域池 (Shared Intelligence)
+                # v2.7.2: 同步回全域池時，猜測的 email 只存到 email_candidates，不覆蓋 contact_email
+                global_email_data = email if email_source_type == "verified" else None
+                global_candidates = candidates if candidates else (guessed_email if guessed_email else "")
+                
                 global_rec = save_to_global_pool(db, {
                     "company_name": company_name,
                     "domain": domain_found,
                     "website_url": co.get("website"),
                     "description": desc,
-                    "contact_email": email,
-                    "email_candidates": candidates,
+                    "contact_email": global_email_data,  # 只有驗證過的才寫入全域 contact_email
+                    "email_candidates": global_candidates,  # 猜測的存到 candidates
                     "ai_tag": ai_result.get("Tag"),
                     "industry_taxonomy": ai_result.get("Taxonomy"),
                     "source": co.get("source")

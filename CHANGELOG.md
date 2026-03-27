@@ -1,3 +1,31 @@
+## [v3.1.9] - 2026-03-27
+
+### 🐛 Critical Bug Fixes (全域池 / 私域池 / 時區)
+
+#### 全域池修復
+- **BUG-1**: `clear_global_pool` 現在會先清除私域 `global_id` 引用，避免 FK 懸空
+- **BUG-2**: `domain` 空字串正規化為 `None`，避免 unique constraint 問題
+- **BUG-3**: Proposal 通過後同步更新所有私域 Lead (只更新未被個人覆寫的)
+- **BUG-4**: `company_name` 改用 `ilike` 做模糊比對，減少重複資料
+- **BUG-5**: Email Guessing 結果只存到 `email_candidates`，不污染全域池 `contact_email`
+- **BUG-6**: `save_to_global_pool` 更新時補足 `industry_taxonomy`
+
+#### 時區修復
+- **TZ-1**: `UsageLog.get_or_create` 使用台灣時間計算年月，確保用量週期正確
+- **TZ-2**: API 回傳時間改用 ISO format 帶時區，讓前端處理本地化
+- 新增 `timezone_utils.py` 統一時間處理
+
+### 📁 新增檔案
+- `backend/timezone_utils.py` - 時區工具函式
+
+### 🔧 修改檔案
+- `backend/scrape_utils.py` - 全域池同步邏輯修復
+- `backend/manufacturer_miner.py` - Email Guessing 標記來源
+- `backend/models.py` - 時區統一處理
+- `backend/main.py` - 清空全域池 + Proposal 同步 + 時區修復
+
+---
+
 ## [v3.1.8] - 2026-03-27
 
 ### 🛡️ Engine Resilience & Accuracy

@@ -1,14 +1,27 @@
 """
 Linkora Subscription System - Database Models
 包含：users, sessions, subscriptions, plans, usage_logs
+
+v2.7.2: 時區統一處理
 """
 
 from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime, Boolean, DECIMAL, UniqueConstraint
 from sqlalchemy.orm import relationship
 from database import Base
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import uuid
 import bcrypt
+
+# 台灣時區 (GMT+8)
+TAIPEI_TZ = timezone(timedelta(hours=8))
+
+def _now_utc():
+    """取得當前 UTC 時間"""
+    return datetime.now(timezone.utc)
+
+def _now_utc_naive():
+    """取得當前 UTC 時間 (無時區，用於 DB 相容)"""
+    return datetime.utcnow()
 
 # ══════════════════════════════════════════
 # Plans（方案定義）
@@ -250,20 +263,26 @@ class UsageLog(Base):
 
     @staticmethod
     def get_or_create(db, user_id: int):
-        """Get or create usage log for current month"""
-        from datetime import datetime
-        now = datetime.utcnow()
+        """
+        Get or create usage log for current month.
+        v2.7.2: 使用台灣時間計算年月，確保用量週期與使用者時區一致。
+        """
+        # 使用台灣時間計算週期
+        now_taipei = datetime.now(TAIPEI_TZ)
+        year = now_taipei.year
+        month = now_taipei.month
+        
         log = db.query(UsageLog).filter(
             UsageLog.user_id == user_id,
-            UsageLog.period_year == now.year,
-            UsageLog.period_month == now.month
+            UsageLog.period_year == year,
+            UsageLog.period_month == month
         ).first()
         
         if not log:
             log = UsageLog(
                 user_id=user_id,
-                period_year=now.year,
-                period_month=now.month
+                period_year=year,
+                period_month=month
             )
             db.add(log)
             db.commit()
