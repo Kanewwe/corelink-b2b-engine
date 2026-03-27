@@ -234,3 +234,294 @@ Output ONLY JSON format:
             "subject": "Special Offer for {{company_name}}",
             "html": f"<html><body><h1>Hello!</h1><p>We are interested in your business activities. (Error: {str(e)})</p></body></html>"
         }
+
+
+# ══════════════════════════════════════════
+# v3.2: AI 評分與情報生成服務
+# ══════════════════════════════════════════
+
+def score_lead(company_name: str, domain: str, description: str, has_email: bool, has_phone: bool, ai_tag: str, has_website: bool, user_keywords: str = "") -> dict:
+    """
+    根據多維度評估 Lead 品質，分數 0-100。
+    
+    評分維度：
+    - 網站存在 +20
+    - Email 成功發現 +25
+    - 公司名稱含目標關鍵字 +20
+    - 非不相關行業 +15
+    - 域名品質（非大型平台） +20
+    """
+    score = 0
+    tags = []
+    
+    # 1. 網站存在 +20
+    if has_website:
+        score += 20
+        tags.append("有官網")
+    else:
+        tags.append("無官網")
+    
+    # 2. Email 發現 +25
+    if has_email:
+        score += 25
+        tags.append("有信箱")
+    else:
+        tags.append("缺信箱")
+    
+    # 3. 電話存在 +5
+    if has_phone:
+        score += 5
+        tags.append("有電話")
+    
+    # 4. 公司名稱含目標關鍵字 +20
+    if user_keywords:
+        user_keywords_lower = user_keywords.lower()
+        company_lower = company_name.lower()
+        if any(kw in company_lower for kw in user_keywords_lower.split(",")):
+            score += 20
+            tags.append("關鍵字匹配")
+    
+    # 5. 非不相關行業（白名單加分）
+    positive_tags = ["IND-", "ELEC-", "CHEM-", "AUTO-", "TECH-", "HEALTH-", "LOGI-", "FOOD-", "PACK-", "CONST-", "TOOL-"]
+    if ai_tag and any(tag in ai_tag for tag in positive_tags):
+        score += 15
+        tags.append("目標行業")
+    
+    # 6. 域名品質 +20（排除大型平台）
+    bad_domains = ["facebook.com", "instagram.com", "linkedin.com", "twitter.com", 
+                   "youtube.com", "google.com", "amazon.com", "yelp.com", "bbb.org",
+                   "yellowpages.com", "thomasnet.com"]
+    if domain and domain not in bad_domains and "." in domain:
+        score += 15
+        tags.append("獨立域名")
+    elif domain and any(bad in domain for bad in bad_domains):
+        tags.append("平台頁面")
+    
+    # 7. 有公司描述 +5
+    if description and len(description) > 20:
+        score += 5
+        tags.append("有描述")
+    
+    # 評語
+    if score >= 80:
+        verdict = "高匹配"
+    elif score >= 60:
+        verdict = "中匹配"
+    elif score >= 40:
+        verdict = "待確認"
+    else:
+        verdict = "低優先"
+    
+    return {
+        "score": min(score, 100),
+        "tags": tags,
+        "verdict": verdict
+    }
+
+
+async def generate_lead_brief(company_name: str, domain: str, description: str, ai_tag: str, db = None, user_id: int = None) -> dict:
+    """
+    生成公司簡介情報。
+    """
+    api_key = get_api_key(db, "openai", user_id)
+    model = get_openai_model(db, user_id)
+    
+    if not api_key:
+        return {
+            "brief": f"{company_name} 是一家專注於 {ai_tag} 的公司。",
+            "suggestions": ["請設定 OpenAI API Key 以生成詳細情報"]
+        }
+    
+    openai.api_key = api_key
+    
+    prompt = f"""
+你是一個專業的 B2B 業務情報分析師。請根據以下資訊，生成一段簡潔的「開發前情報摘要」。
+
+【公司名稱】: {company_name}
+【網站】: {domain if domain else "未知"}
+【公司描述】: {description if description else "無詳細描述"}
+【AI 分類】: {ai_tag if ai_tag else "未分類"}
+
+請生成：
+1. 一段 50-100 字的公司情報摘要（可用於開發信破冰）
+2. 2-3 個針對這個公司的具體切入點建議
+
+輸出格式 JSON：
+{{
+  "brief": "情報摘要...",
+  "suggestions": ["切入點1", "切入點2", "切入點3"]
+}}
+"""
+    
+    try:
+        response = openai.ChatCompletion.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "你是專業的 B2B 業務情報分析師，輸出嚴格的 JSON。"},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.6
+        )
+        return json.loads(response.choices[0].message.content)
+    except Exception as e:
+        return {
+            "brief": f"{company_name} 是一家專注於 {ai_tag or '相關業務'} 的公司。",
+            "suggestions": ["請聯繫確認合作需求"]
+        }
+
+
+async def optimize_email_subject(subject: str, company_name: str = "", db = None, user_id: int = None) -> dict:
+    """
+    優化信件主旨，生成 3 個高開信率版本。
+    """
+    api_key = get_api_key(db, "openai", user_id)
+    model = get_openai_model(db, user_id)
+    
+    if not api_key:
+        return {"suggestions": [subject], "message": "請設定 OpenAI API Key"}
+    
+    openai.api_key = api_key
+    
+    prompt = f"""
+根據以下信件主旨，生成 3 個開信率更高的替代主旨。
+
+【現有主旨】: {subject}
+【公司名稱】: {company_name if company_name else "（未指定）"}
+
+要求：
+1. 每個主旨控制在 60 字以內
+2. 涵蓋不同策略：提問型 / 數字型 / 個人化 / 價值型
+3. 包含公司名稱（如適用）
+
+輸出 JSON 陣列：
+{{"suggestions": ["主旨1", "主旨2", "主旨3"]}}
+"""
+    
+    try:
+        response = openai.ChatCompletion.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "你是 B2B 郵件行銷專家，輸出嚴格 JSON。"},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7
+        )
+        result = json.loads(response.choices[0].message.content)
+        return {"suggestions": result.get("suggestions", [subject])}
+    except Exception as e:
+        return {"suggestions": [subject], "message": str(e)}
+
+
+async def generate_ab_test_versions(company_name: str, tag: str, keywords: list, db = None, user_id: int = None) -> dict:
+    """
+    生成 A/B 測試雙版本：A = 理性數據型，B = 故事情感型。
+    """
+    api_key = get_api_key(db, "openai", user_id)
+    model = get_openai_model(db, user_id)
+    
+    if not api_key:
+        return {
+            "version_a": {"subject": "合作提案", "body": "請設定 OpenAI API Key"},
+            "version_b": {"subject": "合作提案", "body": "請設定 OpenAI API Key"}
+        }
+    
+    openai.api_key = api_key
+    
+    prompt = f"""
+請為以下公司生成 A/B 測試版本的開發信。
+
+【公司名稱】: {company_name}
+【AI 分類】: {tag}
+【核心關鍵字】: {', '.join(keywords)}
+
+版本 A（理性/數據型）：
+- 使用數據、具體數字、專業術語
+- 直接說明價值主張
+- 主旨包含具體數字或效益
+
+版本 B（故事/情感型）：
+- 以一個情境或問題開始
+- 喚起情感共鳴
+- 主旨更具故事性或好奇心
+
+每封信控制在 150 字以內，輸出 JSON：
+{{
+  "version_a": {{"subject": "主旨", "body": "信件內容"}},
+  "version_b": {{"subject": "主旨", "body": "信件內容"}}
+}}
+"""
+    
+    try:
+        response = openai.ChatCompletion.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "你是頂尖 B2B 開發信專家，輸出嚴格 JSON。"},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.8
+        )
+        return json.loads(response.choices[0].message.content)
+    except Exception as e:
+        return {
+            "version_a": {"subject": "合作提案", "body": str(e)},
+            "version_b": {"subject": "合作提案", "body": str(e)}
+        }
+
+
+async def generate_weekly_report_summary(stats: dict, period_start: str, period_end: str, db = None, user_id: int = None) -> dict:
+    """
+    生成 AI 成效摘要報告。
+    """
+    api_key = get_api_key(db, "openai", user_id)
+    model = get_openai_model(db, user_id)
+    
+    if not api_key:
+        return {
+            "summary": f"期間：{period_start} ~ {period_end}。寄送 {stats.get('sent', 0)} 封，開信率 {stats.get('open_rate', 0)}%。",
+            "insights": ["請設定 OpenAI API Key 以生成詳細報告"]
+        }
+    
+    openai.api_key = api_key
+    
+    prompt = f"""
+你是 Linkora 的 AI 成效分析師。請根據以下數據，生成一份自然語言的成效摘要報告。
+
+【統計期間】: {period_start} ~ {period_end}
+【寄送總數】: {stats.get('sent', 0)} 封
+【開信數】: {stats.get('opened', 0)} 封
+【開信率】: {stats.get('open_rate', 0)}%
+【點擊數】: {stats.get('clicked', 0)} 封
+【點擊率】: {stats.get('click_rate', 0)}%
+【退信數】: {stats.get('bounced', 0)} 封
+【退信率】: {stats.get('bounce_rate', 0)}%
+【回覆數】: {stats.get('replied', 0)} 封
+【AI 分析標籤】: {stats.get('top_tags', [])}
+
+請生成：
+1. 一段成效摘要（2-3 句話）
+2. 2-3 個具體改善建議
+3. 1 個本週亮點
+
+輸出 JSON：
+{{
+  "summary": "摘要...",
+  "insights": ["建議1", "建議2", "建議3"],
+  "highlight": "本週亮點..."
+}}
+"""
+    
+    try:
+        response = openai.ChatCompletion.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "你是 Linkora 的 AI 成效分析師，輸出嚴格 JSON。"},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.5
+        )
+        return json.loads(response.choices[0].message.content)
+    except Exception as e:
+        return {
+            "summary": f"期間寄送 {stats.get('sent', 0)} 封，開信率 {stats.get('open_rate', 0)}%。",
+            "insights": ["數據不足，請持續累積後再看趨勢"]
+        }

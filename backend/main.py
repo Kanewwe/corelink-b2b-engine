@@ -8,6 +8,7 @@ from sqlalchemy import func
 from pydantic import BaseModel
 from typing import List, Optional, Any
 import os
+import json
 from datetime import datetime, timezone, timedelta
 
 from database import engine, Base, get_db
@@ -879,8 +880,201 @@ def generate_keywords(req: KeywordGenerateRequest, current_user: models.User = D
         keywords = ai_service.generate_related_keywords(req.keyword, req.count)
         return {"success": True, "keywords": keywords}
     except Exception as e:
-        add_log(f"Keyword generation error: {e}", level="error")
+        add_log(f"Keyword generation error: {e}")
         return {"success": False, "message": str(e)}
+
+# ══════════════════════════════════════════
+# v3.2: AI 評分與情報 API
+# ══════════════════════════════════════════
+
+class LeadScoreRequest(BaseModel):
+    """批量評分請求"""
+    lead_ids: list[int] | None = None  # 空=全部評分
+
+@app.post("/api/leads/ai-score")
+def score_leads(
+    req: LeadScoreRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user_id)
+):
+    """
+    批量評分用戶的 Leads（v3.2）。
+    - 無 lead_ids：對該用戶所有 Leads 評分
+    - 有 lead_ids：只評分指定 Leads
+    """
+    query = db.query(models.Lead).filter(models.Lead.user_id == current_user.id)
+    
+    if req.lead_ids:
+        query = query.filter(models.Lead.id.in_(req.lead_ids))
+    
+    leads = query.all()
+    results = []
+    
+    for lead in leads:
+        # 即時評分（規則引擎）
+        score_result = ai_service.score_lead(
+            company_name=lead.company_name or "",
+            domain=lead.domain or "",
+            description=lead.description or "",
+            has_email=bool(lead.contact_email),
+            has_phone=bool(lead.phone),
+            ai_tag=lead.ai_tag or "",
+            has_website=bool(lead.website_url),
+            user_keywords=lead.extracted_keywords or ""
+        )
+        
+        # 更新 DB
+        lead.ai_score = score_result["score"]
+        lead.ai_score_tags = json.dumps(score_result["tags"])
+        lead.ai_scored_at = datetime.now(timezone.utc)
+        results.append({
+            "id": lead.id,
+            "company_name": lead.company_name,
+            **score_result
+        })
+    
+    db.commit()
+    return {"success": True, "count": len(results), "results": results}
+
+
+@app.post("/api/leads/{lead_id}/ai-brief")
+async def generate_lead_brief(
+    lead_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user_id)
+):
+    """為指定 Lead 生成公司情報摘要（v3.2）"""
+    lead = db.query(models.Lead).filter(
+        models.Lead.id == lead_id,
+        models.Lead.user_id == current_user.id
+    ).first()
+    
+    if not lead:
+        raise HTTPException(status_code=404, detail="找不到該名單")
+    
+    # 先評分
+    score_result = ai_service.score_lead(
+        company_name=lead.company_name or "",
+        domain=lead.domain or "",
+        description=lead.description or "",
+        has_email=bool(lead.contact_email),
+        has_phone=bool(lead.phone),
+        ai_tag=lead.ai_tag or "",
+        has_website=bool(lead.website_url),
+        user_keywords=lead.extracted_keywords or ""
+    )
+    
+    # 生成情報摘要
+    brief_result = await ai_service.generate_lead_brief(
+        company_name=lead.company_name or "",
+        domain=lead.domain or "",
+        description=lead.description or "",
+        ai_tag=lead.ai_tag or "",
+        db=db,
+        user_id=current_user.id
+    )
+    
+    # 更新 DB
+    lead.ai_score = score_result["score"]
+    lead.ai_score_tags = json.dumps(score_result["tags"])
+    lead.ai_brief = brief_result.get("brief", "")
+    lead.ai_suggestions = json.dumps(brief_result.get("suggestions", []))
+    lead.ai_scored_at = datetime.now(timezone.utc)
+    db.commit()
+    
+    return {
+        "success": True,
+        "id": lead_id,
+        "company_name": lead.company_name,
+        "score": score_result["score"],
+        "tags": score_result["tags"],
+        "verdict": score_result["verdict"],
+        "brief": brief_result.get("brief", ""),
+        "suggestions": brief_result.get("suggestions", [])
+    }
+
+
+class SubjectOptimizeRequest(BaseModel):
+    subject: str
+    company_name: str = ""
+
+@app.post("/api/templates/ai-optimize-subject")
+async def optimize_subject(
+    req: SubjectOptimizeRequest,
+    current_user: models.User = Depends(get_current_user_id)
+):
+    """AI 優化信件主旨，生成 3 個高開信率版本（v3.2）"""
+    result = await ai_service.optimize_email_subject(
+        subject=req.subject,
+        company_name=req.company_name,
+        db=db if 'db' in dir() else None,
+        user_id=current_user.id
+    )
+    return {"success": True, "suggestions": result.get("suggestions", [req.subject])}
+
+
+class ABTestRequest(BaseModel):
+    company_name: str
+    tag: str = ""
+    keywords: list[str] = []
+
+@app.post("/api/templates/ai-generate-ab")
+async def generate_ab_versions(
+    req: ABTestRequest,
+    current_user: models.User = Depends(get_current_user_id)
+):
+    """AI 生成 A/B 測試雙版本（v3.2）"""
+    result = await ai_service.generate_ab_test_versions(
+        company_name=req.company_name,
+        tag=req.tag,
+        keywords=req.keywords,
+        db=db if 'db' in dir() else None,
+        user_id=current_user.id
+    )
+    return {"success": True, **result}
+
+
+@app.post("/api/analytics/ai-summary")
+async def generate_analytics_summary(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user_id)
+):
+    """AI 成效摘要報告（v3.2）"""
+    # 取得本月統計
+    now = datetime.now(timezone.utc)
+    month_start = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
+    
+    email_logs = db.query(models.EmailLog).filter(
+        models.EmailLog.user_id == current_user.id,
+        models.EmailLog.created_at >= month_start
+    ).all()
+    
+    sent = len(email_logs)
+    opened = sum(1 for log in email_logs if log.opened)
+    clicked = sum(1 for log in email_logs if log.clicked)
+    bounced = sum(1 for log in email_logs if log.bounced)
+    
+    stats = {
+        "sent": sent,
+        "opened": opened,
+        "clicked": clicked,
+        "bounced": bounced,
+        "open_rate": round(opened / sent * 100, 1) if sent > 0 else 0,
+        "click_rate": round(clicked / sent * 100, 1) if sent > 0 else 0,
+        "bounce_rate": round(bounced / sent * 100, 1) if sent > 0 else 0,
+        "replied": 0,
+        "top_tags": []
+    }
+    
+    result = await ai_service.generate_weekly_report_summary(
+        stats=stats,
+        period_start=month_start.strftime("%Y/%m/%d"),
+        period_end=now.strftime("%Y/%m/%d"),
+        db=db,
+        user_id=current_user.id
+    )
+    
+    return {"success": True, **stats, **result}
 
 @app.get("/api/templates")
 def get_templates(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):

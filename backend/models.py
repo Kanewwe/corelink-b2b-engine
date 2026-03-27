@@ -522,6 +522,13 @@ class Lead(Base):
 
     # v3.0: 產業分類沉澱 (Canonical Industry)
     industry_taxonomy = Column(String(255), nullable=True)
+    
+    # v3.2: AI 評分與情報
+    ai_score = Column(Integer, default=0)  # 0-100 分
+    ai_score_tags = Column(String(255), nullable=True)  # JSON array: ["高匹配","有信箱"]
+    ai_brief = Column(Text, nullable=True)  # AI 生成的公司簡介
+    ai_suggestions = Column(Text, nullable=True)  # AI 建議切入點 (JSON)
+    ai_scored_at = Column(DateTime, nullable=True)  # 最後評分時間
 
     # 關聯到全域池 (Global Pool)
     global_id = Column(Integer, ForeignKey("global_leads.id"), nullable=True)
