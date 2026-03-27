@@ -809,7 +809,7 @@ def trigger_scrape_simple(
                 try:
                     for kw in keywords:
                         loop.run_until_complete(
-                            manufacturer_miner.manufacturer_mine(kw, req.market, adj_pages, current_user.id)
+                            manufacturer_miner.manufacturer_mine(kw, req.market, adj_pages, current_user.id, req.email_strategy)
                         )
                 finally:
                     loop.close()
@@ -824,7 +824,7 @@ def trigger_scrape_simple(
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 try:
-                    scrape_mod.scrape_simple(req.market, adj_pages, keywords, current_user.id)
+                    scrape_mod.scrape_simple(req.market, adj_pages, keywords, current_user.id, req.email_strategy)
                 finally:
                     loop.close()
             

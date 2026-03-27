@@ -41,10 +41,10 @@ def extract_domain(url: str) -> str:
         return ""
 
 
-def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, user_id: int = None):
+def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, user_id: int = None, email_strategy: str = "free"):
     """
     使用黃頁模式 (Apify) 探勘公司。
-    v2.7.3：加入用量檢查與計算。
+    v3.2: email_strategy 參數 ("free" 或 "hunter")
     """
     if keywords is None:
         keywords = ["manufacturer"]
@@ -161,17 +161,43 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
                         email_source = "apify"
                         if not contact_email and lead_domain:
                             try:
-                                # 動態 import 避免頂層相依問題
-                                from free_email_hunter import find_emails_free
-                                email_result = find_emails_free(lead_domain, name)
-                                best_email_obj = email_result.get("best_email")
-                                if best_email_obj:
-                                    contact_email = best_email_obj.get("email", "")
-                                    candidate_list = email_result.get("candidates", [])
-                                    email_source = "website"
-                                    add_task_log(db, task_id, "info", f"📧 從網站取得: {contact_email}", keyword=keyword)
+                                if email_strategy == "hunter":
+                                    # v3.2: Hunter.io 付費模式
+                                    from email_hunter import find_target_contacts
+                                    from config_utils import get_api_key
+                                    hunter_key = get_api_key(db, "hunter", user_id)
+                                    if hunter_key:
+                                        try:
+                                            loop = asyncio.new_event_loop()
+                                            asyncio.set_event_loop(loop)
+                                            try:
+                                                hunter_result = loop.run_until_complete(
+                                                    find_target_contacts(name, lead_website, hunter_key)
+                                                )
+                                                if hunter_result.get("primary_contact"):
+                                                    contact_email = hunter_result["primary_contact"].get("email", "")
+                                                    candidate_list = hunter_result.get("emails", [])
+                                                    email_source = "hunter"
+                                                    add_task_log(db, task_id, "info", f"📧 Hunter.io: {contact_email}", keyword=keyword)
+                                            finally:
+                                                loop.close()
+                                        except Exception as he:
+                                            add_task_log(db, task_id, "warning", f"⚠️ Hunter 失敗: {str(he)[:60]}", keyword=keyword)
+                                    else:
+                                        add_task_log(db, task_id, "warning", "⚠️ Hunter Key 未設定，降級為 free", keyword=keyword)
+                                
+                                if not contact_email:
+                                    # free 模式：從官網爬取
+                                    from free_email_hunter import find_emails_free
+                                    email_result = find_emails_free(lead_domain, name)
+                                    best_email_obj = email_result.get("best_email")
+                                    if best_email_obj:
+                                        contact_email = best_email_obj.get("email", "")
+                                        candidate_list = email_result.get("candidates", [])
+                                        email_source = "website"
+                                        add_task_log(db, task_id, "info", f"📧 官網爬取: {contact_email}", keyword=keyword)
                             except Exception as e:
-                                add_task_log(db, task_id, "warning", f"⚠️ Email 補強失敗: {str(e)[:60]}", keyword=keyword)
+                                add_task_log(db, task_id, "warning", f"⚠️ Email 補強失敗: {str(e)[:80]}", keyword=keyword)
                         
                         # Layer 3: Domain Prefix Guessing (最終備援)
                         guessed_email = None

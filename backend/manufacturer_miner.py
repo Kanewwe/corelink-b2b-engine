@@ -161,7 +161,8 @@ async def manufacturer_mine(
     keyword: str,
     market: str = "US",
     pages: int = 3,
-    user_id: int = None
+    user_id: int = None,
+    email_strategy: str = "free"
 ) -> Dict:
     from free_email_hunter import find_emails_free, auto_discover_domain
     from models import Lead
@@ -299,50 +300,84 @@ async def manufacturer_mine(
                 desc = co.get("description", "") or f"Manufacturer found via {co.get('source')}"
                 ai_result = ai_service.analyze_company_and_tag(company_name, desc, use_gpt=False, db=db, user_id=user_id)
                 
-                email = co.get("email", "")
-                candidates = co.get("email_candidates", "")
+                # v3.2: Email 三層補強策略
+                contact_email = ""      # 已驗證 email → 寫入 contact_email
+                email_candidates_list = []  # 所有找到的 email（包括候選）
+                email_source_type = "none"
                 
-                # 若無 Email 且有 Domain，嘗試找尋
-                if not email and domain_found:
+                # Layer 1: 從爬蟲來源直接取得
+                for src_field in ["email", "emails", "contactEmail"]:
+                    val = co.get(src_field)
+                    if val:
+                        if isinstance(val, str) and "@" in val:
+                            contact_email = val
+                            email_candidates_list.append(val)
+                            email_source_type = "scraper"
+                            break
+                        elif isinstance(val, list):
+                            for e in val:
+                                if isinstance(e, str) and "@" in e:
+                                    contact_email = e
+                                    email_candidates_list.append(e)
+                                    email_source_type = "scraper"
+                                    break
+                
+                # Layer 2: 若無 email，嘗試加強
+                if not contact_email and domain_found:
                     try:
-                        email_result = await find_emails_free(domain_found, company_name)
-                        best_email_obj = email_result.get("best_email")
-                        if best_email_obj:
-                            email = best_email_obj["email"]
-                    except Exception:
-                        pass
+                        if email_strategy == "hunter":
+                            # Hunter.io 付費模式
+                            from email_hunter import find_target_contacts
+                            from config_utils import get_api_key
+                            hunter_key = get_api_key(db, "hunter", user_id)
+                            if hunter_key:
+                                hunter_result = await find_target_contacts(company_name, co.get("website"), hunter_key)
+                                if hunter_result.get("primary_contact"):
+                                    contact_email = hunter_result["primary_contact"]["email"]
+                                    email_candidates_list.extend(hunter_result.get("emails", []))
+                                    email_source_type = "hunter"
+                                    add_task_log(db, task_id, "info", f"📧 Hunter.io: {contact_email}", keyword=keyword)
+                            else:
+                                add_task_log(db, task_id, "warning", "⚠️ Hunter Key 未設定，降級為 free", keyword=keyword)
+                        
+                        if not contact_email:
+                            # free 模式：從官網爬取
+                            email_result = await find_emails_free(domain_found, company_name)
+                            best = email_result.get("best_email")
+                            if best and best.get("email"):
+                                contact_email = best["email"]
+                                email_candidates_list.extend(email_result.get("candidates", []))
+                                email_source_type = "website"
+                                add_task_log(db, task_id, "info", f"📧 官網爬取: {contact_email}", keyword=keyword)
+                    except Exception as e:
+                        add_task_log(db, task_id, "warning", f"⚠️ Email 補強失敗: {str(e)[:60]}", keyword=keyword)
                 
-                # v2.7.2: Email Guessing 標記來源，避免污染全域池高信心資料
-                email_source_type = "verified"  # 預設為已驗證
-                guessed_email = None
-                
-                # 🛡️ 最終備援: Common Prefix Guessing (v3.1.8)
-                if not email and domain_found:
-                    # 製造商常見的通用信箱前綴
-                    for prefix in ["info", "sales", "contact", "hello", "admin", "office"]:
+                # Layer 3: Domain Prefix Guessing（最終備援）
+                if not contact_email and domain_found:
+                    for prefix in ["info", "sales", "contact", "hello", "admin"]:
                         guess = f"{prefix}@{domain_found}"
                         if len(guess) > 5:
-                            guessed_email = guess
-                            add_log(f"💡 [Miner] 使用 Guessing Fallback: {guessed_email}")
-                            break
-                    
-                    if guessed_email:
-                        email = guessed_email
-                        email_source_type = "guessed"  # 標記為猜測，信心較低
-                            
-                if not email:
+                            email_candidates_list.append(guess)
+                            email_source_type = "guessed"
+                            add_task_log(db, task_id, "info", f"💡 Guessing: {guess}", keyword=keyword)
+                            break  # 只加一個，避免過多垃圾
+                
+                if not contact_email and not email_candidates_list:
                     stats["failed"] += 1
                     continue
+                
+                # 組合 email_candidates 字串
+                candidates_str = ", ".join(email_candidates_list) if email_candidates_list else ""
 
-                # 儲存私有 Lead
+                # 儲存私有 Lead（contact_email 可能為空字串，此時 email_candidates 有值）
                 new_lead = models.Lead(
                     user_id=user_id,
                     company_name=company_name,
                     website_url=co.get("website", ""),
                     domain=domain_found or "",
                     description=desc,
-                    contact_email=email,
-                    email_candidates=candidates,
+                    contact_email=contact_email,  # 可能為空，但至少 candidates 有值
+                    email_candidates=candidates_str,
                     ai_tag=ai_result.get("Tag", "AUTO-MAN"),
                     industry_taxonomy=ai_result.get("Taxonomy"),
                     status="Scraped",
@@ -354,9 +389,9 @@ async def manufacturer_mine(
                 db.commit()
                 db.refresh(new_lead)
                 
-                # v2.7.2: 同步回全域池時，猜測的 email 只存到 email_candidates，不覆蓋 contact_email
-                global_email_data = email if email_source_type == "verified" else None
-                global_candidates = candidates if candidates else (guessed_email if guessed_email else "")
+                # v3.2: 只有已驗證的 email 才寫入全域池
+                global_email_data = contact_email if email_source_type in ("scraper", "website", "hunter") else None
+                global_candidates = candidates_str  # 所有 candidates 都同步到全域
                 
                 global_rec = save_to_global_pool(db, {
                     "company_name": company_name,
