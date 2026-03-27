@@ -1,11 +1,11 @@
 """
-Simplified scraper - Uses Apify Yellow Pages Actor (Enhanced v2.7.3)
+Simplified scraper - Uses Apify Yellow Pages Actor (Enhanced v3.2)
 2026 穩定版 - 整合 Email 撈取、進階去重與 全域隔離池 (Global Lead Pool) 同步
 
-v2.7.3 修復:
+v3.2 修復:
 - 用量檢查：爬蟲開始前檢查配額
 - 用量計算：新增 Lead 後調用 increment_usage
-- 全域池同步計入配額（業務決策：同步也算使用量）
+- Email 補強：完整三層 email 發現策略（Apify → find_emails_free → Guessing）
 """
 
 import os
@@ -149,14 +149,47 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
                         description = item.get("description", "") or "Business listing from Yellowpages"
                         ai_result = ai_service.analyze_company_and_tag(name, description, use_gpt=False, db=db, user_id=user_id)
                         
-                        # 2. Email 處理
-                        # 提取最佳 Email
+                        # 2. Email 處理 — 三層策略 (v3.2)
+                        # Layer 1: 從 Apify 回傳直接提取
                         contact_email = extract_best_email(item)
-                        
                         raw_emails = item.get("email") or item.get("emails") or item.get("contactEmail") or []
-                        if isinstance(raw_emails, str): candidate_list = [raw_emails]
+                        if isinstance(raw_emails, str): candidate_list = [raw_emails] if raw_emails else []
                         elif isinstance(raw_emails, list): candidate_list = raw_emails
                         else: candidate_list = []
+                        
+                        # Layer 2: 若無 email，嘗試從網站爬取 (僅有 domain 時)
+                        email_source = "apify"
+                        if not contact_email and lead_domain:
+                            try:
+                                # 動態 import 避免頂層相依問題
+                                from free_email_hunter import find_emails_free
+                                email_result = find_emails_free(lead_domain, name)
+                                best_email_obj = email_result.get("best_email")
+                                if best_email_obj:
+                                    contact_email = best_email_obj.get("email", "")
+                                    candidate_list = email_result.get("candidates", [])
+                                    email_source = "website"
+                                    add_task_log(db, task_id, "info", f"📧 從網站取得: {contact_email}", keyword=keyword)
+                            except Exception as e:
+                                add_task_log(db, task_id, "warning", f"⚠️ Email 補強失敗: {str(e)[:60]}", keyword=keyword)
+                        
+                        # Layer 3: Domain Prefix Guessing (最終備援)
+                        guessed_email = None
+                        if not contact_email and lead_domain:
+                            prefixes = ["info", "sales", "contact", "hello", "admin", "office"]
+                            for prefix in prefixes:
+                                guess = f"{prefix}@{lead_domain}"
+                                if len(guess) > 5:
+                                    guessed_email = guess
+                                    add_task_log(db, task_id, "info", f"💡 Email Guessing: {guessed_email}", keyword=keyword)
+                                    break
+                            
+                            if guessed_email:
+                                # Guessed email 只寫入 email_candidates，不寫入 contact_email
+                                if guessed_email not in candidate_list:
+                                    candidate_list.append(guessed_email)
+                                email_source = "guessed"
+                                contact_email = ""  # 不寫入 contact_email，保持乾淨
                         
                         email_candidates_str = ", ".join(candidate_list) if candidate_list else ""
 
