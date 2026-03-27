@@ -2,8 +2,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 import os
 
-# DATABASE_URL from env (Render auto-injects for managed PostgreSQL)
-# Supports separate schemas for PRD/UAT on a single instance
 # ─── DATABASE_URL from env (Enforced: PostgreSQL) ───
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
