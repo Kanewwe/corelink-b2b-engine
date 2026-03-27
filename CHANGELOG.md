@@ -1,6 +1,15 @@
-# Changelog - Linkora B2B Outreach Platform
+## [v3.1.8] - 2026-03-27
 
-All notable changes to this project will be documented in this file.
+### 🛡️ Engine Resilience & Accuracy
+- **Modernized Scraper**: Switched to `zen-studio/thomasnet-suppliers-scraper` for superior B2B data extraction.
+- **Hang Protection**: Implemented 180s execution timeouts for all external crawler calls to prevent background process hangs.
+- **Email Discovery 2.0**: Added automated **Prefix Guessing** (`info@`, `sales@`, etc.) when direct email extraction fails, increasing manufacturer lead capture rates.
+- **Improved Logging**: Optimized heartbeat frequency (every 5 items) for better real-time monitoring without log bloat.
+
+### 🧬 Infrastructure Stabilization
+- **PostgreSQL Enforcement**: Officially deprecated SQLite and enforced strict PostgreSQL connectivity with SSL requirements.
+- **Settings Persistence**: Implemented User ID 1 fallback for system settings to guarantee configuration availability across admin accounts.
+- **Indentation & Whitespace Fixes**: Resolved critical `IndentationError` in `database.py` that caused deployment failures.
 
 ## [v3.0.0] - 2026-03-27
 

@@ -1,299 +1,50 @@
-# Linkora Database Schema
+## Database Engine: PostgreSQL Only (v3.1.8)
 
-## Entity Relationship Diagram
+As of version 3.1.8, **SQLite is officially deprecated and unsupported**. The system strictly requires a PostgreSQL instance.
 
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│    plans    │     │    users    │     │  sessions   │
-├─────────────┤     ├─────────────┤     ├─────────────┤
-│ id (PK)     │     │ id (PK)     │     │ id (PK)     │
-│ name        │◄────│ plan_id (FK)│     │ user_id (FK)│
-│ display_name│     │ email       │────►│ expires_at  │
-│ price_*     │     │ password    │     │ created_at  │
-│ max_*       │     │ name        │     └─────────────┘
-│ feature_*   │     │ company_name│
-└─────────────┘     │ role        │
-                    │ is_active   │
-        ▲           │ is_verified │
-        │           └─────────────┘
-        │                 │
-        │                 │
-        │     ┌───────────┴───────────┐
-        │     │                       │
-┌───────┴─────┴───────┐   ┌─────────┴────────┐    ┌──────────────────┐
-│  subscriptions       │   │    usage_logs    │    │  system_settings │
-├─────────────────────┤   ├──────────────────┤    ├──────────────────┤
-│ id (PK)             │   │ id (PK)          │    │ id (PK)          │
-│ user_id (FK)        │   │ user_id (FK)     │    │ user_id (FK)     │
-│ plan_id (FK)        │   │ period_year      │    │ key (UNIQUE)     │
-│ status              │   │ period_month     │    │ value (JSON)     │
-│ billing_cycle       │   │ customers_count  │    └──────────────────┘
-│ current_period_*    │   │ emails_sent_*    │
-│ trial_*             │   │ autominer_*      │
-│ payment_*          │   │ templates_*      │
-└─────────────────────┘   └──────────────────┘
+### 🧬 Connectivity & SSL
+- **Force SSL**: All remote connections (specifically those on `render.com`) are forced to use `sslmode=require`.
+- **Driver**: Using `postgresql://` (SQLAlchemy 2.0+ compatible).
 
-┌──────────────────────────────────────────────────────────┐
-│                       leads                              │
-├──────────────────────────────────────────────────────────┤
-│ id (PK)                                                  │
-│ user_id (FK) ───────────► users.id                       │
-│ global_id (FK) ──────────► global_leads.id               │
-│ company_name, website_url, domain                        │
-│ email_candidates, ai_tag, status                         │
-│ contact_*, address, phone                                │
-│ source_domain, scrape_location                           │
-└──────────────────────────────────────────────────────────┘
+### 🚀 Schema Isolation (Multi-Tenancy)
+The system uses PostgreSQL Schemas for environment isolation:
+- **`public`**: Production environment.
+- **`uat`**: Staging/User Acceptance Testing.
+- Switching is controlled by the `APP_ENV` environment variable.
 
-┌──────────────────────────────────────────────────────────┐
-│                   global_leads (Isolation Pool)          │
-├──────────────────────────────────────────────────────────┤
-│ id (PK)                                                  │
-│ domain (UNIQUE), company_name, website_url               │
-│ contact_email, email_candidates, phone, address          │
-│ ai_tag, industry, source                                 │
-│ last_scraped_at, created_at                              │
-└──────────────────────────────────────────────────────────┘
-          │
-          │ (1:N)
-          ▼
-┌─────────────────────┐     ┌─────────────────────────────┐
-│  scrape_tasks       │     │      scrape_logs            │
-├─────────────────────┤     ├─────────────────────────────┤
-│ id (PK)            │     │ id (PK)                    │
-│ user_id (FK)        │─────│ task_id (FK)               │
-│ market, keywords    │     │ level (info/error)         │
-│ miner_mode, status  │     │ message, created_at        │
-└─────────────────────┘     └─────────────────────────────┘
-```
+### 🛡️ Settings Persistence & Fallback
+To prevent configuration loss during user sessions or infrastructure restarts:
+- **User 1 Fallback**: If a user's `system_settings` (API Keys, etc.) are missing, the API automatically retrieves settings from **User ID 1 (Primary Admin)**.
+- **Table**: `system_settings` stores JSON blobs.
+
+---
 
 ## Tables
 
-### plans
-方案定義表
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | SERIAL | Primary key |
-| name | VARCHAR(50) | Unique identifier ('free', 'pro', 'enterprise') |
-| display_name | VARCHAR(100) | Display name |
-| price_monthly | DECIMAL(10,2) | Monthly price |
-| price_yearly | DECIMAL(10,2) | Yearly price |
-| max_customers | INT | Customer limit (-1 = unlimited) |
-| max_emails_month | INT | Email limit per month |
-| max_templates | INT | Template limit |
-| max_autominer_runs | INT | Auto-Miner runs per month |
-| feature_* | BOOLEAN | Feature flags |
-| is_active | BOOLEAN | Whether plan is available |
-
 ### users
-用戶帳號表
+用戶帳號表 (PostgreSQL)
 
 | Column | Type | Description |
 |--------|------|-------------|
 | id | SERIAL | Primary key |
 | email | VARCHAR(255) | Unique email |
-| password_hash | VARCHAR(255) | bcrypt hash |
-| name | VARCHAR(100) | Display name |
-| company_name | VARCHAR(200) | Company name |
-| role | VARCHAR(20) | 'user' or 'admin' |
-| is_active | BOOLEAN | Account status |
-| is_verified | BOOLEAN | Email verified |
-| verify_token | VARCHAR(255) | Email verification token |
-| reset_token | VARCHAR(255) | Password reset token |
-| reset_expires | TIMESTAMP | Reset token expiry |
-| last_login_at | TIMESTAMP | Last login time |
-| scrape_location | VARCHAR(50) | Target country code |
-| global_id | INT | (v2.7.1) FK to global_leads.id |
-| created_at | TIMESTAMP | Creation time |
+| ... | ... | ... |
 
-### sessions
-登入 Session 表
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | VARCHAR(36) | UUID primary key |
-| user_id | INT | FK to users |
-| ip_address | VARCHAR(45) | Client IP |
-| user_agent | TEXT | Browser user agent |
-| expires_at | TIMESTAMP | Session expiry |
-| created_at | TIMESTAMP | Creation time |
-| last_active_at | TIMESTAMP | Last activity |
-
-### subscriptions
-訂閱紀錄表
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | SERIAL | Primary key |
-| user_id | INT | FK to users |
-| plan_id | INT | FK to plans |
-| status | VARCHAR(20) | active/cancelled/expired/trial |
-| billing_cycle | VARCHAR(10) | monthly/yearly |
-| current_period_start | TIMESTAMP | Current period start |
-| current_period_end | TIMESTAMP | Current period end |
-| trial_start | TIMESTAMP | Trial start |
-| trial_end | TIMESTAMP | Trial end |
-| payment_provider | VARCHAR(50) | stripe/ecpay/manual |
-| payment_subscription_id | VARCHAR(255) | External subscription ID |
-| cancelled_at | TIMESTAMP | Cancellation time |
-
-### usage_logs
-每月用量追蹤表
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | SERIAL | Primary key |
-| user_id | INT | FK to users |
-| period_year | INT | Year (e.g., 2026) |
-| period_month | INT | Month (1-12) |
-| customers_count | INT | Total customers |
-| emails_sent_count | INT | Emails sent this month |
-| autominer_runs_count | INT | Auto-Miner runs this month |
-| templates_count | INT | Total templates |
-
-**Unique constraint:** (user_id, period_year, period_month)
-
-### leads
-客戶名單表
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | SERIAL | Primary key |
-| user_id | INT | FK to users |
-| company_name | VARCHAR | Company name |
-| website_url | VARCHAR | Website URL |
-| domain | VARCHAR | Domain name |
-| email_candidates | VARCHAR | Comma-separated emails |
-| mx_valid | INT | MX validation result |
-| description | TEXT | Company description |
-| extracted_keywords | VARCHAR | AI extracted keywords |
-| ai_tag | VARCHAR | Industry classification |
-| status | VARCHAR | Scraped/Tagged/Sent/etc |
-| assigned_bd | VARCHAR | Business developer |
-| contact_name | VARCHAR | Contact person name |
-| contact_role | VARCHAR | Contact role |
-| contact_email | VARCHAR | Contact email |
-| phone | VARCHAR | Phone number |
-| address | VARCHAR | Street address |
-| city | VARCHAR | City |
-| state | VARCHAR | State/Province |
-| zip_code | VARCHAR | Postal code |
-| categories | VARCHAR | Business categories |
-| source_domain | VARCHAR | Source website |
-| scrape_location | VARCHAR | Scrape target location |
-| employee_count | VARCHAR | Employee count estimate |
-| revenue_range | VARCHAR | Revenue estimate |
-| email_sent | BOOLEAN | Email sent flag |
-| email_sent_at | TIMESTAMP | Email sent time |
-
-### global_leads
-全域隔離資料池 (Lead Isolation Pool) - 所有使用者共享的去重資料。
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | SERIAL | Primary key |
-| company_name | VARCHAR | Company name |
-| domain | VARCHAR | Unique normalized domain |
-| website_url | VARCHAR | Company website URL |
-| description | TEXT | Scraped company description |
-| contact_email | VARCHAR | Primary contact email |
-| email_candidates | TEXT | All detected email candidates |
-| phone | VARCHAR | Phone number |
-| address | TEXT | Physical address |
-| ai_tag | VARCHAR | AI-generated industry tag |
-| industry | VARCHAR | Sub-industry category |
-| source | VARCHAR | Data source (thomasnet/yellowpages) |
-| last_scraped_at | TIMESTAMP | Last scrape/refresh time |
-| created_at | TIMESTAMP | Initial creation time |
-
-### global_leads
-全域隔離池 (Isolation Pool) - 跨使用者共享高品質名單 (v2.7.1)
+### global_leads (Isolation Pool)
+全域中心化情報池，用於跨使用者去重與資料共享。
 
 | Column | Type | Description |
 |--------|------|-------------|
 | id | SERIAL | Primary key |
 | domain | VARCHAR(255) | Unique domain (Primary Key for deduplication) |
-| company_name | VARCHAR(255) | Normalized company name |
-| website_url | TEXT | Company website |
-| contact_email | VARCHAR(255) | Extracted/Verified primary email |
-| email_candidates | TEXT | List of possible emails (comma-separated) |
-| phone | VARCHAR(50) | Contact phone |
-| address | TEXT | Physical address |
-| ai_tag | VARCHAR(100) | v2.7 Taxonomy tag |
-| industry | VARCHAR(100) | Human-readable industry name |
-| source | VARCHAR(50) | Initial extraction source (thomasnet/yellowpages) |
-| last_scraped_at | TIMESTAMP | Last update from any scraper |
-| created_at | TIMESTAMP | Initial creation time |
+| ... | ... | ... |
+| global_id | INT | Link from private `leads` table |
 
-### email_templates
-信件模板表
+---
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | SERIAL | Primary key |
-| user_id | INT | FK to users |
-| name | VARCHAR | Template name |
-| tag | VARCHAR | Industry tag (NA-CABLE, etc) |
-| subject | VARCHAR | Email subject line |
-| body | TEXT | HTML email body |
-| is_default | BOOLEAN | Default template flag |
-| attachment_url | VARCHAR | Optional attachment URL |
-
-### email_logs
-Email 追蹤日誌表
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | SERIAL | Primary key |
-| user_id | INT | FK to users |
-| log_uuid | VARCHAR(36) | Unique tracking ID |
-| lead_id | INT | FK to leads |
-| template_id | INT | FK to templates |
-| recipient | VARCHAR(255) | Recipient email |
-| subject | VARCHAR(500) | Email subject |
-| sent_at | TIMESTAMP | Send time |
-| status | VARCHAR(50) | pending/delivered/bounce |
-| opened | BOOLEAN | Has been opened |
-| opened_at | TIMESTAMP | First open time |
-| open_count | INT | Open count |
-| clicked | BOOLEAN | Has been clicked |
-| clicked_at | TIMESTAMP | First click time |
-| click_count | INT | Click count |
-| clicked_urls | JSON | Array of clicked URLs |
-| replied | BOOLEAN | Has been replied |
-| replied_at | TIMESTAMP | Reply time |
-| reply_source | VARCHAR(50) | manual/imap/webhook |
-
-### system_settings
-系統與 API 金鑰設定表 (新增於 v2.6)
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | SERIAL | Primary key |
-| user_id | INT | FK to users |
-| key | VARCHAR(100) | Setting name (e.g., 'api_keys') |
-| value | TEXT (JSON) | Setting values |
-| created_at | TIMESTAMP | Creation time |
-| updated_at | TIMESTAMP | Last update |
-
-#### 常用 Key 與多語系對應 (v2.7.1 更新)
-| Key | 內容結構 | 說明 |
-|-----|---------|------|
-| `api_keys` | `{"openai_key": "...", "apify_token": "..."}` | 存放各類外部服務金鑰 |
-| `variable_mapping` | `{"company_name": "公司名稱", "bd_name": "業務負責人"}` | 定義 Monaco Editor 中的變數中文字幕 |
-| `general_settings` | `{"enable_global_sync": true}` | 控制探勘時是否從全域隔離池同步 |
-
-### scrape_logs
-爬蟲任務詳細日誌 (新增於 v2.6)
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | SERIAL | Primary key |
-| task_id | INT | FK to scrape_tasks |
-| level | VARCHAR(20) | info, warning, success, error |
-| message | TEXT | Log message |
-| extra_data | TEXT (JSON) | Optional structured data |
+## Migration & Initialization
+The `database.py` script automatically ensures the required schema exists before performing `create_all()`.
+EXT (JSON) | Optional structured data |
 | created_at | TIMESTAMP | Log time |
 
 ## Indexes
