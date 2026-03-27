@@ -1,3 +1,25 @@
+## [v3.2.0] - 2026-03-27
+
+### 🔴 Critical Security Fix: 用量配額漏洞修復
+
+#### 問題描述
+- 爬蟲 (`scrape_simple.py`, `manufacturer_miner.py`) 新增 Lead 時未計算用量
+- Member 可以透過爬蟲無限探勘，繞過配額限制
+- 全域池同步也未計入配額
+
+#### 修復內容
+- **配額檢查**: 爬蟲開始前呼叫 `check_user_quota()` 檢查剩餘配額
+- **即時追蹤**: 爬取過程中即時檢查是否超過配額
+- **用量計算**: 新增 Lead 後呼叫 `increment_usage("customers_count")`
+- **同步計入**: 全域池同步也算使用量（業務決策）
+
+### 📁 修改檔案
+- `backend/auth.py` - 新增 `check_user_quota()` 函式
+- `backend/scrape_simple.py` - 用量檢查 + 計算
+- `backend/manufacturer_miner.py` - 用量檢查 + 計算
+
+---
+
 ## [v3.1.9] - 2026-03-27
 
 ### 🐛 Critical Bug Fixes (全域池 / 私域池 / 時區)

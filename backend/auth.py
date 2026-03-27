@@ -349,3 +349,55 @@ def sync_templates_count(db: Session, user_id: int):
     
     count = db.query(EmailTemplate).filter(EmailTemplate.user_id == user_id).count()
     set_usage(db, user_id, "templates_count", count)
+
+
+def check_user_quota(db: Session, user_id: int, quota_type: str = "customers") -> dict:
+    """
+    v2.7.3: 檢查用戶配額
+    回傳: {"allowed": bool, "remaining": int, "message": str}
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return {"allowed": False, "remaining": 0, "message": "用戶不存在"}
+    
+    # Vendor 無限制
+    if user.role == "vendor":
+        return {"allowed": True, "remaining": -1, "message": "無限制"}
+    
+    # Admin 也無限制
+    if user.role == "admin":
+        return {"allowed": True, "remaining": -1, "message": "無限制"}
+    
+    # Member 需檢查配額
+    plan = get_user_plan(db, user_id)
+    usage = get_user_usage(db, user_id)
+    
+    quota_map = {
+        "customers": ("customers_count", "max_customers"),
+        "emails": ("emails_sent_count", "max_emails_month"),
+        "templates": ("templates_count", "max_templates"),
+        "autominer": ("autominer_runs_count", "max_autominer_runs")
+    }
+    
+    if quota_type not in quota_map:
+        return {"allowed": True, "remaining": -1, "message": "未知類型，預設允許"}
+    
+    used_field, limit_field = quota_map[quota_type]
+    used = getattr(usage, used_field, 0)
+    limit = getattr(plan, limit_field, 0)
+    
+    # -1 表示無限制
+    if limit == -1:
+        return {"allowed": True, "remaining": -1, "message": "無限制"}
+    
+    remaining = max(0, limit - used)
+    
+    if used >= limit:
+        plan_name = plan.display_name if plan else "未知方案"
+        return {
+            "allowed": False, 
+            "remaining": 0, 
+            "message": f"本月 {quota_type} 配額已用完（{used}/{limit}），請升級方案。目前方案：{plan_name}"
+        }
+    
+    return {"allowed": True, "remaining": remaining, "message": f"剩餘 {remaining} 筆配額"}

@@ -1,7 +1,12 @@
 """
-製造商模式 (Manufacturer Mode v2.7) - Apify 加強版
+製造商模式 (Manufacturer Mode v2.7.3) - Apify 加強版
 由 Thomasnet 優先，Yellowpages 為備援
 加強：Email 提取、進階去重 (Domain 優先) 與 全域隔離池 (Global Lead Pool) 同步
+
+v2.7.3 修復:
+- 用量檢查：爬蟲開始前檢查配額
+- 用量計算：新增 Lead 後調用 increment_usage
+- 全域池同步計入配額（業務決策：同步也算使用量）
 """
 
 import asyncio
@@ -16,6 +21,7 @@ from datetime import datetime
 from scrape_utils import sync_from_global_pool, save_to_global_pool, extract_best_email
 import ai_service
 from config_utils import get_general_setting
+import auth as auth_module
 
 # ── 公司規模過濾詞（排除大型跨國企業）──
 ENTERPRISE_BLACKLIST = [
@@ -164,7 +170,28 @@ async def manufacturer_mine(
     db = SessionLocal()
     apify_token = get_api_key(db, "apify", user_id)
     
-    add_log(f"🏭 [製造商模式 - v2.7] 開啟探勘：{keyword}")
+    add_log(f"🏭 [製造商模式 - v2.7.3] 開啟探勘：{keyword}")
+    
+    # ═══ v2.7.3: 用量檢查 ═══
+    usage_check = auth_module.check_user_quota(db, user_id, "customers")
+    if not usage_check["allowed"]:
+        add_log(f"⚠️ [配額檢查] 用戶 {user_id} 配額已滿: {usage_check['message']}")
+        task_record = models.ScrapeTask(
+            user_id=user_id,
+            market=market,
+            keywords=keyword,
+            miner_mode="manufacturer",
+            pages_requested=pages,
+            status="Failed",
+            error_message=usage_check["message"]
+        )
+        db.add(task_record)
+        db.commit()
+        db.close()
+        return {"added": 0, "synced": 0, "skipped": 0, "failed": 0, "quota_exceeded": True}
+    
+    remaining_quota = usage_check.get("remaining", -1)
+    add_log(f"✅ [配額檢查] 用戶 {user_id} 剩餘配額: {remaining_quota}")
 
     task_record = models.ScrapeTask(
         user_id=user_id,
@@ -179,7 +206,7 @@ async def manufacturer_mine(
     db.refresh(task_record)
     task_id = task_record.id
 
-    add_task_log(db, task_id, "info", f"製造商模式 (GlobalPool Sync) 啟動 | 關鍵字: {keyword}")
+    add_task_log(db, task_id, "info", f"製造商模式啟動 | 關鍵字: {keyword} | 配額: {remaining_quota}")
 
     # Step 1: Thomasnet
     all_companies = await search_via_apify_thomasnet(keyword, market, max_results=40, db=db, user_id=user_id)
@@ -238,12 +265,18 @@ async def manufacturer_mine(
         return {"added": 0, "synced": 0, "skipped": 0}
 
     stats = {"added": 0, "synced": 0, "skipped": 0, "failed": 0}
+    new_leads_count = 0  # v2.7.3: 追蹤新增數量
     process_limit = 40
     from config_utils import get_general_setting
     sync_enabled = get_general_setting(db, "enable_global_sync", default=True, user_id=user_id)
 
     try:
         for co in all_companies[:process_limit]:
+            # v2.7.3: 即時檢查配額
+            if remaining_quota != -1 and new_leads_count >= remaining_quota:
+                add_task_log(db, task_id, "warning", f"配額已用完，停止處理 | 已新增: {new_leads_count}")
+                break
+            
             company_name = co["company_name"]
             domain_found = co.get("domain", "")
             
@@ -253,6 +286,8 @@ async def manufacturer_mine(
                 
                 if is_synced:
                     stats["synced"] += 1
+                    new_leads_count += 1  # v2.7.3: 同步也計入配額
+                    auth_module.increment_usage(db, user_id, "customers_count", 1)
                     continue
                     
                 if lead_obj:
@@ -340,6 +375,11 @@ async def manufacturer_mine(
                     db.commit()
 
                 stats["added"] += 1
+                new_leads_count += 1  # v2.7.3: 追蹤新增數量
+                
+                # v2.7.3: 增加用量計數
+                auth_module.increment_usage(db, user_id, "customers_count", 1)
+                
                 # 💓 心跳日誌：每 5 筆回報一次
                 if stats["added"] % 5 == 0:
                     add_task_log(db, task_id, "info", f"探勘進度: 已新增 {stats['added']} 筆, 同步 {stats['synced']} 筆...", keyword=keyword)

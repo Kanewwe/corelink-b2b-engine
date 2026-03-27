@@ -1,6 +1,11 @@
 """
-Simplified scraper - Uses Apify Yellow Pages Actor (Enhanced v2.7)
+Simplified scraper - Uses Apify Yellow Pages Actor (Enhanced v2.7.3)
 2026 穩定版 - 整合 Email 撈取、進階去重與 全域隔離池 (Global Lead Pool) 同步
+
+v2.7.3 修復:
+- 用量檢查：爬蟲開始前檢查配額
+- 用量計算：新增 Lead 後調用 increment_usage
+- 全域池同步計入配額（業務決策：同步也算使用量）
 """
 
 import os
@@ -13,6 +18,7 @@ from datetime import datetime
 from scrape_utils import sync_from_global_pool, save_to_global_pool, extract_best_email
 from config_utils import get_general_setting
 import ai_service
+import auth as auth_module
 
 # Apify 整合
 try:
@@ -38,14 +44,34 @@ def extract_domain(url: str) -> str:
 def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, user_id: int = None):
     """
     使用黃頁模式 (Apify) 探勘公司。
-    v2.7：先從全域池同步，不足時才進行爬取，並將新結果同步回全域池。
+    v2.7.3：加入用量檢查與計算。
     """
     if keywords is None:
         keywords = ["manufacturer"]
     
     db = SessionLocal()
-    # from config_utils import get_general_setting # Moved to top import block
     sync_enabled = get_general_setting(db, "enable_global_sync", default=True, user_id=user_id)
+    
+    # ═══ v2.7.3: 用量檢查 ═══
+    usage_check = auth_module.check_user_quota(db, user_id, "customers")
+    if not usage_check["allowed"]:
+        add_log(f"⚠️ [配額檢查] 用戶 {user_id} 配額已滿: {usage_check['message']}")
+        task_record = models.ScrapeTask(
+            user_id=user_id,
+            market=market,
+            keywords=",".join(keywords),
+            miner_mode="yellowpages",
+            pages_requested=pages,
+            status="Failed",
+            error_message=usage_check["message"]
+        )
+        db.add(task_record)
+        db.commit()
+        db.close()
+        return {"saved": 0, "synced": 0, "skipped": 0, "errors": 0, "quota_exceeded": True}
+    
+    remaining_quota = usage_check.get("remaining", -1)
+    add_log(f"✅ [配額檢查] 用戶 {user_id} 剩餘配額: {remaining_quota}")
     
     # 建立任務記錄
     task_record = models.ScrapeTask(
@@ -62,24 +88,40 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
     task_id = task_record.id
 
     stats = {"saved": 0, "synced": 0, "skipped": 0, "errors": 0}
+    new_leads_count = 0  # v2.7.3: 追蹤新增數量
     
     add_log(f"🔍 [Apify 爬蟲] 開始任務 #{task_id}")
-    add_task_log(db, task_id, "info", f"任務啟動 | 市場: {market} | 關鍵字: {keywords}")
+    add_task_log(db, task_id, "info", f"任務啟動 | 市場: {market} | 關鍵字: {keywords} | 配額: {remaining_quota}")
     
     if not APIFY_AVAILABLE:
         add_task_log(db, task_id, "error", "apify-client 未安裝")
+        db.close()
         return stats
     
     try:
         for ki, keyword in enumerate(keywords):
+            # v2.7.3: 檢查是否還有配額
+            if remaining_quota != -1 and new_leads_count >= remaining_quota:
+                add_task_log(db, task_id, "warning", f"配額已用完，停止爬取 | 已新增: {new_leads_count}")
+                break
+                
             add_log(f"📌 正在爬取關鍵字 ({ki+1}/{len(keywords)}): {keyword}")
             add_task_log(db, task_id, "info", f"開始處理關鍵字: {keyword}", keyword=keyword)
             
             for page in range(1, pages + 1):
+                # v2.7.3: 每頁開始前也檢查配額
+                if remaining_quota != -1 and new_leads_count >= remaining_quota:
+                    break
+                    
                 try:
                     results = scrape_keyword_page_apify(keyword, page, market, db, task_id, user_id)
                     
                     for item in results:
+                        # v2.7.3: 即時檢查配額
+                        if remaining_quota != -1 and new_leads_count >= remaining_quota:
+                            add_task_log(db, task_id, "warning", f"配額已用完，跳過剩餘 {len(results)} 筆")
+                            break
+                        
                         name = item.get("name", "").strip()
                         website = item.get("url", "").strip()
                         domain = extract_domain(website)
@@ -95,8 +137,10 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
                             continue
                         
                         if is_synced:
-                            # 代表從全域池成功同步了一筆 (節省了存儲與分類成本)
+                            # v2.7.3: 全域池同步也計入配額（業務決策）
                             stats["synced"] += 1
+                            new_leads_count += 1
+                            auth_module.increment_usage(db, user_id, "customers_count", 1)
                             continue
                         
                         # ─── 執行到此代表是全新的名單 (Live Scrape Result) ───
@@ -142,6 +186,10 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
                         db.commit()
                         db.refresh(new_lead)
                         stats["saved"] += 1
+                        new_leads_count += 1  # v2.7.3: 追蹤新增數量
+                        
+                        # v2.7.3: 增加用量計數
+                        auth_module.increment_usage(db, user_id, "customers_count", 1)
                         
                         # 4. 同步回全域池 (Shared Intelligence Layer - v3.0)
                         global_rec = save_to_global_pool(db, {
