@@ -7,12 +7,11 @@ import {
   generateAiKeywords, 
   updateLead, 
   proposeCorrection,
-  scoreLeads,
-  generateLeadBrief
+  scoreLeads
 } from '../services/api';
 import { 
   Users, Send, BarChart3, ShieldAlert, Cpu, Search, Sparkles, 
-  Zap, Mail, Globe, Edit3, Save, X, User, Star, Brain, TrendingUp
+  Zap, Mail, Globe, Edit3, Save, X, User, Star, Brain
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 

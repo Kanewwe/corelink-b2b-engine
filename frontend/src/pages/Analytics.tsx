@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getEngagements, getAdminVendors, generateAnalyticsSummary } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { BarChart3, Users, DollarSign, Calendar, Building2, Brain, RotateCcw, Lightbulb, TrendingUp, AlertTriangle } from 'lucide-react';
+import { BarChart3, Users, DollarSign, Calendar, Building2, Brain, RotateCcw, Lightbulb, TrendingUp } from 'lucide-react';
 
 interface BillingInfo {
   total_leads: number;
@@ -66,20 +66,6 @@ const Analytics: React.FC = () => {
       fetchAiSummary();
     }
   }, [data]);
-
-  // v3.2: Helper for rendering AI tags
-  const renderAIBadges = (tags: string[]) => {
-    const colors: Record<string, string> = {
-      '高': 'bg-emerald-500/20 text-emerald-400',
-      '開': 'bg-blue-500/20 text-blue-400',
-      '優': 'bg-accent-teal/20 text-accent-teal',
-      '⚠': 'bg-yellow-500/20 text-yellow-400',
-      '💡': 'bg-purple-500/20 text-purple-400',
-    };
-    return tags.map((tag, i) => (
-      <span key={i} className={`text-xs px-2 py-0.5 rounded-full ${colors[tag[0]] || 'bg-slate-700 text-slate-300'}`}>{tag}</span>
-    ));
-  };
 
   if (loading && !data) {
     return (

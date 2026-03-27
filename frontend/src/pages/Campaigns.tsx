@@ -25,7 +25,6 @@ const Campaigns: React.FC = () => {
   const [hasSmtp] = useState(false);
   // v3.2: 最佳寄信時間
   const [optimalTime, setOptimalTime] = useState<any>(null);
-  const [loadingOptimal, setLoadingOptimal] = useState(false);
 
   useEffect(() => {
     if (campaigns.length < 0) setCampaigns([]);
@@ -34,13 +33,11 @@ const Campaigns: React.FC = () => {
   // v3.2: 載入最佳寄信時間
   useEffect(() => {
     const fetchOptimal = async () => {
-      setLoadingOptimal(true);
       try {
         const resp = await getOptimalSendTime();
         const data = await resp.json();
         if (data.success) setOptimalTime(data);
       } catch (e) { /* silent */ }
-      finally { setLoadingOptimal(false); }
     };
     fetchOptimal();
   }, []);
