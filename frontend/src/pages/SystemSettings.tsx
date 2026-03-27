@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Cpu, Database, Sparkles, Save, Info, RefreshCw, Trash2, Plus, CheckCircle2, X } from 'lucide-react';
+import { Shield, Cpu, Database, Sparkles, Save, RefreshCw, Trash2, Plus, CheckCircle2, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { 
   getSystemSettings, 

@@ -43,7 +43,6 @@ const LeadDetailDrawer: React.FC<{
     custom_tags: lead.custom_tags || []
   });
   const [saving, setSaving] = useState(false);
-  const [proposing, setProposing] = useState<{field: string, value: string} | null>(null);
 
   const handleSave = async () => {
     setSaving(true);
@@ -75,7 +74,6 @@ const LeadDetailDrawer: React.FC<{
       });
       if (resp.ok) {
         toast.success("建議已送出，待管理員審核", { id: loadingToast });
-        setProposing(null);
       }
     } catch (e) {
       toast.error("送出建議失敗", { id: loadingToast });
