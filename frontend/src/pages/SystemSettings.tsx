@@ -561,7 +561,7 @@ const SystemSettings: React.FC = () => {
                       <td>
                         <div style={{ fontSize: 11 }}>{lead.source || lead.status}</div>
                         <div className="text-text-muted" style={{ fontSize: 10 }}>
-                          {lead.created_at ? new Date(lead.created_at).toLocaleDateString() : '-'}
+                          {formatToLocalTime(lead.created_at)}
                         </div>
                       </td>
                     </tr>
