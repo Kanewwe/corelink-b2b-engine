@@ -23,13 +23,13 @@ connect_args = {}
 schema_name = "public" if APP_ENV == "production" else "uat"
 connect_args["options"] = f"-c search_path={schema_name}"
     
-    # Ensure SSL is active for remote connections
-    if "render.com" in DATABASE_URL:
-        # Some drivers might need sslmode in the URL, but options handle it for SQLAlchemy usually
-        # To be safe, ensure the URL has sslmode=require if not present
-        if "sslmode" not in DATABASE_URL:
-            separator = "&" if "?" in DATABASE_URL else "?"
-            DATABASE_URL += f"{separator}sslmode=require"
+# Ensure SSL is active for remote connections
+if "render.com" in DATABASE_URL:
+    # Some drivers might need sslmode in the URL, but options handle it for SQLAlchemy usually
+    # To be safe, ensure the URL has sslmode=require if not present
+    if "sslmode" not in DATABASE_URL:
+        separator = "&" if "?" in DATABASE_URL else "?"
+        DATABASE_URL += f"{separator}sslmode=require"
 
 engine = create_engine(DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
