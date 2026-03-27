@@ -116,118 +116,108 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
                 try:
                     results = scrape_keyword_page_apify(keyword, page, market, db, task_id, user_id)
                     
-                                # ─── v3.2.1: Email 補強並行處理 ───
-                    from concurrent.futures import ThreadPoolExecutor, as_completed
+                    for item in results:
+                        # v2.7.3: 即時檢查配額
+                        if remaining_quota != -1 and new_leads_count >= remaining_quota:
+                            add_task_log(db, task_id, "warning", f"配額已用完，跳過剩餘 {len(results)} 筆")
+                            break
+                        
+                        name = item.get("name", "").strip()
+                        website = item.get("url", "").strip()
+                        domain = extract_domain(website)
+                        
+                        if not name: continue
 
-                    def _enrich_one(item):
-                        """在緒程中處理一個 item，含 email 補強與入庫"""
-                        local_db = SessionLocal()
-                        try:
-                            name = item.get("name", "").strip()
-                            website = item.get("url", "").strip()
-                            domain = extract_domain(website)
-                            if not name: return None
-
-                            # 去重檢查
-                            lead_obj, is_synced = sync_from_global_pool(local_db, user_id, domain, name, sync_enabled=sync_enabled)
-                            if lead_obj: return None  # 既存或已同步
-                            if remaining_quota != -1 and new_leads_count >= remaining_quota: return None
-
-                            # AI 標籤
-                            desc = item.get("description", "") or "Business listing"
-                            ai_result = ai_service.analyze_company_and_tag(name, desc, use_gpt=False, db=local_db, user_id=user_id)
-
-                            # Email 三層
-                            contact_email = extract_best_email(item)
-                            candidate_list = []
-                            email_source = "apify"
-                            for src_field in ["email", "emails", "contactEmail"]:
-                                val = item.get(src_field)
-                                if val and isinstance(val, str) and "@" in val:
-                                    contact_email = val; candidate_list.append(val); break
-
-                            if not contact_email and domain:
-                                try:
-                                    if email_strategy == "hunter":
-                                        from email_hunter import find_target_contacts
-                                        from config_utils import get_api_key
-                                        hkey = get_api_key(local_db, "hunter", user_id)
-                                        if hkey:
+                        # ─── v2.7.1: 全域隔離池同步邏輯 (考慮 sync_enabled) ───
+                        lead_obj, is_synced = sync_from_global_pool(db, user_id, domain, name, sync_enabled=sync_enabled)
+                        
+                        if lead_obj and not is_synced:
+                            # 代表私有清單原本就有這家公司 (既存重複)
+                            stats["skipped"] += 1
+                            continue
+                        
+                        if is_synced:
+                            # v2.7.3: 全域池同步也計入配額（業務決策）
+                            stats["synced"] += 1
+                            new_leads_count += 1
+                            auth_module.increment_usage(db, user_id, "customers_count", 1)
+                            continue
+                        
+                        # ─── 執行到此代表是全新的名單 (Live Scrape Result) ───
+                        
+                        # 1. AI 產業別標籤 (使用 v2.7 新版分類器)
+                        description = item.get("description", "") or "Business listing from Yellowpages"
+                        ai_result = ai_service.analyze_company_and_tag(name, description, use_gpt=False, db=db, user_id=user_id)
+                        
+                        # 2. Email 處理 — 三層策略 (v3.2)
+                        # Layer 1: 從 Apify 回傳直接提取
+                        contact_email = extract_best_email(item)
+                        raw_emails = item.get("email") or item.get("emails") or item.get("contactEmail") or []
+                        if isinstance(raw_emails, str): candidate_list = [raw_emails] if raw_emails else []
+                        elif isinstance(raw_emails, list): candidate_list = raw_emails
+                        else: candidate_list = []
+                        
+                        # Layer 2: 若無 email，嘗試從網站爬取 (僅有 domain 時)
+                        email_source = "apify"
+                        if not contact_email and lead_domain:
+                            try:
+                                if email_strategy == "hunter":
+                                    # v3.2: Hunter.io 付費模式
+                                    from email_hunter import find_target_contacts
+                                    from config_utils import get_api_key
+                                    hunter_key = get_api_key(db, "hunter", user_id)
+                                    if hunter_key:
+                                        try:
                                             loop = asyncio.new_event_loop()
                                             asyncio.set_event_loop(loop)
                                             try:
-                                                hr = loop.run_until_complete(find_target_contacts(name, website, hkey))
-                                                if hr.get("primary_contact"):
-                                                    contact_email = hr["primary_contact"].get("email", "")
-                                                    candidate_list.extend(hr.get("emails", [])); email_source = "hunter"
-                                            finally: loop.close()
+                                                hunter_result = loop.run_until_complete(
+                                                    find_target_contacts(name, lead_website, hunter_key)
+                                                )
+                                                if hunter_result.get("primary_contact"):
+                                                    contact_email = hunter_result["primary_contact"].get("email", "")
+                                                    candidate_list = hunter_result.get("emails", [])
+                                                    email_source = "hunter"
+                                                    add_task_log(db, task_id, "info", f"📧 Hunter.io: {contact_email}", keyword=keyword)
+                                            finally:
+                                                loop.close()
+                                        except Exception as he:
+                                            add_task_log(db, task_id, "warning", f"⚠️ Hunter 失敗: {str(he)[:60]}", keyword=keyword)
                                     else:
-                                        from free_email_hunter import find_emails_free
-                                        loop = asyncio.new_event_loop()
-                                        asyncio.set_event_loop(loop)
-                                        try:
-                                            er = loop.run_until_complete(find_emails_free(domain, name, timeout=5))
-                                            best = er.get("best_email")
-                                            if best and best.get("email"):
-                                                contact_email = best["email"]
-                                                candidate_list.extend(er.get("candidates", [])); email_source = "website"
-                                        finally: loop.close()
-                                except: pass
-
-                            if not contact_email and domain:
-                                for prefix in ["info", "sales", "contact"]:
-                                    guess = f"{prefix}@{domain}"
-                                    if len(guess) > 5:
-                                        candidate_list.append(guess); email_source = "guessed"; break
-
-                            candidates_str = ", ".join(candidate_list)
-
-                            # 入庫
-                            new_lead = models.Lead(
-                                user_id=user_id, company_name=name, website_url=website, domain=domain,
-                                description=desc, phone=item.get("phone",""), address=item.get("address",""),
-                                city=item.get("city",""), state=item.get("state",""), zip_code=item.get("zipCode",""),
-                                contact_email=contact_email, email_candidates=candidates_str,
-                                ai_tag=ai_result.get("Tag","AUTO-YELLOWPAGES"),
-                                industry_taxonomy=ai_result.get("Taxonomy"),
-                                status="Scraped", scrape_location=market, extracted_keywords=keyword,
-                                assigned_bd=ai_result.get("BD","General")
-                            )
-                            local_db.add(new_lead); local_db.commit(); local_db.refresh(new_lead)
-
-                            # 全域池
-                            g_email = contact_email if email_source in ("apify","website","hunter") else None
-                            global_rec = save_to_global_pool(local_db, {
-                                "company_name": name, "domain": domain, "website_url": website,
-                                "description": desc, "contact_email": g_email, "email_candidates": candidates_str,
-                                "phone": item.get("phone",""), "ai_tag": ai_result.get("Tag"),
-                                "industry_taxonomy": ai_result.get("Taxonomy"), "source": "apify_yellowpages"
-                            })
-                            if global_rec:
-                                new_lead.global_id = global_rec.id; local_db.commit()
-
-                            auth_module.increment_usage(local_db, user_id, "customers_count", 1)
-                            return 1
-                        except Exception as e:
-                            add_log(f"❌ _enrich_one: {str(e)[:60]}")
-                            return None
-                        finally:
-                            local_db.close()
-
-                    # v3.2.1: 緒程池並行（max 5 緒程）
-                    enriched = skipped = 0
-                    with ThreadPoolExecutor(max_workers=5) as pool:
-                        futures = {pool.submit(_enrich_one, item): item for item in results}
-                        for f in as_completed(futures):
-                            try:
-                                r = f.result(timeout=15)
-                                if r == 1: enriched += 1; new_leads_count += 1
-                                else: skipped += 1
-                            except: skipped += 1
-
-                    stats["saved"] += enriched; stats["skipped"] += skipped
-                    add_task_log(db, task_id, "info", f"✅ 入庫完成: 新增 {enriched}, 跳過 {skipped}", keyword=keyword)
-
+                                        add_task_log(db, task_id, "warning", "⚠️ Hunter Key 未設定，降級為 free", keyword=keyword)
+                                
+                                elif not contact_email:
+                                    # free 模式：跳過官網爬取（太慢），直接用 Layer 3 Guessing
+                                    from free_email_hunter import find_emails_free
+                                    email_result = find_emails_free(lead_domain, name, timeout=5)
+                                    best_email_obj = email_result.get("best_email")
+                                    if best_email_obj:
+                                        contact_email = best_email_obj.get("email", "")
+                                        candidate_list = email_result.get("candidates", [])
+                                        email_source = "website"
+                                        add_task_log(db, task_id, "info", f"📧 官網爬取: {contact_email}", keyword=keyword)
+                            except Exception as e:
+                                add_task_log(db, task_id, "warning", f"⚠️ Email 補強失敗: {str(e)[:80]}", keyword=keyword)
+                        
+                        # Layer 3: Domain Prefix Guessing (最終備援)
+                        guessed_email = None
+                        if not contact_email and lead_domain:
+                            prefixes = ["info", "sales", "contact"]  # v3.2.1: 精簡前綴
+                            for prefix in prefixes:
+                                guess = f"{prefix}@{lead_domain}"
+                                if len(guess) > 5:
+                                    guessed_email = guess
+                                    add_task_log(db, task_id, "info", f"💡 Email Guessing: {guessed_email}", keyword=keyword)
+                                    break
+                            
+                            if guessed_email:
+                                # Guessed email 只寫入 email_candidates，不寫入 contact_email
+                                if guessed_email not in candidate_list:
+                                    candidate_list.append(guessed_email)
+                                email_source = "guessed"
+                                contact_email = ""  # 不寫入 contact_email，保持乾淨
+                        
+                        email_candidates_str = ", ".join(candidate_list) if candidate_list else ""
 
                         # 3. 儲存私有 Lead
                         lead_domain = item.get("domain") or extract_domain(item.get("url"))
