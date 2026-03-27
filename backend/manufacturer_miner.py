@@ -227,100 +227,100 @@ async def manufacturer_mine(
     from config_utils import get_general_setting
     sync_enabled = get_general_setting(db, "enable_global_sync", default=True, user_id=user_id)
 
-    for co in all_companies[:process_limit]:
-        company_name = co["company_name"]
-        domain_found = co.get("domain", "")
-        
-        try:
-            # ─── v2.7.1: 全域隔離池同步邏輯 ───
-            lead_obj, is_synced = sync_from_global_pool(db, user_id, domain_found, company_name, sync_enabled=sync_enabled)
+    try:
+        for co in all_companies[:process_limit]:
+            company_name = co["company_name"]
+            domain_found = co.get("domain", "")
             
-            if is_synced:
-                stats["synced"] += 1
-                continue
+            try:
+                # ─── v2.7.1: 全域隔離池同步邏輯 ───
+                lead_obj, is_synced = sync_from_global_pool(db, user_id, domain_found, company_name, sync_enabled=sync_enabled)
                 
-            if lead_obj:
-                # 代表私有工作區已有 (既存重複)
-                stats["skipped"] += 1
-                continue
+                if is_synced:
+                    stats["synced"] += 1
+                    continue
+                    
+                if lead_obj:
+                    # 代表私有工作區已有 (既存重複)
+                    stats["skipped"] += 1
+                    continue
 
-            # ─── 行業與標籤處理 (v3.0) ───
-            desc = co.get("description", "") or f"Manufacturer found via {co.get('source')}"
-            ai_result = ai_service.analyze_company_and_tag(company_name, desc, use_gpt=False, db=db, user_id=user_id)
-            
-            email = co.get("email", "")
-            candidates = co.get("email_candidates", "")
-            
-            # 若無 Email 且有 Domain，嘗試找尋
-            if not email and domain_found:
-                try:
-                    email_result = await find_emails_free(domain_found, company_name)
-                    best_email_obj = email_result.get("best_email")
-                    email = best_email_obj["email"] if best_email_obj else f"info@{domain_found}"
-                except Exception:
-                    email = f"info@{domain_found}" if domain_found else ""
-            
-            if not email:
-                stats["failed"] += 1
-                continue
+                # ─── 行業與標籤處理 (v3.0) ───
+                desc = co.get("description", "") or f"Manufacturer found via {co.get('source')}"
+                ai_result = ai_service.analyze_company_and_tag(company_name, desc, use_gpt=False, db=db, user_id=user_id)
+                
+                email = co.get("email", "")
+                candidates = co.get("email_candidates", "")
+                
+                # 若無 Email 且有 Domain，嘗試找尋
+                if not email and domain_found:
+                    try:
+                        email_result = await find_emails_free(domain_found, company_name)
+                        best_email_obj = email_result.get("best_email")
+                        email = best_email_obj["email"] if best_email_obj else f"info@{domain_found}"
+                    except Exception:
+                        email = f"info@{domain_found}" if domain_found else ""
+                
+                if not email:
+                    stats["failed"] += 1
+                    continue
 
-            # 儲存私有 Lead
-            new_lead = models.Lead(
-                user_id=user_id,
-                company_name=company_name,
-                website_url=co.get("website", ""),
-                domain=domain_found or "",
-                description=desc,
-                contact_email=email,
-                email_candidates=candidates,
-                ai_tag=ai_result.get("Tag", "AUTO-MAN"),
-                industry_taxonomy=ai_result.get("Taxonomy"),
-                status="Scraped",
-                assigned_bd=ai_result.get("BD", "v3.1-Miner"),
-                extracted_keywords=keyword,
-                scrape_location=market
-            )
-            db.add(new_lead)
-            db.commit()
-            db.refresh(new_lead)
-            
-            # 同步回全域池 (Shared Intelligence)
-            global_rec = save_to_global_pool(db, {
-                "company_name": company_name,
-                "domain": domain_found,
-                "website_url": co.get("website"),
-                "description": desc,
-                "contact_email": email,
-                "email_candidates": candidates,
-                "ai_tag": ai_result.get("Tag"),
-                "industry_taxonomy": ai_result.get("Taxonomy"),
-                "source": co.get("source")
-            })
-            
-            if global_rec:
-                new_lead.global_id = global_rec.id
+                # 儲存私有 Lead
+                new_lead = models.Lead(
+                    user_id=user_id,
+                    company_name=company_name,
+                    website_url=co.get("website", ""),
+                    domain=domain_found or "",
+                    description=desc,
+                    contact_email=email,
+                    email_candidates=candidates,
+                    ai_tag=ai_result.get("Tag", "AUTO-MAN"),
+                    industry_taxonomy=ai_result.get("Taxonomy"),
+                    status="Scraped",
+                    assigned_bd=ai_result.get("BD", "v3.1-Miner"),
+                    extracted_keywords=keyword,
+                    scrape_location=market
+                )
+                db.add(new_lead)
                 db.commit()
+                db.refresh(new_lead)
+                
+                # 同步回全域池 (Shared Intelligence)
+                global_rec = save_to_global_pool(db, {
+                    "company_name": company_name,
+                    "domain": domain_found,
+                    "website_url": co.get("website"),
+                    "description": desc,
+                    "contact_email": email,
+                    "email_candidates": candidates,
+                    "ai_tag": ai_result.get("Tag"),
+                    "industry_taxonomy": ai_result.get("Taxonomy"),
+                    "source": co.get("source")
+                })
+                
+                if global_rec:
+                    new_lead.global_id = global_rec.id
+                    db.commit()
 
-            add_task_log(db, task_id, "success", f"新增 Lead: {company_name}", keyword=keyword)
-            stats["added"] += 1
-            
-        except Exception as e:
-            db.rollback() 
-            add_log(f"❌ 處理 {company_name} 時出錯: {str(e)[:100]}", level="error")
-            stats["failed"] += 1
-            
-    # --- 正常結束邏輯 (與 for 迴圈對齊) ---
-    task_record.status = "Completed"
-    task_record.leads_found = stats["added"] + stats["synced"]
-    task_record.completed_at = datetime.utcnow()
-    db.commit()
-    
-    summary = f"製造商模式結束 | 新增:{stats['added']} 同步:{stats['synced']} 跳過:{stats['skipped']}"
-    add_log(f"🏁 [任務 #{task_id}] {summary}")
-    add_task_log(db, task_id, "success", summary)
-    
-    return stats
-
+                add_task_log(db, task_id, "success", f"新增 Lead: {company_name}", keyword=keyword)
+                stats["added"] += 1
+                
+            except Exception as e:
+                db.rollback() 
+                add_log(f"❌ 處理 {company_name} 時出錯: {str(e)[:100]}", level="error")
+                stats["failed"] += 1
+                
+        # --- 正常結束邏輯 (與 for 迴圈對齊) ---
+        task_record.status = "Completed"
+        task_record.leads_found = stats["added"] + stats["synced"]
+        task_record.completed_at = datetime.utcnow()
+        db.commit()
+        
+        summary = f"製造商模式結束 | 新增:{stats['added']} 同步:{stats['synced']} 跳過:{stats['skipped']}"
+        add_log(f"🏁 [任務 #{task_id}] {summary}")
+        add_task_log(db, task_id, "success", summary)
+        
+        return stats
     except Exception as e:
         import traceback
         error_trace = traceback.format_exc()

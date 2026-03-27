@@ -1946,9 +1946,22 @@ class SystemSettingUpdate(BaseModel):
 
 @app.get("/api/system/settings")
 def get_system_settings(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
-    """获取用户的所有系统设置"""
-    settings = db.query(models.SystemSetting).filter(models.SystemSetting.user_id == current_user.id).all()
-    return {s.key: s.to_dict()["value"] for s in settings}
+    """獲取系統設定 (優先取個人，找不到取管理員 1)"""
+    # 搜尋順序：當前使用者 -> 管理員 (User 1)
+    search_ids = []
+    if current_user.id: search_ids.append(current_user.id)
+    if 1 not in search_ids: search_ids.append(1)
+    
+    all_settings = {}
+    for uid in reversed(search_ids): # 從 1 開始，後面的 uid 會覆蓋前面的
+        settings_obs = db.query(models.SystemSetting).filter(models.SystemSetting.user_id == uid).all()
+        for s in settings_obs:
+            try:
+                import json
+                all_settings[s.key] = json.loads(s.value)
+            except:
+                continue
+    return all_settings
 
 @app.post("/api/system/settings")
 def update_system_setting(setting: SystemSettingUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
