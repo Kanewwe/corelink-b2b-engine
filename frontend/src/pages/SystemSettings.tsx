@@ -234,19 +234,11 @@ const SystemSettings: React.FC = () => {
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <div className="card__header">
               <h3 className="card__title">
-                <Database size={16} style={{ color: 'var(--color-primary)' }} />
-                變數與標籤自動化映射
-              </h3>
+              <h3 className="card__title">採集欄位與系統變數映射</h3>
+              <p className="card__subtitle">定義爬蟲吐出的原始 Key 對應到 Linkora 顯示的標籤 (例如: contactEmail -> 聯絡信箱)</p>
             </div>
 
-            <div className="page-banner page-banner--info" style={{ margin: 0 }}>
-              <Info size={15} style={{ flexShrink: 0 }} />
-              <p style={{ margin: 0, fontSize: 12, lineHeight: 1.6 }}>
-                在這裡定義標籤名稱，系統會在「行銷模板」編輯器中顯示您的自定義標籤（例如：<code>公司名稱</code>），而在發送時自動轉換回系統標準變數（例如：<code>{'{{company_name}}'}</code>）。
-              </p>
-            </div>
-
-            <div className="card" style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', background: 'var(--color-neutral-glow)', padding: 20, borderRadius: 16 }}>
               <div style={{ flex: 1 }}>
                 <label className="form-label">系統變數名</label>
                 <input value={newMappingKey} onChange={e => setNewMappingKey(e.target.value)} className="form-input" placeholder="company_name" />
@@ -289,10 +281,15 @@ const SystemSettings: React.FC = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
             <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
               <div className="card__header">
-                <h3 className="card__title">
-                  <Shield size={16} style={{ color: 'var(--color-accent-teal)' }} />
-                  全域隔離資料池 (Lead Isolation Pool)
-                </h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Shield size={20} style={{ color: 'var(--color-primary)' }} />
+                  <div>
+                    <h3 className="card__title" style={{ margin: 0 }}>
+                      共享領先情報庫 (Shared Lead Intelligence)
+                    </h3>
+                    <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>v3.0 雙層架構：共享事實層 + 私人覆寫層</p>
+                  </div>
+                </div>
                 <button onClick={fetchGlobalStats} disabled={refreshing} className="btn-icon-sm">
                   <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
                 </button>
@@ -300,55 +297,94 @@ const SystemSettings: React.FC = () => {
 
               {/* Pool Stats */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
-                <div className="card" style={{ padding: '16px', background: 'var(--color-primary-glow)' }}>
-                  <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 4 }}>總緩存筆數</div>
-                  <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--color-primary)' }}>{globalStats?.total_leads || 0}</div>
+                <div className="card" style={{ padding: '16px', background: 'var(--color-primary-glow)', border: '1px solid var(--color-primary-border)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>共享公司總數</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--color-primary)' }}>{globalStats?.total_leads || 0}</div>
                 </div>
-                <div className="card" style={{ padding: '16px', background: 'var(--color-accent-teal-glow)' }}>
-                  <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 4 }}>唯一網域分布</div>
-                  <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--color-accent-teal)' }}>{globalStats?.total_domains || 0}</div>
+                <div className="card" style={{ padding: '16px', background: 'var(--color-accent-teal-glow)', border: '1px solid var(--color-accent-teal-border)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>唯一網域 (Domains)</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--color-accent-teal)' }}>{globalStats?.total_domains || 0}</div>
+                </div>
+                <div className="card" style={{ padding: '16px', background: 'rgba(255, 170, 0, 0.05)', border: '1px solid rgba(255, 170, 100, 0.2)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>待審核提案</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: '#ffaa00' }}>{globalStats?.pending_proposals || 0}</div>
+                </div>
+                <div className="card" style={{ padding: '16px', background: 'rgba(0, 200, 255, 0.05)', border: '1px solid rgba(0, 200, 255, 0.2)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>已驗證 Facts</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: '#00c8ff' }}>{globalStats?.verified_leads || 0}</div>
                 </div>
               </div>
 
-              <div className="page-banner page-banner--info" style={{ margin: 0 }}>
-                <Info size={15} style={{ flexShrink: 0 }} />
-                <p style={{ margin: 0, fontSize: 12, lineHeight: 1.6 }}>
-                  全域池會緩存系統中所有已採集的非私有資料。當「全域同步開關」開啟時，新探勘的資料若 Domain 重複，系統將自動從全域池同步而非重新爬取，大幅節省 <b>Apify API 消耗</b>。
-                </p>
+              <div className="page-banner page-banner--info" style={{ margin: 0, padding: '16px 20px', background: 'var(--color-primary-glow)', borderLeft: '4px solid var(--color-primary)' }}>
+                <Sparkles size={18} style={{ flexShrink: 0, color: 'var(--color-primary)' }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>
+                    從「快取池」進化為「情報庫」
+                  </p>
+                  <p style={{ margin: 0, fontSize: 12, lineHeight: 1.6, color: 'var(--color-text-muted)' }}>
+                    Linkora v3.0 採用雙層模型：<b>共享層 (Canonical)</b> 存放經 AI 或管理員驗證的公司事實；<b>工作區層 (Overlay)</b> 則儲存您私人的修改、標註與筆記。開啟同步可大幅降低重複採集的點數消耗。
+                  </p>
+                </div>
               </div>
 
-              {/* Sync Controls */}
-              <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 20, border: '1px border-neutral-glow' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                    <h4 style={{ margin: 0, fontWeight: 600 }}>全域同步模式 (Global Discovery)</h4>
-                    <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>允許系統在探勘前搜尋歷史採集庫中已存在的企業資訊。</p>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 13, fontWeight: 500 }}>{generalSettings.enable_global_sync ? '開啟' : '關閉'}</span>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+                <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <RefreshCw size={14} /> 共享層同步規則 (Workspace Rules)
+                  </h4>
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <p style={{ margin: 0, fontSize: 13 }}>自動同步重複 Domain</p>
+                      <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>發現重複網域時，先載入共享層事實 (Canonical Facts)</p>
+                    </div>
                     <input 
                       type="checkbox" 
-                      style={{ width: 40, height: 20 }}
+                      style={{ width: 18, height: 18 }}
                       checked={generalSettings.enable_global_sync} 
                       onChange={e => setGeneralSettings({ ...generalSettings, enable_global_sync: e.target.checked })} 
                     />
                   </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <p style={{ margin: 0, fontSize: 13 }}>優先顯示個人覆寫 (Personal Overrides)</p>
+                      <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>若您修改了公司名，系統將在清單中優先呈現您的修改</p>
+                    </div>
+                    <CheckCircle2 size={16} className="text-emerald-500" />
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--color-neutral-glow)', paddingTop: 16 }}>
-                  <div>
-                    <h4 style={{ margin: 0, fontWeight: 600, color: 'var(--color-danger)' }}>維護與管理</h4>
-                    <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>手動清理全域緩存池，這將強制所有使用者重新進行 Live Scrape。</p>
+                <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Shield size={14} style={{ color: '#ffaa00' }} /> 數據質量管理 (Data Quality)
+                  </h4>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <p style={{ margin: 0, fontSize: 13 }}>修正提案審核機制</p>
+                      <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>當使用者建議修改共享層資料時，需經管理員確認</p>
+                    </div>
+                    <button onClick={() => setShowProposals(true)} className="btn-outline-sm py-1.5 px-3" style={{ fontSize: 11 }}>
+                      查看待審提案 ({globalStats?.pending_proposals || 0})
+                    </button>
                   </div>
-                  <button onClick={handleClearPool} className="btn-outline danger">
-                    <Trash2 size={14} />清空全域池
-                  </button>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--color-neutral-glow)', paddingTop: 16 }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--color-danger)' }}>維護全域資料</h4>
+                      <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>重置共享事實層（將導致所有 Live Scrape 重新運行）</p>
+                    </div>
+                    <button onClick={handleClearPool} className="btn-outline danger" style={{ padding: '6px 12px', fontSize: 12 }}>
+                      <Trash2 size={12} />重置 SHARED
+                    </button>
+                  </div>
                 </div>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <button onClick={handleSaveGeneral} disabled={saving} className="btn-primary">
-                  {saving ? <><div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />儲存中...</> : <><Save size={14} />儲存通用參數</>}
+                  {saving ? <><div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />儲存中...</> : <><Save size={14} />儲存情報策略</>}
                 </button>
               </div>
             </div>

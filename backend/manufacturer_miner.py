@@ -13,8 +13,9 @@ from logger import add_log, add_task_log
 import models
 from database import SessionLocal
 from datetime import datetime
-from scrape_utils import sync_from_global_pool, save_to_global_pool
+from scrape_utils import sync_from_global_pool, save_to_global_pool, extract_best_email
 import ai_service
+from config_utils import get_general_setting
 
 # ── 公司規模過濾詞（排除大型跨國企業）──
 ENTERPRISE_BLACKLIST = [
@@ -182,9 +183,15 @@ async def manufacturer_mine(
                     domain = extract_domain(website)
                     
                     if name and len(name) > 3:
+                        # 提取最佳 Email
+                        email = extract_best_email(item)
+                        
+                        email_candidates_str = ""
                         raw_emails = item.get("email") or item.get("emails") or item.get("contactEmail") or []
-                        if isinstance(raw_emails, str): raw_emails = [raw_emails]
-                        elif not isinstance(raw_emails, list): raw_emails = []
+                        if isinstance(raw_emails, list):
+                            email_candidates_str = ", ".join([str(e) for e in raw_emails if e])
+                        elif isinstance(raw_emails, str):
+                            email_candidates_str = raw_emails
                         
                         all_companies.append({
                             "company_name": name,
@@ -252,6 +259,7 @@ async def manufacturer_mine(
                 contact_email=email,
                 email_candidates=candidates,
                 ai_tag=ai_result.get("Tag", "AUTO-MANUFACTURER-PRO"),
+                industry_taxonomy=ai_result.get("Taxonomy"), # v3.0
                 status="Scraped",
                 assigned_bd=ai_result.get("BD", "v2.7-Miner"),
                 extracted_keywords=keyword,
@@ -259,9 +267,10 @@ async def manufacturer_mine(
             )
             db.add(new_lead)
             db.commit()
+            db.refresh(new_lead)
             
-            # 同步回全域池
-            save_to_global_pool(db, {
+            # 同步回全域池 (Shared Intelligence Layer - v3.0)
+            global_rec = save_to_global_pool(db, {
                 "company_name": company_name,
                 "domain": domain_found,
                 "website_url": co.get("website"),
@@ -269,8 +278,13 @@ async def manufacturer_mine(
                 "contact_email": email,
                 "email_candidates": candidates,
                 "ai_tag": ai_result.get("Tag"),
+                "industry_taxonomy": ai_result.get("Taxonomy"),
                 "source": co.get("source")
             })
+            
+            if global_rec:
+                new_lead.global_id = global_rec.id
+                db.commit()
             
             # 連結 global_id
             global_rec = db.query(models.GlobalLead).filter(models.GlobalLead.domain == domain_found).first()

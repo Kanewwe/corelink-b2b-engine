@@ -197,29 +197,51 @@ class CampaignLogResponse(BaseModel):
 
 class LeadResponse(BaseModel):
     id: int
-    company_name: str
+    user_id: Optional[int] = None
+    company_name: str # Canonical
     website_url: Optional[str] = None
     domain: Optional[str] = None
-    email_candidates: Optional[str] = None
-    mx_valid: int = 0
+    description: Optional[str] = None
     ai_tag: Optional[str] = None
-    assigned_bd: Optional[str] = None
-    extracted_keywords: Optional[str] = None
+    industry_taxonomy: Optional[str] = None
     status: str
-    # NEW: Contact info
+    assigned_bd: Optional[str] = None
+    
+    # v3.0 Effective Fields
+    display_name: Optional[str] = None
+    display_email: Optional[str] = None
+    is_overridden: bool = False
+    
+    # v3.0 Overlays
+    override_name: Optional[str] = None
+    override_email: Optional[str] = None
+    personal_notes: Optional[str] = None
+    custom_tags: Optional[str] = None
+    
+    # Contact info
     contact_name: Optional[str] = None
     contact_role: Optional[str] = None
-    contact_email: Optional[str] = None
-    # NEW: Company details
+    contact_email: Optional[str] = None # Canonical
     phone: Optional[str] = None
     address: Optional[str] = None
     city: Optional[str] = None
-    categories: Optional[str] = None
-    source_domain: Optional[str] = None
-    # Email tracking
+    
+    # Meta
+    global_id: Optional[int] = None
     email_sent: bool = False
+    created_at: Optional[str] = None
+    
     class Config:
         from_attributes = True
+
+class LeadUpdateReq(BaseModel):
+    override_name: Optional[str] = None
+    override_email: Optional[str] = None
+    personal_notes: Optional[str] = None
+    custom_tags: Optional[str] = None
+    status: Optional[str] = None
+    assigned_bd: Optional[str] = None
+    industry_taxonomy: Optional[str] = None
 
 class EmailCampaignResponse(BaseModel):
     id: int
@@ -546,6 +568,26 @@ def create_and_tag_lead(lead: LeadCreateReq, db: Session = Depends(get_db), curr
     db.commit()
     db.refresh(db_lead)
     return db_lead.to_dict()
+
+@app.patch("/api/leads/{lead_id}", response_model=LeadResponse)
+def update_lead(lead_id: int, updates: LeadUpdateReq, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
+    """更新 Lead 資訊 (支援 v3.0 個人覆寫)"""
+    lead = db.query(models.Lead).filter(
+        models.Lead.id == lead_id,
+        models.Lead.user_id == current_user.id
+    ).first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="找不到該名單")
+    
+    # 更新欄位
+    update_data = updates.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        if hasattr(lead, key):
+            setattr(lead, key, value)
+            
+    db.commit()
+    db.refresh(lead)
+    return lead.to_dict()
 
 @app.get("/api/leads")
 def get_leads(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_id)):
@@ -1098,24 +1140,32 @@ def get_admin_stats(db: Session = Depends(get_db), current_user: models.User = D
     active_tasks = db.query(models.ScrapeTask).filter(models.ScrapeTask.status == 'Running').count()
     completed_tasks = db.query(models.ScrapeTask).filter(models.ScrapeTask.status == 'Completed').count()
     
+    # 計算開信統計
+    emails_opened = db.query(models.EmailLog).filter(models.EmailLog.opened == True).count()
+    open_rate = round((emails_opened / total_emails * 100), 1) if total_emails > 0 else 0
+
+    # 提案統計 (v3.0)
+    pending_proposals = db.query(models.GlobalProposal).filter(models.GlobalProposal.status == 'Pending').count()
+
     return {
-        "total_users": total_users,
-        "active_users": active_users,
-        "total_leads": total_leads,
-        "total_emails": total_emails,
-        "admins": admins,
-        "vendors": vendors,
-        "members": members,
-        "new_this_month": new_this_month,
-        "plans": {
-            "free": free_count,
-            "pro": pro_count,
-            "enterprise": enterprise_count
+        "users": {
+            "total": total_users,
+            "active": active_users,
+            "new_this_month": new_this_month,
+            "by_role": { "admin": admins, "vendor": vendors, "member": members },
+            "by_plan": { "free": free_count, "pro": pro_count, "enterprise": enterprise_count }
         },
-        "tasks": {
-            "total": total_tasks,
-            "active": active_tasks,
-            "completed": completed_tasks
+        "data": {
+            "total_leads": total_leads,
+            "total_emails_sent": total_emails,
+            "total_emails_opened": emails_opened,
+            "open_rate": open_rate,
+            "pending_proposals": pending_proposals
+        },
+        "usage": {
+            "total_scrape_tasks": total_tasks,
+            "active_tasks": active_tasks,
+            "completed_tasks": completed_tasks
         }
     }
 
@@ -1143,37 +1193,69 @@ def clear_global_pool(db: Session = Depends(get_db), current_user: models.User =
     db.query(models.GlobalLead).delete()
     db.commit()
     return {"message": "全域隔離池已清空"}
-    opened_emails = db.query(models.EmailLog).filter(models.EmailLog.opened == True).count()
-    open_rate = round(opened_emails / total_emails * 100, 1) if total_emails > 0 else 0
+# ══════════════════════════════════════════
+# Shared Intelligence: 資料修正提案 (v3.0)
+# ══════════════════════════════════════════
+
+class ProposalCreate(BaseModel):
+    global_id: int
+    field_name: str
+    suggested_value: str
+
+@app.post("/api/leads/propose")
+def create_proposal(payload: ProposalCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth_module.get_current_user)):
+    """提交全域資料修正建議"""
+    global_lead = db.query(models.GlobalLead).filter(models.GlobalLead.id == payload.global_id).first()
+    if not global_lead:
+        raise HTTPException(status_code=404, detail="找不到全域資料")
     
-    return {
-        "users": {
-            "total": total_users,
-            "active": active_users,
-            "new_this_month": new_this_month,
-            "by_role": {
-                "admin": admins,
-                "vendor": vendors,
-                "member": members
-            },
-            "by_plan": {
-                "free": free_count,
-                "pro": pro_count,
-                "enterprise": enterprise_count
-            }
-        },
-        "data": {
-            "total_leads": total_leads,
-            "total_emails_sent": total_emails,
-            "total_emails_opened": opened_emails,
-            "open_rate": open_rate
-        },
-        "usage": {
-            "total_scrape_tasks": total_tasks,
-            "active_tasks": active_tasks,
-            "completed_tasks": completed_tasks
-        }
-    }
+    # 獲取目前值
+    current_val = getattr(global_lead, payload.field_name, "")
+    if isinstance(current_val, bytes): current_val = current_val.decode('utf-8')
+    
+    proposal = models.GlobalProposal(
+        user_id=current_user.id,
+        global_id=payload.global_id,
+        field_name=payload.field_name,
+        current_value=str(current_val),
+        suggested_value=payload.suggested_value,
+        status="Pending"
+    )
+    db.add(proposal)
+    db.commit()
+    db.refresh(proposal)
+    return proposal.to_dict()
+
+@app.get("/api/admin/proposals")
+def list_proposals(status: str = "Pending", db: Session = Depends(get_db), current_user: models.User = Depends(auth_module.require_role(["admin"]))):
+    """管理員：查看提案列表"""
+    proposals = db.query(models.GlobalProposal).filter(models.GlobalProposal.status == status).order_by(models.GlobalProposal.id.desc()).all()
+    return [p.to_dict() for p in proposals]
+
+class ProposalResolve(BaseModel):
+    status: str # 'Approved', 'Rejected'
+    reason: Optional[str] = None
+
+@app.post("/api/admin/proposals/{proposal_id}/resolve")
+def resolve_proposal(proposal_id: int, payload: ProposalResolve, db: Session = Depends(get_db), current_user: models.User = Depends(auth_module.require_role(["admin"]))):
+    """管理員：審核提案"""
+    proposal = db.query(models.GlobalProposal).filter(models.GlobalProposal.id == proposal_id).first()
+    if not proposal:
+        raise HTTPException(status_code=404, detail="找不到提案")
+    
+    proposal.status = payload.status
+    proposal.reason = payload.reason
+    proposal.resolved_at = datetime.utcnow()
+    
+    if payload.status == "Approved":
+        # 套用到全域資料
+        global_lead = db.query(models.GlobalLead).filter(models.GlobalLead.id == proposal.global_id).first()
+        if global_lead:
+            setattr(global_lead, proposal.field_name, proposal.suggested_value)
+            global_lead.is_verified = True # 經過審核即視為驗證過
+            
+    db.commit()
+    return {"message": f"提案已 {payload.status}", "proposal_id": proposal_id}
 
 # ══════════════════════════════════════════
 # Admin: 爬蟲監控 API

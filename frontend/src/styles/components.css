@@ -76,14 +76,19 @@
 
 /* ── 警告橫幅 ── */
 .page-banner {
-  display: flex;
+  display: flex !important;
+  flex-direction: row !important;
   align-items: center;
   justify-content: space-between;
   padding: 14px 20px;
   border-radius: var(--radius-card);
   margin-bottom: var(--space-section);
   font-size: var(--font-size-body);
-  gap: 12px;
+  gap: 16px;
+  min-height: 56px;
+}
+.page-banner > div {
+  min-width: 0; /* 防止子元素縮成 0 寬度導致文字垂直排列 */
 }
 .page-banner--warning {
   background: rgba(245,158,11,0.12);

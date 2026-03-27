@@ -412,13 +412,13 @@ const MemberAdmin: React.FC = () => {
       </div>
 
       {/* Stats Row */}
-      {stats && (
+      {stats?.users && stats?.data && (
         <div className="stats-grid">
           {[
-            { label: '總會員數',  value: stats.users.total,           icon: <Users size={18} />,     iconColor: 'var(--color-primary)',      bg: 'var(--color-primary-glow)' },
-            { label: '啟用中',    value: stats.users.active,          icon: <UserCheck size={18} />, iconColor: 'var(--color-accent-teal)',  bg: 'rgba(78,205,196,0.12)' },
-            { label: '本月新增',  value: stats.users.new_this_month,  icon: <TrendingUp size={18} />,iconColor: 'var(--color-warning)',      bg: 'rgba(245,158,11,0.12)' },
-            { label: '總 Leads',  value: stats.data.total_leads,      icon: <BarChart2 size={18} />, iconColor: 'var(--color-text-secondary)',bg: 'var(--color-bg-card)' },
+            { label: '總會員數',  value: stats.users.total ?? 0,           icon: <Users size={18} />,     iconColor: 'var(--color-primary)',      bg: 'var(--color-primary-glow)' },
+            { label: '啟用中',    value: stats.users.active ?? 0,          icon: <UserCheck size={18} />, iconColor: 'var(--color-accent-teal)',  bg: 'rgba(78,205,196,0.12)' },
+            { label: '本月新增',  value: stats.users.new_this_month ?? 0,  icon: <TrendingUp size={18} />,iconColor: 'var(--color-warning)',      bg: 'rgba(245,158,11,0.12)' },
+            { label: '總 Leads',  value: stats.data.total_leads ?? 0,      icon: <BarChart2 size={18} />, iconColor: 'var(--color-text-secondary)',bg: 'var(--color-bg-card)' },
           ].map(s => (
             <div key={s.label} className="stat-card">
               <div className="stat-card__icon" style={{ background: s.bg }}>
@@ -434,12 +434,12 @@ const MemberAdmin: React.FC = () => {
       )}
 
       {/* Role Distribution */}
-      {stats && (
+      {stats?.users?.by_role && (
         <div className="grid grid-cols-3 gap-3">
           {[
-            { role: 'admin',  count: stats.users.by_role.admin,  label: 'Admin' },
-            { role: 'vendor', count: stats.users.by_role.vendor, label: 'Vendor' },
-            { role: 'member', count: stats.users.by_role.member, label: 'Member' },
+            { role: 'admin',  count: stats.users.by_role.admin ?? 0,  label: 'Admin' },
+            { role: 'vendor', count: stats.users.by_role.vendor ?? 0, label: 'Vendor' },
+            { role: 'member', count: stats.users.by_role.member ?? 0, label: 'Member' },
           ].map(r => (
             <div key={r.role} className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px' }}>
               <RoleBadge role={r.role} />

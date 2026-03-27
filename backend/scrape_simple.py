@@ -10,7 +10,8 @@ from database import SessionLocal
 from logger import add_log, add_task_log
 from urllib.parse import urlparse
 from datetime import datetime
-from scrape_utils import sync_from_global_pool, save_to_global_pool
+from scrape_utils import sync_from_global_pool, save_to_global_pool, extract_best_email
+from config_utils import get_general_setting
 import ai_service
 
 # Apify 整合
@@ -43,7 +44,7 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
         keywords = ["manufacturer"]
     
     db = SessionLocal()
-    from config_utils import get_general_setting
+    # from config_utils import get_general_setting # Moved to top import block
     sync_enabled = get_general_setting(db, "enable_global_sync", default=True, user_id=user_id)
     
     # 建立任務記錄
@@ -105,26 +106,33 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
                         ai_result = ai_service.analyze_company_and_tag(name, description, use_gpt=False, db=db, user_id=user_id)
                         
                         # 2. Email 處理
+                        # 提取最佳 Email
+                        contact_email = extract_best_email(item)
+                        
                         raw_emails = item.get("email") or item.get("emails") or item.get("contactEmail") or []
                         if isinstance(raw_emails, str): candidate_list = [raw_emails]
                         elif isinstance(raw_emails, list): candidate_list = raw_emails
                         else: candidate_list = []
                         
-                        primary_email = candidate_list[0] if candidate_list else ""
                         email_candidates_str = ", ".join(candidate_list) if candidate_list else ""
 
                         # 3. 儲存私有 Lead
+                        lead_domain = item.get("domain") or extract_domain(item.get("url"))
+                        lead_name = item.get("name")
+                        lead_website = item.get("url")
+                        
                         new_lead = models.Lead(
                             user_id=user_id,
-                            company_name=name,
-                            website_url=website,
-                            domain=domain,
+                            company_name=lead_name,
+                            website_url=lead_website,
+                            domain=lead_domain,
                             description=description,
                             phone=item.get("phone", ""),
                             address=item.get("address", ""),
-                            contact_email=primary_email,
+                            contact_email=contact_email,
                             email_candidates=email_candidates_str,
                             ai_tag=ai_result.get("Tag", "AUTO-YELLOWPAGES"),
+                            industry_taxonomy=ai_result.get("Taxonomy"), # v3.0
                             status="Scraped",
                             scrape_location=market,
                             extracted_keywords=keyword,
@@ -135,21 +143,22 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
                         db.refresh(new_lead)
                         stats["saved"] += 1
                         
-                        # 4. 同步回全域池 (Isolation Table)
-                        save_to_global_pool(db, {
-                            "company_name": name,
-                            "domain": domain,
-                            "website_url": website,
+                        # 4. 同步回全域池 (Shared Intelligence Layer - v3.0)
+                        global_rec = save_to_global_pool(db, {
+                            "company_name": lead_name,
+                            "domain": lead_domain,
+                            "website_url": lead_website,
                             "description": description,
-                            "contact_email": primary_email,
+                            "contact_email": contact_email,
                             "email_candidates": email_candidates_str,
                             "phone": item.get("phone", ""),
                             "address": item.get("address", ""),
                             "ai_tag": ai_result.get("Tag"),
+                            "industry_taxonomy": ai_result.get("Taxonomy"),
                             "source": "apify_yellowpages"
                         })
+                        
                         # 連結 global_id
-                        global_rec = db.query(models.GlobalLead).filter(models.GlobalLead.domain == domain).first()
                         if global_rec:
                             new_lead.global_id = global_rec.id
                             db.commit()

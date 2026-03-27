@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v3.0.0] - 2026-03-27
+
+### 🧠 Shared Lead Intelligence (Dual-Layer Data Model)
+- **Dual-Layer Architecture**: Separation of **Canonical Facts** (shared corporate data) and **User Overlays** (personal overrides, notes, tags).
+- **Personal Overrides**: Users can now modify company names, emails, and notes without affecting the global database.
+- **Global Proposals**: Implemented a crowd-sourced data quality system where users suggest corrections to shared data.
+- **Admin Resolution**: Dedicated interface for administrators to approve/reject data proposals and verify global facts.
+
+### 🎨 UI/UX Revolution
+- **Lead Detail Drawer**: A high-speed flyout panel for managing individual lead intelligence and overrides.
+- **Intelligence Hub**: Rebranded System Settings with real-time stats, sync rules, and proposal management.
+- **Data Provenance Badges**: Visual indicators (Global vs Personal) to clarify data accuracy and source.
+
+### 🛠️ Core Engine
+- **Atomic Synchronization**: Scrapers now automatically link to `global_id` and respect the dual-layer boundaries.
+- **Smart Merging**: Backend `to_dict` logic dynamically merges canonical and personal layers (Priority: Personal > Global).
+
 ## [v2.7.1] - 2026-03-26
 
 ### 🚀 全域探勘隔離池 (Global Lead Pool) 與 系統控管中心

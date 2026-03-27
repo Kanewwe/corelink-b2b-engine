@@ -103,6 +103,17 @@ export const batchFindEmails = (data: any) => fetchWithAuth('/leads/batch-find-e
   body: JSON.stringify(data)
 });
 
+// Leads v3.0 (Shared Intelligence)
+export const updateLead = (id: number, data: any) => fetchWithAuth(`/leads/${id}`, {
+  method: 'PATCH',
+  body: JSON.stringify(data)
+});
+
+export const proposeCorrection = (data: { global_id: number; field_name: string; suggested_value: string }) => fetchWithAuth('/leads/propose', {
+  method: 'POST',
+  body: JSON.stringify(data)
+});
+
 // Keywords
 export const generateAiKeywords = (keyword: string, count: number = 5) => fetchWithAuth('/keywords/generate', {
   method: 'POST',
@@ -148,6 +159,13 @@ export const getAdminScrapeTasks = (status?: string, limit: number = 50) => {
 
 export const getAdminScrapeTaskDetail = (taskId: number) => 
   fetchWithAuth(`/admin/scrape-tasks/${taskId}`);
+
+// Admin - Proposals (v3.0)
+export const getAdminProposals = (status: string = 'Pending') => fetchWithAuth(`/admin/proposals?status=${status}`);
+export const resolveProposal = (id: number, data: { status: string; reason?: string }) => fetchWithAuth(`/admin/proposals/${id}/resolve`, {
+  method: 'POST',
+  body: JSON.stringify(data)
+});
 
 export const getAdminScrapeTaskLogs = (taskId: number, level?: string) => {
   const params = new URLSearchParams();

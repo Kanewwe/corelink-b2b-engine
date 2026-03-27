@@ -1,13 +1,219 @@
 import React, { useState, useEffect } from 'react';
-import { getDashboardStats, getLeads, triggerScrapeSimple, generateAiKeywords } from '../services/api';
-import { Users, Send, BarChart3, ShieldAlert, Cpu, Search, Sparkles, Zap, Mail, Globe } from 'lucide-react';
+import { 
+  getDashboardStats, 
+  getLeads, 
+  triggerScrapeSimple, 
+  generateAiKeywords, 
+  updateLead, 
+  proposeCorrection 
+} from '../services/api';
+import { 
+  Users, Send, BarChart3, ShieldAlert, Cpu, Search, Sparkles, 
+  Zap, Mail, Globe, Edit3, Save, X, Info, CheckCircle2, User
+} from 'lucide-react';
 import { toast } from 'react-hot-toast';
+
+// ── Lead Detail Drawer Component ──
+const LeadDetailDrawer: React.FC<{
+  lead: any;
+  onClose: () => void;
+  onUpdate: () => void;
+}> = ({ lead, onClose, onUpdate }) => {
+  const [editMode, setEditMode] = useState(false);
+  const [formData, setFormData] = useState({
+    override_name: lead.override_name || '',
+    override_email: lead.override_email || '',
+    personal_notes: lead.personal_notes || '',
+    custom_tags: lead.custom_tags || []
+  });
+  const [saving, setSaving] = useState(false);
+  const [proposing, setProposing] = useState<{field: string, value: string} | null>(null);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const resp = await updateLead(lead.id, formData);
+      if (resp.ok) {
+        toast.success("個人覆寫已儲存");
+        setEditMode(false);
+        onUpdate();
+      }
+    } catch (e) {
+      toast.error("儲存失敗");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePropose = async (field: string, value: string) => {
+    if (!lead.global_id) {
+      toast.error("此 Lead 尚未與全域池連結，無法提出建議");
+      return;
+    }
+    const loadingToast = toast.loading("正在送出全域修正建議...");
+    try {
+      const resp = await proposeCorrection({
+        global_id: lead.global_id,
+        field_name: field,
+        suggested_value: value
+      });
+      if (resp.ok) {
+        toast.success("建議已送出，待管理員審核", { id: loadingToast });
+        setProposing(null);
+      }
+    } catch (e) {
+      toast.error("送出建議失敗", { id: loadingToast });
+    }
+  };
+
+  return (
+    <div className="fixed inset-y-0 right-0 w-[450px] bg-slate-900 border-l border-white/10 shadow-2xl z-50 animate-in slide-in-from-right duration-300 flex flex-col">
+      <div className="p-6 border-b border-white/10 flex justify-between items-center bg-slate-800/50">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary">
+            <User size={20} />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-white">{lead.display_name}</h3>
+            <p className="text-xs text-text-muted">Lead ID: #{lead.id}</p>
+          </div>
+        </div>
+        <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-text-muted">
+          <X size={20} />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-6 space-y-8">
+        {/* Layer Distinction Banner */}
+        <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 flex items-start gap-3">
+          <Sparkles size={16} className="text-primary mt-1" />
+          <div className="text-xs leading-relaxed">
+            <span className="font-bold text-primary block mb-1">v3.0 雙層架構說明</span>
+            您可以針對此 Lead 進行<b>個人覆寫 (Workspace Overlay)</b>，這僅會影響您的視圖。如果您發現全域事實有誤，請點擊「建議全域修正」。
+          </div>
+        </div>
+
+        {/* Basic Info */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-bold text-text-muted uppercase tracking-wider">資訊屬性</h4>
+            <button 
+              onClick={() => setEditMode(!editMode)}
+              className="text-xs flex items-center gap-1.5 text-primary hover:underline"
+            >
+              {editMode ? <><Save size={12}/> 取消</> : <><Edit3 size={12}/> 編輯個人參數</>}
+            </button>
+          </div>
+
+          <div className="space-y-5">
+            {/* Company Name */}
+            <div>
+              <label className="text-[11px] font-bold text-text-muted block mb-1.5">公司名稱</label>
+              {editMode ? (
+                <div className="space-y-2">
+                  <input 
+                    type="text" className="input-field py-1.5 text-sm"
+                    value={formData.override_name}
+                    onChange={e => setFormData({...formData, override_name: e.target.value})}
+                    placeholder={lead.company_name}
+                  />
+                  <div className="flex justify-end">
+                    <button 
+                      onClick={() => handlePropose('company_name', formData.override_name || lead.company_name)}
+                      className="text-[10px] text-accent-teal hover:underline flex items-center gap-1"
+                    >
+                      <Globe size={10} /> 建議作為全域事實
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-medium text-white">{lead.display_name}</div>
+                  {lead.is_overridden && <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">已覆寫</span>}
+                </div>
+              )}
+            </div>
+
+            {/* Email */}
+            <div>
+              <label className="text-[11px] font-bold text-text-muted block mb-1.5">聯絡信箱 (Email)</label>
+              {editMode ? (
+                <input 
+                  type="text" className="input-field py-1.5 text-sm"
+                  value={formData.override_email}
+                  onChange={e => setFormData({...formData, override_email: e.target.value})}
+                  placeholder={lead.contact_email}
+                />
+              ) : (
+                <div className="text-sm font-mono text-emerald-400">{lead.display_email || '尚未探勘'}</div>
+              )}
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="text-[11px] font-bold text-text-muted block mb-1.5">私人筆記 (Notes)</label>
+              {editMode ? (
+                <textarea 
+                  className="input-field min-h-[100px] py-2 text-sm"
+                  value={formData.personal_notes}
+                  onChange={e => setFormData({...formData, personal_notes: e.target.value})}
+                  placeholder="只有您看得到的備註..."
+                />
+              ) : (
+                <div className="text-sm text-text-muted italic bg-white/5 p-3 rounded-lg border border-white/5 min-h-[60px]">
+                  {lead.personal_notes || '尚無筆記'}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Sync Info */}
+        <div className="pt-6 border-t border-white/5">
+          <div className="flex items-center gap-2 mb-4">
+            <Globe size={14} className="text-text-muted" />
+            <h4 className="text-sm font-bold text-text-muted uppercase tracking-wider">共享資料層 (Canonical Facts)</h4>
+          </div>
+          <div className="grid grid-cols-2 gap-4 text-[11px]">
+            <div className="p-3 rounded-lg bg-white/5 border border-white/5">
+              <div className="text-text-muted mb-1">網域 (Domain)</div>
+              <div className="text-white font-mono">{lead.domain || 'N/A'}</div>
+            </div>
+            <div className="p-3 rounded-lg bg-white/5 border border-white/5">
+              <div className="text-text-muted mb-1">探勘來源 (Source)</div>
+              <div className="text-white">{lead.scrape_location || 'Manual'}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {editMode && (
+        <div className="p-6 border-t border-white/10 bg-slate-800/80 flex gap-3">
+          <button 
+            onClick={handleSave}
+            disabled={saving}
+            className="flex-1 bg-primary py-2.5 rounded-xl text-sm font-bold text-white hover:scale-[1.02] transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+          >
+            {saving ? <div className="spinner w-4 h-4 border-2" /> : <><Save size={16}/> 儲存私有變動</>}
+          </button>
+          <button 
+            onClick={() => setEditMode(false)}
+            className="px-6 py-2.5 rounded-xl border border-white/10 text-sm font-bold text-text-muted hover:bg-white/5 transition-all"
+          >
+            取消
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const LeadEngine: React.FC = () => {
   const [kpi, setKpi] = useState({ total: 0, sentMonth: 0, openRate: '0%', bounceRate: '0%' });
   const [leads, setLeads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [selectedLead, setSelectedLead] = useState<any | null>(null);
   
   // Scraper Form State
   const [market, setMarket] = useState('US');
@@ -142,7 +348,19 @@ const LeadEngine: React.FC = () => {
   ];
 
   return (
-    <div className="page-wrapper">
+    <div className="page-wrapper relative overflow-hidden">
+      
+      {/* ── Detail Drawer ── */}
+      {selectedLead && (
+        <>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 animate-in fade-in" onClick={() => setSelectedLead(null)} />
+          <LeadDetailDrawer 
+            lead={selectedLead} 
+            onClose={() => setSelectedLead(null)} 
+            onUpdate={fetchDashboardData}
+          />
+        </>
+      )}
 
       {/* ── Page Header ── */}
       <div className="page-header">
@@ -152,9 +370,9 @@ const LeadEngine: React.FC = () => {
               精準開發雷達
               <span className="page-title__en">Precision Radar</span>
             </h1>
-            <span className="version-badge">LINKORA V2</span>
+            <span className="version-badge">LINKORA V3.0 (Shared Intelligence)</span>
           </div>
-          <p className="page-subtitle">AI 驅動的全自動 B2B 客戶探勘引擎，精準發現潛在採購商。</p>
+          <p className="page-subtitle">AI 驅動的全自動 B2B 客戶探勘引擎，精準發現潛在採購商並實現情報共享。</p>
         </div>
       </div>
 
@@ -177,15 +395,14 @@ const LeadEngine: React.FC = () => {
         })}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 min-h-[500px] lead-engine-grid">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 lead-engine-grid">
         {/* Left Column: Miner Form */}
-        <section className="card" style={{ overflowY: 'auto' }}>
+        <section className="card lg:col-span-5 h-fit shadow-xl border-white/5">
           <div className="card__header">
             <h3 className="card__title">🕷️ 全自動化探勘引擎 (Auto-Miner)</h3>
           </div>
-          <p className="card__subtitle" style={{ marginBottom: 20 }}>直接爬取黃頁網站，自動發現採購/負責人 Email</p>
 
-          <form onSubmit={handleScrape} className="flex flex-col gap-5">
+          <form onSubmit={handleScrape} className="flex flex-col gap-5 mt-4">
             <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl">
               <div className="text-[11px] font-bold text-emerald-500 uppercase tracking-widest mb-3 flex items-center gap-2">
                 <Mail className="w-3.5 h-3.5" /> Email 發現策略 (Discovery)
@@ -260,10 +477,9 @@ const LeadEngine: React.FC = () => {
                 <span className="text-[9px] text-primary underline decoration-primary/30">支援多關鍵字探勘</span>
               </label>
               
-              {/* Active Keywords */}
               <div className="flex flex-wrap gap-2 mb-2">
                 {activeKeywords.map((k, idx) => (
-                  <div key={idx} className="bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-bold border border-primary/30 flex items-center gap-2 animate-in zoom-in duration-200">
+                  <div key={idx} className="bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-bold border border-primary/30 flex items-center gap-2">
                     {k}
                     <button type="button" onClick={() => removeKeyword(k)} className="hover:text-white transition-colors">×</button>
                   </div>
@@ -271,52 +487,26 @@ const LeadEngine: React.FC = () => {
               </div>
 
               <div className="flex gap-2">
-                <div className="flex-1 relative">
-                  <input 
-                    type="text" placeholder="輸入關鍵字後按 Enter..."
-                    className="input-field"
-                    value={keywordInput} 
-                    onChange={e => setKeywordInput(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addKeyword(keywordInput);
-                      }
-                    }}
-                  />
-                </div>
+                <input 
+                  type="text" placeholder="輸入關鍵字後按 Enter..."
+                  className="input-field flex-1"
+                  value={keywordInput} 
+                  onChange={e => setKeywordInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addKeyword(keywordInput);
+                    }
+                  }}
+                />
                 <button 
                   type="button" 
                   onClick={handleAiKeywords}
-                  className="bg-primary/10 hover:bg-primary/20 text-primary px-4 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 border border-primary/20 shadow-lg shadow-primary/5"
+                  className="btn-outline px-4 text-xs font-bold flex items-center gap-1.5"
                 >
-                  <Sparkles className="w-3.5 h-3.5" /> AI 聯想
+                  <Sparkles size={14} /> AI 聯想
                 </button>
               </div>
-
-              {/* AI Suggestions */}
-              {suggestedKeywords.length > 0 && (
-                <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3 animate-in fade-in slide-in-from-top-2">
-                  <div className="text-[10px] text-text-muted font-bold uppercase mb-2 flex items-center gap-1.5">
-                    <Sparkles className="w-3 h-3 text-warning" /> AI 選項建議 (點選加入):
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {suggestedKeywords.map((sk, idx) => (
-                      <button 
-                        key={idx} 
-                        type="button"
-                        onClick={() => {
-                          addKeyword(sk);
-                          setSuggestedKeywords(suggestedKeywords.filter(k => k !== sk));
-                        }}
-                        className="bg-white/5 hover:bg-primary/20 hover:text-white px-2.5 py-1 rounded-lg text-[11px] text-text-muted border border-white/10 transition-all"
-                      >
-                        + {sk}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
             <div className="p-4 bg-primary/5 border border-primary/10 rounded-xl">
@@ -345,83 +535,81 @@ const LeadEngine: React.FC = () => {
                   />
                   <div>
                     <div className="text-xs font-bold text-white">黃頁模式 (原版)</div>
-                    <div className="text-[10px] text-text-muted mt-1 leading-relaxed">搜尋 Yellowpages / Yelp。適合本地服務業、維修店、各類 B2C 零售商。</div>
+                    <div className="text-[10px] text-text-muted mt-1 leading-relaxed">搜尋 Yellowpages / Yelp。適合本地服務業、維修店、客路型 B2C 零售商。</div>
                   </div>
                 </label>
               </div>
             </div>
 
-            {miningStatus && (
-              <div className="text-[11px] p-3 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-medium animate-in fade-in slide-in-from-top-1">
-                {miningStatus}
-              </div>
-            )}
-
             <button 
               type="submit" 
               disabled={isMining}
-              className="w-full flex justify-center items-center py-4 bg-gradient-to-br from-primary to-primary-dark hover:scale-[1.02] active:scale-[0.98] rounded-2xl font-black text-white shadow-xl shadow-primary/30 transition-all disabled:opacity-50"
+              className="btn-primary w-full py-4 text-base font-black shadow-lg shadow-primary/20"
             >
-              {isMining ? (
-                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-              ) : (
-                <>
-                  <Cpu className="w-5 h-5 mr-3" /> ⚡ 立即啟動 AI 自動探勘
-                </>
-              )}
+              {isMining ? <div className="spinner w-5 h-5 border-2" /> : <><Cpu className="w-5 h-5 mr-2" /> 立即啟動 AI 探勘</>}
             </button>
           </form>
         </section>
 
         {/* Right Column: Leads Table */}
-        <section className="card" style={{ display: 'flex', flexDirection: 'column', height: 600 }}>
+        <section className="card lg:col-span-7 flex flex-col h-[750px] shadow-xl border-white/5">
           <div className="card__header">
             <h3 className="card__title">
-              客戶列表
-              <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--color-text-muted)' }}>{leads.length} 筆</span>
+              客戶清單 (Leads)
+              <span className="text-xs font-normal text-text-muted ml-2">{leads.length} 筆資料</span>
             </h3>
-            <div className="form-input-wrapper" style={{ width: 160 }}>
-              <Search size={13} className="input-icon" />
+            <div className="relative w-48">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
               <input
-                type="text" placeholder="搜尋公司..."
+                type="text" placeholder="關鍵字搜尋..."
                 value={search} onChange={e => setSearch(e.target.value)}
-                className="form-input" style={{ padding: '7px 10px 7px 32px', fontSize: 12 }}
+                className="form-input pl-9 py-1.5 text-xs"
               />
             </div>
           </div>
 
-          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="flex-1 overflow-y-auto mt-4 px-1 space-y-3 custom-scrollbar">
             {leads.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-state__icon"><Search size={40} style={{ opacity: 0.3 }} /></div>
-                <p className="empty-state__title">尚無客戶資料</p>
-                <p className="empty-state__desc">在左側設定條件後開始探勘</p>
+              <div className="empty-state py-20">
+                <Search size={40} className="text-white/10 mb-4" />
+                <p className="text-white font-medium">尚無探勘結果</p>
+                <p className="text-xs text-text-muted mt-1">調整左側參數並啟動引擎</p>
               </div>
             ) : (
               leads
-                .filter((l: any) => !search || l.company_name?.toLowerCase().includes(search.toLowerCase()))
-                .map((lead: any, idx: number) => (
-                  <div key={idx} className="card" style={{ padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--color-text-primary)' }}>{lead.company_name}</div>
-                        {lead.global_id ? (
-                          <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: 'var(--color-primary-glow)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700 }}>
-                            <Globe size={10} /> GLOBAL SYNC
-                          </span>
-                        ) : (
-                          <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: 'var(--color-accent-teal-glow)', color: 'var(--color-accent-teal)', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700 }}>
-                            <Zap size={10} /> LIVE SCRAPE
-                          </span>
-                        )}
+                .filter((l: any) => !search || l.display_name?.toLowerCase().includes(search.toLowerCase()))
+                .map((lead: any) => (
+                  <div 
+                    key={lead.id} 
+                    className="group card p-4 hover:border-primary/40 hover:bg-primary/[0.02] cursor-pointer transition-all flex items-center justify-between"
+                    onClick={() => setSelectedLead(lead)}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${lead.is_overridden ? 'bg-amber-500/20 text-amber-500' : 'bg-slate-800 text-text-muted'}`}>
+                        {lead.is_overridden ? <User size={18} /> : (lead.global_id ? <Globe size={18} /> : <Zap size={18} />)}
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--color-text-muted)', fontFamily: 'monospace', marginTop: 2 }}>
-                        {lead.contact_email || lead.email || lead.email_candidates || '無聯絡信箱'}
+                      <div>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="font-bold text-sm text-white group-hover:text-primary transition-colors">{lead.display_name}</span>
+                          {lead.is_overridden && (
+                            <span className="text-[9px] font-black bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded uppercase tracking-tighter">Personal</span>
+                          )}
+                          {lead.global_id && (
+                            <span className="text-[9px] font-black bg-primary/20 text-primary px-1.5 py-0.5 rounded uppercase tracking-tighter flex items-center gap-1">
+                              <Globe size={8} /> Shared
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-text-muted flex items-center gap-2">
+                          <span className="text-emerald-400 font-mono">{lead.display_email || 'No email discovered'}</span>
+                          <span className="opacity-20">•</span>
+                          <span>{lead.domain}</span>
+                        </div>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      <button className="btn-icon-sm" title="查看詳情"><Search size={13} /></button>
-                      <button className="btn-icon-sm" title="立即寄信" style={{ color: 'var(--color-primary)', borderColor: 'rgba(91,127,255,0.3)' }}><Send size={13} /></button>
+                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button className="btn-icon-sm" onClick={(e) => { e.stopPropagation(); setSelectedLead(lead); }}><Edit3 size={13}/></button>
+                      <button className="btn-icon-sm" onClick={(e) => { e.stopPropagation(); }} style={{ color: 'var(--color-primary)' }}><Send size={13}/></button>
                     </div>
                   </div>
                 ))

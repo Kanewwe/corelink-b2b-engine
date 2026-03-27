@@ -470,6 +470,12 @@ class Lead(Base):
     assigned_bd = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
+    # v3.0: User Overlay Layer (Overrides for Canonical Facts)
+    override_name = Column(String(200), nullable=True)
+    override_email = Column(String(255), nullable=True)
+    personal_notes = Column(Text, nullable=True)
+    custom_tags = Column(String(255), nullable=True)
+    
     # Email tracking
     email_sent = Column(Boolean, default=False)
     email_sent_at = Column(DateTime, nullable=True)
@@ -495,10 +501,58 @@ class Lead(Base):
     employee_count = Column(String, nullable=True)
     revenue_range = Column(String, nullable=True)
 
+    # v3.0: 產業分類沉澱 (Canonical Industry)
+    industry_taxonomy = Column(String(255), nullable=True)
+
     # 關聯到全域池 (Global Pool)
     global_id = Column(Integer, ForeignKey("global_leads.id"), nullable=True)
 
     email_campaigns = relationship("EmailCampaign", back_populates="lead")
+
+    def to_dict(self):
+        # v3.0: 實作「顯示優先權」邏輯 (Personal Overrides > Canonical Facts)
+        effective_name = self.override_name or self.company_name
+        effective_email = self.override_email or self.contact_email
+        
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "company_name": self.company_name, # Canonical
+            "website_url": self.website_url,
+            "domain": self.domain,
+            "description": self.description,
+            "ai_tag": self.ai_tag,
+            "industry_taxonomy": self.industry_taxonomy, # v3.0
+            "status": self.status,
+            "assigned_bd": self.assigned_bd,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            
+            # v3.0 Effective Fields (Frontend 優先顯示這些)
+            "display_name": effective_name,
+            "display_email": effective_email,
+            "is_overridden": True if (self.override_name or self.override_email) else False,
+            
+            # v3.0 Overlays
+            "override_name": self.override_name,
+            "override_email": self.override_email,
+            "personal_notes": self.personal_notes,
+            "custom_tags": self.custom_tags,
+            
+            # Contact info
+            "contact_name": self.contact_name,
+            "contact_role": self.contact_role,
+            "contact_email": self.contact_email, # Canonical
+            "phone": self.phone,
+            "address": self.address,
+            "city": self.city,
+            "state": self.state,
+            "zip_code": self.zip_code,
+            
+            # Meta
+            "global_id": self.global_id,
+            "email_sent": self.email_sent,
+            "email_sent_at": self.email_sent_at.isoformat() if self.email_sent_at else None
+        }
 
 
 class GlobalLead(Base):
@@ -523,6 +577,11 @@ class GlobalLead(Base):
     # AI 標籤與產業別
     ai_tag = Column(String(100))
     industry = Column(String(100))
+    industry_taxonomy = Column(String(255)) # v3.0: 結構化產業路徑
+    
+    # v3.0: Fact Quality
+    is_verified = Column(Boolean, default=False)
+    confidence_score = Column(Integer, default=0)
     
     source = Column(String(100)) # e.g., 'apify_thomasnet', 'apify_yellowpages'
     
@@ -543,8 +602,52 @@ class GlobalLead(Base):
             "address": self.address,
             "ai_tag": self.ai_tag,
             "industry": self.industry,
+            "industry_taxonomy": self.industry_taxonomy,
+            "is_verified": self.is_verified,
+            "confidence_score": self.confidence_score,
             "source": self.source,
             "last_scraped_at": self.last_scraped_at.isoformat() if self.last_scraped_at else None
+        }
+
+
+class GlobalProposal(Base):
+    """
+    資料修正提案 (v3.0)
+    使用者針對全域資料提出的修改建議內容。
+    """
+    __tablename__ = "global_proposals"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    global_id = Column(Integer, ForeignKey("global_leads.id", ondelete="CASCADE"))
+    
+    field_name = Column(String(100)) # e.g., 'company_name', 'industry'
+    current_value = Column(Text)
+    suggested_value = Column(Text)
+    
+    status = Column(String(20), default="Pending") # 'Pending', 'Approved', 'Rejected'
+    reason = Column(String(255)) # 拒絕理由或補充說明
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    resolved_at = Column(DateTime)
+    
+    # 關聯
+    user = relationship("User")
+    global_lead = relationship("GlobalLead")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "user_name": self.user.name if self.user else "System",
+            "global_id": self.global_id,
+            "global_company_name": self.global_lead.company_name if self.global_lead else "Deleted",
+            "field_name": self.field_name,
+            "current_value": self.current_value,
+            "suggested_value": self.suggested_value,
+            "status": self.status,
+            "reason": self.reason,
+            "created_at": self.created_at.isoformat() if self.created_at else None
         }
 
 
