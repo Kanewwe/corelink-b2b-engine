@@ -6,11 +6,13 @@ import {
   triggerScrapeSimple, 
   generateAiKeywords, 
   updateLead, 
-  proposeCorrection 
+  proposeCorrection,
+  scoreLeads,
+  generateLeadBrief
 } from '../services/api';
 import { 
   Users, Send, BarChart3, ShieldAlert, Cpu, Search, Sparkles, 
-  Zap, Mail, Globe, Edit3, Save, X, User
+  Zap, Mail, Globe, Edit3, Save, X, User, Star, Brain, TrendingUp
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -28,6 +30,11 @@ interface Lead {
   custom_tags?: string[];
   is_overridden?: boolean;
   scrape_location?: string;
+  // v3.2: AI 評分
+  ai_score?: number;
+  ai_score_tags?: string;
+  ai_brief?: string;
+  ai_suggestions?: string;
 }
 
 // ── Lead Detail Drawer Component ──
@@ -231,6 +238,7 @@ const LeadEngine: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [scoring, setScoring] = useState(false); // v3.2
   
   // Scraper Form State
   const [market, setMarket] = useState('US');
@@ -349,6 +357,38 @@ const LeadEngine: React.FC = () => {
     }
   };
 
+  // v3.2: AI 評分
+  const handleAiScore = async () => {
+    if (leads.length === 0) {
+      toast.error("尚無 Leads 可評分");
+      return;
+    }
+    setScoring(true);
+    const loadingToast = toast.loading("AI 正在評分所有 Leads...");
+    try {
+      const resp = await scoreLeads();
+      const data = await resp.json();
+      if (data.success) {
+        toast.success(`評分完成！共 ${data.count} 筆`, { id: loadingToast });
+        if (data.results) {
+          setLeads(prev => prev.map(lead => {
+            const scored = data.results.find((r: any) => r.id === lead.id);
+            if (scored) {
+              return { ...lead, ai_score: scored.score, ai_score_tags: JSON.stringify(scored.tags) };
+            }
+            return lead;
+          }));
+        }
+      } else {
+        toast.error("評分失敗", { id: loadingToast });
+      }
+    } catch (e) {
+      toast.error("評分服務暫時不可用", { id: loadingToast });
+    } finally {
+      setScoring(false);
+    }
+  };
+
   if (loading && leads.length === 0) {
     return (
       <div className="page-loading">
@@ -388,7 +428,7 @@ const LeadEngine: React.FC = () => {
               精準開發雷達
               <span className="page-title__en">Precision Radar</span>
             </h1>
-            <span className="version-badge">LINKORA V3.0 (Shared Intelligence)</span>
+            <span className="version-badge">LINKORA V3.2 (AI Intelligence)</span>
           </div>
           <p className="page-subtitle">AI 驅動的全自動 B2B 客戶探勘引擎，精準發現潛在採購商並實現情報共享。</p>
         </div>
@@ -576,13 +616,26 @@ const LeadEngine: React.FC = () => {
               客戶清單 (Leads)
               <span className="text-xs font-normal text-text-muted ml-2">{leads.length} 筆資料</span>
             </h3>
-            <div className="relative w-48">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-              <input
-                type="text" placeholder="關鍵字搜尋..."
-                value={search} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
-                className="form-input pl-9 py-1.5 text-xs"
-              />
+            <div className="flex items-center gap-2">
+              {/* v3.2: AI 評分按鈕 */}
+              <button
+                onClick={handleAiScore}
+                disabled={scoring || leads.length === 0}
+                className="btn-outline btn--sm flex items-center gap-1.5"
+                style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
+                title="AI 評分"
+              >
+                {scoring ? <div className="spinner w-3 h-3" /> : <Brain size={13} />}
+                {scoring ? '評分中...' : '✨ AI 評分'}
+              </button>
+              <div className="relative w-48">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+                <input
+                  type="text" placeholder="關鍵字搜尋..."
+                  value={search} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+                  className="form-input pl-9 py-1.5 text-xs"
+                />
+              </div>
             </div>
           </div>
 
@@ -617,12 +670,30 @@ const LeadEngine: React.FC = () => {
                               <Globe size={8} /> Shared
                             </span>
                           )}
+                          {/* v3.2: AI 評分顯示 */}
+                          {lead.ai_score !== undefined && lead.ai_score > 0 && (
+                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                              lead.ai_score >= 80 ? 'bg-emerald-500/20 text-emerald-400' :
+                              lead.ai_score >= 60 ? 'bg-yellow-500/20 text-yellow-400' :
+                              'bg-slate-500/20 text-slate-400'
+                            }`}>
+                              <Star size={8} /> {lead.ai_score}
+                            </span>
+                          )}
                         </div>
                         <div className="text-[11px] text-text-muted flex items-center gap-2">
                           <span className="text-emerald-400 font-mono">{lead.display_email || 'No email discovered'}</span>
                           <span className="opacity-20">•</span>
                           <span>{lead.domain}</span>
                         </div>
+                        {/* v3.2: AI 評分標籤 */}
+                        {lead.ai_score_tags && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {(JSON.parse(lead.ai_score_tags) as string[]).slice(0, 3).map((tag: string, i: number) => (
+                              <span key={i} className="text-[8px] bg-slate-700/60 text-slate-300 px-1 py-0.5 rounded">{tag}</span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

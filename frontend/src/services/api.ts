@@ -180,3 +180,27 @@ export const retryAdminScrapeTask = (taskId: number) =>
 
 export const cleanupStaleTasks = () =>
   fetchWithAuth('/admin/scrape-tasks/stale', { method: 'DELETE' });
+
+// ── v3.2: AI 評分與情報 ──
+export const scoreLeads = (leadIds?: number[]) => fetchWithAuth('/leads/ai-score', {
+  method: 'POST',
+  body: JSON.stringify({ lead_ids: leadIds ?? null })
+});
+
+export const generateLeadBrief = (leadId: number) =>
+  fetchWithAuth(`/leads/${leadId}/ai-brief`, { method: 'POST' });
+
+export const optimizeEmailSubject = (subject: string, companyName: string = '') =>
+  fetchWithAuth('/templates/ai-optimize-subject', {
+    method: 'POST',
+    body: JSON.stringify({ subject, company_name: companyName })
+  });
+
+export const generateABVersions = (companyName: string, tag: string = '', keywords: string[] = []) =>
+  fetchWithAuth('/templates/ai-generate-ab', {
+    method: 'POST',
+    body: JSON.stringify({ company_name: companyName, tag, keywords })
+  });
+
+export const generateAnalyticsSummary = () =>
+  fetchWithAuth('/analytics/ai-summary', { method: 'POST' });
