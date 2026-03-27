@@ -189,7 +189,7 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
                                 if not contact_email:
                                     # free 模式：從官網爬取
                                     from free_email_hunter import find_emails_free
-                                    email_result = find_emails_free(lead_domain, name)
+                                    email_result = find_emails_free(lead_domain, name, timeout=5)
                                     best_email_obj = email_result.get("best_email")
                                     if best_email_obj:
                                         contact_email = best_email_obj.get("email", "")
@@ -202,7 +202,7 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
                         # Layer 3: Domain Prefix Guessing (最終備援)
                         guessed_email = None
                         if not contact_email and lead_domain:
-                            prefixes = ["info", "sales", "contact", "hello", "admin", "office"]
+                            prefixes = ["info", "sales", "contact"]  # v3.2.1: 精簡前綴
                             for prefix in prefixes:
                                 guess = f"{prefix}@{lead_domain}"
                                 if len(guess) > 5:

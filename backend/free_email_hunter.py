@@ -488,13 +488,13 @@ def deduplicate_emails(emails: List[Dict]) -> List[Dict]:
 # 主程式：整合三層策略
 # ══════════════════════════════════════════
 
-async def find_emails_free(domain: str, company_name: str = "") -> Dict:
+async def find_emails_free(domain: str, company_name: str = "", timeout: int = 30) -> Dict:
     """
     整合三層 email 發現策略
     ✅ 新增：整體 timeout 保護（最多 30 秒）
     """
     start_time = time.time()
-    overall_timeout = 30  # 最多跑 30 秒
+    overall_timeout = timeout  # 可外部控制，避免 worker timeout
     
     result = {
         "domain": domain,
