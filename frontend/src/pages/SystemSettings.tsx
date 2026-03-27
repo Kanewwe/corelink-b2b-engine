@@ -1,7 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Cpu, Database, Sparkles, Save, Info, RefreshCw, Trash2, Plus } from 'lucide-react';
+import { Shield, Cpu, Database, Sparkles, Save, Info, RefreshCw, Trash2, Plus, CheckCircle2, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { getSystemSettings, updateSystemSetting, getGlobalPoolStats, clearGlobalPool } from '../services/api';
+import { 
+  getSystemSettings, 
+  updateSystemSetting, 
+  getGlobalPoolStats, 
+  clearGlobalPool,
+  getAdminProposals,
+  resolveProposal
+} from '../services/api';
+
+interface GlobalLead {
+  id: number;
+  domain: string;
+  company_name: string;
+  industry?: string;
+  contact_email?: string;
+}
+
+interface GlobalProposal {
+  id: number;
+  global_id: number;
+  field_name: string;
+  suggested_value: string;
+  proposed_by: number;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  global_lead?: GlobalLead;
+}
 
 const SystemSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'apis' | 'mapping' | 'general'>('apis');
@@ -10,6 +35,11 @@ const SystemSettings: React.FC = () => {
   const [globalStats, setGlobalStats] = useState<{total_leads: number, total_domains: number, tags: Record<string, number>} | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   
+  // Proposals State
+  const [showProposals, setShowProposals] = useState(false);
+  const [proposals, setProposals] = useState<GlobalProposal[]>([]);
+  const [loadingProposals, setLoadingProposals] = useState(false);
+
   // Settings State
   const [apiKeys, setApiKeys] = useState({
     openai_key: '',
@@ -103,6 +133,38 @@ const SystemSettings: React.FC = () => {
     } catch (e) { toast.error("連線錯誤"); }
     finally { setSaving(false); }
   };
+
+  const fetchProposals = async () => {
+    setLoadingProposals(true);
+    try {
+      const resp = await getAdminProposals('Pending');
+      if (resp.ok) {
+        const data = await resp.json();
+        setProposals(data);
+      }
+    } catch (e) {
+      toast.error("讀取提案失敗");
+    } finally {
+      setLoadingProposals(false);
+    }
+  };
+
+  const handleResolve = async (id: number, status: 'Approved' | 'Rejected') => {
+    try {
+      const resp = await resolveProposal(id, { status });
+      if (resp.ok) {
+        toast.success(`提案已${status === 'Approved' ? '核准' : '駁回'}`);
+        fetchProposals();
+        fetchGlobalStats();
+      }
+    } catch (e) {
+      toast.error("操作失敗");
+    }
+  };
+
+  useEffect(() => {
+    if (showProposals) fetchProposals();
+  }, [showProposals]);
 
   const addMapping = () => {
     if (!newMappingKey || !newMappingLabel) {
@@ -233,9 +295,8 @@ const SystemSettings: React.FC = () => {
         {activeTab === 'mapping' && (
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <div className="card__header">
-              <h3 className="card__title">
               <h3 className="card__title">採集欄位與系統變數映射</h3>
-              <p className="card__subtitle">定義爬蟲吐出的原始 Key 對應到 Linkora 顯示的標籤 (例如: contactEmail -> 聯絡信箱)</p>
+              <p className="card__subtitle">定義爬蟲吐出的原始 Key 對應到 Linkora 顯示的標籤 (例如: contactEmail 為 聯絡信箱)</p>
             </div>
 
             <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', background: 'var(--color-neutral-glow)', padding: 20, borderRadius: 16 }}>
@@ -307,11 +368,11 @@ const SystemSettings: React.FC = () => {
                 </div>
                 <div className="card" style={{ padding: '16px', background: 'rgba(255, 170, 0, 0.05)', border: '1px solid rgba(255, 170, 100, 0.2)' }}>
                   <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>待審核提案</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: '#ffaa00' }}>{globalStats?.pending_proposals || 0}</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: '#ffaa00' }}>{(globalStats as any)?.pending_proposals || 0}</div>
                 </div>
                 <div className="card" style={{ padding: '16px', background: 'rgba(0, 200, 255, 0.05)', border: '1px solid rgba(0, 200, 255, 0.2)' }}>
                   <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>已驗證 Facts</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: '#00c8ff' }}>{globalStats?.verified_leads || 0}</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: '#00c8ff' }}>{(globalStats as any)?.verified_leads || 0}</div>
                 </div>
               </div>
 
@@ -351,7 +412,7 @@ const SystemSettings: React.FC = () => {
                       <p style={{ margin: 0, fontSize: 13 }}>優先顯示個人覆寫 (Personal Overrides)</p>
                       <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>若您修改了公司名，系統將在清單中優先呈現您的修改</p>
                     </div>
-                    <CheckCircle2 size={16} className="text-emerald-500" />
+                    <CheckCircle2 size={16} style={{ color: 'var(--color-accent-teal)' }} />
                   </div>
                 </div>
 
@@ -365,8 +426,8 @@ const SystemSettings: React.FC = () => {
                       <p style={{ margin: 0, fontSize: 13 }}>修正提案審核機制</p>
                       <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>當使用者建議修改共享層資料時，需經管理員確認</p>
                     </div>
-                    <button onClick={() => setShowProposals(true)} className="btn-outline-sm py-1.5 px-3" style={{ fontSize: 11 }}>
-                      查看待審提案 ({globalStats?.pending_proposals || 0})
+                    <button onClick={() => setShowProposals(true)} className="btn-outline" style={{ fontSize: 11, padding: '6px 12px' }}>
+                      查看待審提案 ({(globalStats as any)?.pending_proposals || 0})
                     </button>
                   </div>
 
@@ -391,6 +452,58 @@ const SystemSettings: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Proposals Modal */}
+      {showProposals && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+          <div className="bg-slate-800 border border-white/10 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[80vh]">
+            <div className="p-6 border-b border-white/10 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                <Database className="text-primary" /> 數據修正提案審核
+              </h3>
+              <button onClick={() => setShowProposals(false)} className="p-2 hover:bg-white/10 rounded-lg text-text-muted">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {loadingProposals ? (
+                <div className="text-center py-12 text-text-muted">載入中...</div>
+              ) : proposals.length === 0 ? (
+                <div className="text-center py-12 text-text-muted italic">目前沒有待處理的提案</div>
+              ) : (
+                proposals.map((p: GlobalProposal) => (
+                  <div key={p.id} className="card p-4 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="text-xs font-bold text-primary uppercase tracking-wider">{p.field_name}</span>
+                        <h4 className="font-bold text-white">{p.global_lead?.company_name || '未知公司'}</h4>
+                        <p className="text-xs text-text-muted">{p.global_lead?.domain}</p>
+                      </div>
+                      <div className="text-right text-xs text-text-muted">
+                        提交者 ID: #{p.proposed_by}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 pt-2">
+                      <div className="p-3 bg-red-500/5 border border-red-500/10 rounded-lg">
+                        <div className="text-[10px] text-red-400 uppercase font-bold mb-1">目前數值</div>
+                        <div className="text-sm text-white opacity-60 line-through">{p.global_lead ? (p.global_lead as any)[p.field_name] : '無'}</div>
+                      </div>
+                      <div className="p-3 bg-emerald-500/5 border border-emerald-500/10 rounded-lg">
+                        <div className="text-[10px] text-emerald-400 uppercase font-bold mb-1">提案建議值</div>
+                        <div className="text-sm text-emerald-400 font-bold">{p.suggested_value}</div>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-3 pt-2">
+                        <button onClick={() => handleResolve(p.id, 'Rejected')} className="btn-outline-sm danger">駁回建議</button>
+                        <button onClick={() => handleResolve(p.id, 'Approved')} className="btn-primary-sm">核准並更新事實層</button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -9,13 +9,29 @@ import {
 } from '../services/api';
 import { 
   Users, Send, BarChart3, ShieldAlert, Cpu, Search, Sparkles, 
-  Zap, Mail, Globe, Edit3, Save, X, Info, CheckCircle2, User
+  Zap, Mail, Globe, Edit3, Save, X, User
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
+interface Lead {
+  id: number;
+  global_id?: number;
+  company_name: string;
+  display_name: string;
+  contact_email?: string;
+  display_email?: string;
+  domain?: string;
+  personal_notes?: string;
+  override_name?: string;
+  override_email?: string;
+  custom_tags?: string[];
+  is_overridden?: boolean;
+  scrape_location?: string;
+}
+
 // ── Lead Detail Drawer Component ──
 const LeadDetailDrawer: React.FC<{
-  lead: any;
+  lead: Lead;
   onClose: () => void;
   onUpdate: () => void;
 }> = ({ lead, onClose, onUpdate }) => {
@@ -114,7 +130,7 @@ const LeadDetailDrawer: React.FC<{
                   <input 
                     type="text" className="input-field py-1.5 text-sm"
                     value={formData.override_name}
-                    onChange={e => setFormData({...formData, override_name: e.target.value})}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, override_name: e.target.value})}
                     placeholder={lead.company_name}
                   />
                   <div className="flex justify-end">
@@ -141,7 +157,7 @@ const LeadDetailDrawer: React.FC<{
                 <input 
                   type="text" className="input-field py-1.5 text-sm"
                   value={formData.override_email}
-                  onChange={e => setFormData({...formData, override_email: e.target.value})}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, override_email: e.target.value})}
                   placeholder={lead.contact_email}
                 />
               ) : (
@@ -156,7 +172,7 @@ const LeadDetailDrawer: React.FC<{
                 <textarea 
                   className="input-field min-h-[100px] py-2 text-sm"
                   value={formData.personal_notes}
-                  onChange={e => setFormData({...formData, personal_notes: e.target.value})}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormData({...formData, personal_notes: e.target.value})}
                   placeholder="只有您看得到的備註..."
                 />
               ) : (
@@ -210,21 +226,19 @@ const LeadDetailDrawer: React.FC<{
 
 const LeadEngine: React.FC = () => {
   const [kpi, setKpi] = useState({ total: 0, sentMonth: 0, openRate: '0%', bounceRate: '0%' });
-  const [leads, setLeads] = useState<any[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [selectedLead, setSelectedLead] = useState<any | null>(null);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   
   // Scraper Form State
   const [market, setMarket] = useState('US');
   const [location, setLocation] = useState('');
   const [keywordInput, setKeywordInput] = useState('');
   const [activeKeywords, setActiveKeywords] = useState<string[]>([]);
-  const [suggestedKeywords, setSuggestedKeywords] = useState<string[]>([]);
   const [pages, setPages] = useState('3');
   const [minerMode, setMinerMode] = useState('manufacturer');
   const [emailStrategy, setEmailStrategy] = useState<'free' | 'hunter'>('free');
-  const [miningStatus, setMiningStatus] = useState<string | null>(null);
   const [isMining, setIsMining] = useState(false);
 
   const fetchDashboardData = async () => {
@@ -282,7 +296,6 @@ const LeadEngine: React.FC = () => {
     }
     
     setIsMining(true);
-    setMiningStatus('探勘任務已啟動！請查看系統日誌隨時查看進度。');
     const loadingToast = toast.loading("正在啟動 AI 探勘引擎...");
     
     try {
@@ -322,7 +335,7 @@ const LeadEngine: React.FC = () => {
       const data = await resp.json();
       if (data.success && data.keywords && data.keywords.length > 0) {
         toast.success(`AI 已為您找到 ${data.keywords.length} 個建議`, { id: loadingToast });
-        setSuggestedKeywords(data.keywords);
+        setActiveKeywords([...activeKeywords, ...data.keywords].slice(0, 10)); // Auto-add first 10
       } else {
         toast.error("AI 關鍵字生成失敗", { id: loadingToast });
       }
@@ -440,7 +453,7 @@ const LeadEngine: React.FC = () => {
                   <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                   <select 
                     className="input-field pl-10 appearance-none"
-                    value={market} onChange={e => setMarket(e.target.value)}
+                    value={market} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setMarket(e.target.value)}
                   >
                     <option value="US">美國 (US)</option>
                     <option value="EU">歐洲 (EU)</option>
@@ -452,7 +465,7 @@ const LeadEngine: React.FC = () => {
                 <label className="block text-[11px] font-bold text-text-muted uppercase tracking-widest mb-2 ml-1">爬取深度 (Pages)</label>
                 <select 
                   className="input-field appearance-none"
-                  value={pages} onChange={e => setPages(e.target.value)}
+                  value={pages} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setPages(e.target.value)}
                 >
                   <option value="1">1 頁 (10筆)</option>
                   <option value="3">3 頁 (30筆)</option>
@@ -467,7 +480,7 @@ const LeadEngine: React.FC = () => {
               <input 
                 type="text" placeholder="例如: California, Seattle..."
                 className="input-field"
-                value={location} onChange={e => setLocation(e.target.value)}
+                value={location} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocation(e.target.value)}
               />
             </div>
             
@@ -491,8 +504,8 @@ const LeadEngine: React.FC = () => {
                   type="text" placeholder="輸入關鍵字後按 Enter..."
                   className="input-field flex-1"
                   value={keywordInput} 
-                  onChange={e => setKeywordInput(e.target.value)}
-                  onKeyDown={e => {
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setKeywordInput(e.target.value)}
+                  onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
                       addKeyword(keywordInput);
@@ -517,7 +530,7 @@ const LeadEngine: React.FC = () => {
                 <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer border transition-all ${minerMode === 'manufacturer' ? 'bg-primary/10 border-primary/30' : 'bg-white/5 border-transparent hover:bg-white/10'}`}>
                   <input 
                     type="radio" name="miner-mode" value="manufacturer" 
-                    checked={minerMode === 'manufacturer'} onChange={e => setMinerMode(e.target.value)}
+                    checked={minerMode === 'manufacturer'} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMinerMode(e.target.value)}
                     className="mt-1 accent-primary"
                   />
                   <div>
@@ -530,7 +543,7 @@ const LeadEngine: React.FC = () => {
                 <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer border transition-all ${minerMode === 'yellowpages' ? 'bg-warning/10 border-warning/30' : 'bg-white/5 border-transparent hover:bg-white/10'}`}>
                   <input 
                     type="radio" name="miner-mode" value="yellowpages" 
-                    checked={minerMode === 'yellowpages'} onChange={e => setMinerMode(e.target.value)}
+                    checked={minerMode === 'yellowpages'} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMinerMode(e.target.value)}
                     className="mt-1 accent-warning"
                   />
                   <div>
@@ -562,7 +575,7 @@ const LeadEngine: React.FC = () => {
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
               <input
                 type="text" placeholder="關鍵字搜尋..."
-                value={search} onChange={e => setSearch(e.target.value)}
+                value={search} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
                 className="form-input pl-9 py-1.5 text-xs"
               />
             </div>
@@ -608,8 +621,8 @@ const LeadEngine: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="btn-icon-sm" onClick={(e) => { e.stopPropagation(); setSelectedLead(lead); }}><Edit3 size={13}/></button>
-                      <button className="btn-icon-sm" onClick={(e) => { e.stopPropagation(); }} style={{ color: 'var(--color-primary)' }}><Send size={13}/></button>
+                      <button className="btn-icon-sm" onClick={(e: React.MouseEvent) => { e.stopPropagation(); setSelectedLead(lead); }}><Edit3 size={13}/></button>
+                      <button className="btn-icon-sm" onClick={(e: React.MouseEvent) => { e.stopPropagation(); }} style={{ color: 'var(--color-primary)' }}><Send size={13}/></button>
                     </div>
                   </div>
                 ))
