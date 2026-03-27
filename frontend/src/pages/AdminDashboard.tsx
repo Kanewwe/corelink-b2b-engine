@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getAdminStats, getAdminMembers } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { 
@@ -29,8 +29,69 @@ interface SystemStats {
   };
 }
 
+// v2.7.2: 移到元件外部避免每次 render 重建
+const StatCard = ({ 
+  title, 
+  value, 
+  subtext, 
+  icon: Icon, 
+  trend,
+  color = 'primary' 
+}: { 
+  title: string; 
+  value: string | number; 
+  subtext?: string;
+  icon: any;
+  trend?: { value: number; isPositive: boolean };
+  color?: 'primary' | 'success' | 'warning' | 'danger';
+}) => {
+  const colorMap = {
+    primary: 'var(--color-primary)',
+    success: 'var(--color-success)',
+    warning: 'var(--color-warning)',
+    danger: 'var(--color-danger)'
+  };
+  
+  return (
+    <div className="card" style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+      <div style={{ 
+        width: 48, 
+        height: 48, 
+        borderRadius: 12, 
+        background: `${colorMap[color]}15`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: colorMap[color]
+      }}>
+        <Icon size={24} />
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 4 }}>{title}</div>
+        <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--color-text-primary)' }}>{value}</div>
+        {subtext && (
+          <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>{subtext}</div>
+        )}
+        {trend && (
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 4, 
+            marginTop: 8,
+            fontSize: 12,
+            color: trend.isPositive ? 'var(--color-success)' : 'var(--color-danger)'
+          }}>
+            {trend.isPositive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+            {trend.value}%
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const AdminDashboard: React.FC = () => {
-  useAuth(); // for auth context
+  useAuth();
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,6 +122,19 @@ const AdminDashboard: React.FC = () => {
     fetchData();
   }, [timeRange]);
 
+  // v2.7.2: 使用 useMemo 優化
+  const roleDistribution = useMemo(() => [
+    { label: 'Admin', count: stats?.users.by_role.admin || 0, color: '#ef4444' },
+    { label: 'Vendor', count: stats?.users.by_role.vendor || 0, color: '#f59e0b' },
+    { label: 'Member', count: stats?.users.by_role.member || 0, color: '#3b82f6' },
+  ], [stats?.users.by_role]);
+
+  const planDistribution = useMemo(() => [
+    { label: '免費版', count: stats?.users.by_plan.free || 0, color: '#6b7280' },
+    { label: '專業版', count: stats?.users.by_plan.pro || 0, color: '#10b981' },
+    { label: '企業版', count: stats?.users.by_plan.enterprise || 0, color: '#8b5cf6' },
+  ], [stats?.users.by_plan]);
+
   if (loading && !stats) {
     return (
       <div className="page-loading">
@@ -69,66 +143,6 @@ const AdminDashboard: React.FC = () => {
       </div>
     );
   }
-
-  const StatCard = ({ 
-    title, 
-    value, 
-    subtext, 
-    icon: Icon, 
-    trend,
-    color = 'primary' 
-  }: { 
-    title: string; 
-    value: string | number; 
-    subtext?: string;
-    icon: any;
-    trend?: { value: number; isPositive: boolean };
-    color?: 'primary' | 'success' | 'warning' | 'danger';
-  }) => {
-    const colorMap = {
-      primary: 'var(--color-primary)',
-      success: 'var(--color-success)',
-      warning: 'var(--color-warning)',
-      danger: 'var(--color-danger)'
-    };
-    
-    return (
-      <div className="card" style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-        <div style={{ 
-          width: 48, 
-          height: 48, 
-          borderRadius: 12, 
-          background: `${colorMap[color]}15`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: colorMap[color]
-        }}>
-          <Icon size={24} />
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 4 }}>{title}</div>
-          <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--color-text-primary)' }}>{value}</div>
-          {subtext && (
-            <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>{subtext}</div>
-          )}
-          {trend && (
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 4, 
-              marginTop: 8,
-              fontSize: 12,
-              color: trend.isPositive ? 'var(--color-success)' : 'var(--color-danger)'
-            }}>
-              {trend.isPositive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-              {trend.value}%
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="page-wrapper">
@@ -194,7 +208,7 @@ const AdminDashboard: React.FC = () => {
         />
       </div>
 
-      {/* Role Distribution */}
+      {/* Role & Plan Distribution */}
       <div className="grid grid-cols-2 gap-6">
         <div className="card">
           <h3 className="card__title" style={{ marginBottom: 20 }}>
@@ -202,11 +216,7 @@ const AdminDashboard: React.FC = () => {
             角色分佈
           </h3>
           <div style={{ display: 'flex', gap: 16 }}>
-            {[
-              { label: 'Admin', count: stats?.users.by_role.admin || 0, color: '#ef4444' },
-              { label: 'Vendor', count: stats?.users.by_role.vendor || 0, color: '#f59e0b' },
-              { label: 'Member', count: stats?.users.by_role.member || 0, color: '#3b82f6' },
-            ].map((item) => (
+            {roleDistribution.map((item) => (
               <div key={item.label} style={{ flex: 1, textAlign: 'center' }}>
                 <div style={{ 
                   fontSize: 32, 
@@ -228,11 +238,7 @@ const AdminDashboard: React.FC = () => {
             方案分佈
           </h3>
           <div style={{ display: 'flex', gap: 16 }}>
-            {[
-              { label: '免費版', count: stats?.users.by_plan.free || 0, color: '#6b7280' },
-              { label: '專業版', count: stats?.users.by_plan.pro || 0, color: '#10b981' },
-              { label: '企業版', count: stats?.users.by_plan.enterprise || 0, color: '#8b5cf6' },
-            ].map((item) => (
+            {planDistribution.map((item) => (
               <div key={item.label} style={{ flex: 1, textAlign: 'center' }}>
                 <div style={{ 
                   fontSize: 32, 

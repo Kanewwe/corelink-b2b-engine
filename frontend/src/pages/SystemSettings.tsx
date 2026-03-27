@@ -29,11 +29,18 @@ interface GlobalProposal {
   created_at: string;
 }
 
-// ── Utility: Format UTC ISO to Local time ──
+// ── Utility: Format UTC ISO to Local time (v2.7.2: 明確指定台灣時區) ──
 const formatToLocalTime = (isoString: string) => {
   if (!isoString) return 'N/A';
   try {
-    return new Date(isoString).toLocaleString();
+    return new Date(isoString).toLocaleString('zh-TW', {
+      timeZone: 'Asia/Taipei',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   } catch (e) {
     return isoString;
   }
@@ -137,6 +144,12 @@ const SystemSettings: React.FC = () => {
       if (resp.ok) {
         toast.success("全域池已清空");
         fetchGlobalStats();
+        // v2.7.2: 清空後也刷新 explorer 資料
+        setGlobalLeads([]);
+        setAllUserLeads([]);
+        if (activeTab === 'explorer') {
+          fetchExplorerData();
+        }
       }
     } catch (e) { toast.error("清空失敗"); }
     finally { setSaving(false); }
@@ -241,7 +254,7 @@ const SystemSettings: React.FC = () => {
               系統控制中心
               <span className="page-title__en">System Hub</span>
             </h1>
-            <span className="version-badge">LINKORA V2.7.1</span>
+            <span className="version-badge">LINKORA V3.1.9</span>
           </div>
           <p className="page-subtitle">管理 Linkora 全球探勘引擎的核心配置，包含 AI 標籤、Lead 隔離池 (Global Pool) 以及 API 連線。</p>
         </div>
