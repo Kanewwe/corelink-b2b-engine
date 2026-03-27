@@ -1,5 +1,28 @@
 ## [v3.2.0] - 2026-03-27
 
+### 🤖 AI 功能擴充 (AI Intelligence Suite)
+
+#### 新增 AI 服務 (ai_service.py)
+- `score_lead()`: 規則引擎評分（0-100分，7維度）
+- `generate_lead_brief()`: AI 生成公司情報摘要
+- `optimize_email_subject()`: AI 優化主旨（3個高開信率版本）
+- `generate_ab_test_versions()`: A/B 測試雙版本生成
+- `generate_weekly_report_summary()`: AI 成效摘要報告
+
+#### 新增 API 端點
+- `POST /api/leads/ai-score` - 批量評分 Leads
+- `POST /api/leads/{id}/ai-brief` - 生成情報摘要
+- `POST /api/templates/ai-optimize-subject` - AI 優化主旨
+- `POST /api/templates/ai-generate-ab` - A/B 雙版本
+- `POST /api/analytics/ai-summary` - 成效摘要報告
+
+#### 模型更新
+- Lead 新增: `ai_score`, `ai_score_tags`, `ai_brief`, `ai_suggestions`, `ai_scored_at`
+
+#### 前端更新
+- LeadEngine: ✨ AI 評分按鈕 + 分數顯示 + 維度標籤
+- 版本號更新為 V3.2 (AI Intelligence)
+
 ### 🔴 Critical Security Fix: 用量配額漏洞修復
 
 #### 問題描述
