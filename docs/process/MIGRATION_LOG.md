@@ -8,6 +8,8 @@ This document tracks all database schema changes (PostgreSQL). Every entry must 
 |---------|------|-------------|--------|--------------|
 | **v3.4.0** | 2026-03-28 | Scraper Health Integration (response_time, http_status) | 🚀 Deployed | Pending |
 | **v3.5.0** | 2026-03-28 | Billing Engine Foundation (transaction_logs table) | 🚀 Deployed | Pending |
+| **v3.6.0** | 2026-03-28 | Security Hardening (CSP / API Origin Isolation) | 🚀 Deployed | ✅ Verified |
+| **v3.7.0** | 2026-03-28 | Inbound Inbox & Delivery Telemetry (inbound_emails table) | 🚀 Deployed | Pending |
 
 ---
 
