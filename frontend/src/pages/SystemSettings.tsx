@@ -93,7 +93,6 @@ const SystemSettings: React.FC = () => {
   const [deletingLead, setDeletingLead] = useState<any | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [saving, setSaving] = useState(false);
 
   const fetchGlobalStats = async () => {
     setRefreshing(true);

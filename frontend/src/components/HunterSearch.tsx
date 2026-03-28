@@ -2,7 +2,7 @@
 // Hunter.io Email 搜尋組件
 
 import React, { useState } from 'react';
-import { Search, Mail, Check, X, AlertCircle, Loader, ExternalLink } from 'lucide-react';
+import { Search, Mail, Check, AlertCircle, Loader } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 interface HunterEmail {
