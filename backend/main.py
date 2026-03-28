@@ -106,17 +106,8 @@ async def catch_exceptions_middleware(request: Request, call_next):
     try:
         # 1. 執行安全簽名校驗 (v3.7) 
         # 只針對 API 寫入操作 (POST, PUT, PATCH, DELETE)
-        if request.method in ["POST", "PUT", "PATCH", "DELETE"] and "/api/" in request.url.path:
-            # 必須非同步執行，因為需要讀取 Body
-            # 使用 try-except 防止 verify 崩潰導致整個系統掛掉
-            try:
-                await verify_request_signature(request)
-            except HTTPException as http_e:
-                return JSONResponse(
-                    status_code=http_e.status_code,
-                    content={"error": "security_violation", "message": http_e.detail}
-                )
-
+        # v3.7: HMAC 安全簽名核查 (已於 v3.7.12 停用)
+        
         # 2. 執行後續邏輯
         response = await call_next(request)
         response.headers["X-Process-Time"] = str(time.time() - time.time()) # Placeholder for original logic

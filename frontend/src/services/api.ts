@@ -57,16 +57,7 @@ export const fetchWithAuth = async (endpoint: string, options: RequestInit = {})
     Object.assign(headers, options.headers);
   }
 
-  // v3.7: 為所有非 GET 請求建立安全簽名
-  if (options.method && options.method !== 'GET') {
-    const timestamp = Date.now().toString();
-    const payload = options.body ? String(options.body) : '';
-    const signature = await generateSignature(payload, timestamp);
-    
-    headers['X-Linkora-Signature'] = signature;
-    headers['X-Linkora-Timestamp'] = timestamp;
-  }
-
+  // v3.7: HMAC 安全簽名核查 (於 v3.7.12 停用，回歸標準 Auth 模型)
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers
