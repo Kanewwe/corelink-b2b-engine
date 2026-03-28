@@ -130,6 +130,49 @@ export const deleteAdminLead = (id: number) =>
     method: 'DELETE'
   });
 
+// Industry Tags API (v3.7.30)
+export const getIndustries = (level?: number, parentCode?: string) => {
+  const params = new URLSearchParams();
+  if (level) params.append('level', level.toString());
+  if (parentCode) params.append('parent_code', parentCode);
+  return fetchWithAuth(`/industries?${params.toString()}`);
+};
+
+export const getIndustryTree = () => fetchWithAuth('/industries/tree');
+
+// Hunter.io API (v3.7.30)
+export const hunterDomainSearch = (domain: string, limit: number = 10, seniority?: string, department?: string) => 
+  fetchWithAuth('/scrape/hunter/domain', {
+    method: 'POST',
+    body: JSON.stringify({ domain, limit, seniority, department })
+  });
+
+export const hunterEmailFinder = (firstName: string, lastName: string, domain: string) => 
+  fetchWithAuth('/scrape/hunter/finder', {
+    method: 'POST',
+    body: JSON.stringify({ first_name: firstName, last_name: lastName, domain })
+  });
+
+export const hunterEmailVerify = (email: string) => 
+  fetchWithAuth('/scrape/hunter/verify', {
+    method: 'POST',
+    body: JSON.stringify({ email })
+  });
+
+export const hunterAccountInfo = () => fetchWithAuth('/scrape/hunter/account');
+
+export const saveLeadsToGlobal = (leads: any[], source: string = 'hunter', sourceMode: string = 'manufacturer') => 
+  fetchWithAuth('/scrape/save-to-global', {
+    method: 'POST',
+    body: JSON.stringify({ leads, source, source_mode: sourceMode })
+  });
+
+export const syncGlobalToPrivate = (globalIds: number[]) => 
+  fetchWithAuth('/scrape/sync-to-private', {
+    method: 'POST',
+    body: JSON.stringify(globalIds)
+  });
+
 // Settings - SMTP
 export const getSmtpSettings = () => fetchWithAuth('/settings/smtp');
 export const saveSmtpSettings = (data: any) => fetchWithAuth('/settings/smtp', {
