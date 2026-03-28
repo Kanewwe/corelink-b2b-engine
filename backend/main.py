@@ -158,7 +158,7 @@ async def lifespan(app: FastAPI):
     import email_sender_job
     try:
         import threading
-        sender_thread = threading.Thread(target=email_sender_job.start_sender_loop, daemon=True)
+        sender_thread = threading.Thread(target=email_sender_job.start_scheduler, daemon=True)
         sender_thread.start()
         add_log("✉️ [System] Email sender job started via lifespan(v3.5)")
     except Exception as e:
