@@ -799,3 +799,32 @@ class SystemSetting(Base):
             "value": val,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
+
+# ══════════════════════════════════════════
+# TransactionLogs（點數交易紀錄 v3.5）
+# ══════════════════════════════════════════
+
+class TransactionLog(Base):
+    __tablename__ = "transaction_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    action_type = Column(String(50), nullable=False) # 'scrape', 'ai_intelligence', 'email_dispatch', 'recharge'
+    point_delta = Column(Integer, nullable=False) # 負數代表消耗，正數代表充值
+    
+    # 關聯元數據 (可選)
+    task_id = Column(Integer, nullable=True)
+    description = Column(String(255), nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "action_type": self.action_type,
+            "point_delta": self.point_delta,
+            "description": self.description,
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }

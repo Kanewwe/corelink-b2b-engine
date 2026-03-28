@@ -12,7 +12,7 @@ import {
 } from '../services/api';
 import { 
   Users, Send, BarChart3, ShieldAlert, Cpu, Search, Sparkles, 
-  Zap, Mail, Globe, Edit3, Save, X, User, Star, Brain, CheckCircle2, RotateCcw
+  Zap, Mail, Globe, Edit3, Save, X, User, Star, Brain, CheckCircle, RotateCcw
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { generateLeadBrief } from '../services/api';
@@ -236,7 +236,7 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ lead, onClose, onUp
             <div className="space-y-4">
               <div className="p-4 rounded-xl bg-accent-teal/5 border border-accent-teal/10">
                 <div className="text-[10px] font-bold text-accent-teal mb-2 uppercase tracking-widest flex items-center gap-1.5">
-                  <CheckCircle2 size={10} /> 公司業務摘要
+                  <CheckCircle size={10} /> 公司業務摘要
                 </div>
                 <div className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
                   {lead.ai_brief}
