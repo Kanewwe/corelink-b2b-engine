@@ -1,4 +1,19 @@
+# Recursive exclusions
+**/venv/
+**/node_modules/
+**/__pycache__/
+**/*.pyc
+**/.DS_Store
+
+# Corelink specific
+**/corelink-b2b-engine/
+**/corelink.db
+**/*.log
 
 # Environment
-backend/.env
 .env
+.flaskenv
+
+# Temporary
+/tmp/
+.gemini/antigravity/brain/

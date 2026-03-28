@@ -383,28 +383,31 @@ async def optimize_email_subject(subject: str, company_name: str = "", db = None
     openai.api_key = api_key
     
     prompt = f"""
-根據以下信件主旨，生成 3 個開信率更高的替代主旨。
+根據以下現有主旨，生成 3 個風格迥異、開信率更高的替代主旨。
 
 【現有主旨】: {subject}
 【公司名稱】: {company_name if company_name else "（未指定）"}
 
 要求：
-1. 每個主旨控制在 60 字以內
-2. 涵蓋不同策略：提問型 / 數字型 / 個人化 / 價值型
-3. 包含公司名稱（如適用）
+1. 每個主旨控制在 60 字以內，且三個建議必須「截然不同」。
+2. 涵蓋不同策略：
+   - 建議 A (理性數字型): 強調效益、節省、效率或具體數據。
+   - 建議 B (好奇問句型): 引發對方思考或好奇心的提問。
+   - 建議 C (極簡個性化): 像真實人類發出的短小、非行銷感的私人郵件風格。
+3. 包含公司名稱（如適用）。
 
-輸出 JSON 陣列：
-{{"suggestions": ["主旨1", "主旨2", "主旨3"]}}
+輸出 JSON 格式：
+{{"suggestions": ["建議A", "建議B", "建議C"]}}
 """
     
     try:
         response = openai.ChatCompletion.create(
             model=model,
             messages=[
-                {"role": "system", "content": "你是 B2B 郵件行銷專家，輸出嚴格 JSON。"},
+                {"role": "system", "content": "你是 B2B 郵件行銷與心理學專家，擅長撰寫高點擊率的主旨。請嚴格輸出 JSON 格式。"},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.7
+            temperature=0.85
         )
         result = json.loads(response.choices[0].message.content)
         return {"suggestions": result.get("suggestions", [subject])}

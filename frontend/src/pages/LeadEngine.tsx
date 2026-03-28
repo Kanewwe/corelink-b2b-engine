@@ -11,9 +11,10 @@ import {
 } from '../services/api';
 import { 
   Users, Send, BarChart3, ShieldAlert, Cpu, Search, Sparkles, 
-  Zap, Mail, Globe, Edit3, Save, X, User, Star, Brain
+  Zap, Mail, Globe, Edit3, Save, X, User, Star, Brain, CheckCircle2, RotateCcw
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { generateLeadBrief } from '../services/api';
 
 interface Lead {
   id: number;
@@ -66,6 +67,26 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ lead, onClose, onUp
       toast.error("儲存失敗");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const [briefLoading, setBriefLoading] = useState(false);
+  const handleGenerateBrief = async () => {
+    setBriefLoading(true);
+    const loadingToast = toast.loading("AI 正在生成公司情報...");
+    try {
+      const resp = await generateLeadBrief(lead.id);
+      const data = await resp.json();
+      if (data.success) {
+        toast.success("情報生成完成", { id: loadingToast });
+        onUpdate(); // 重刷列表以取得新資料
+      } else {
+        toast.error("生成失敗", { id: loadingToast });
+      }
+    } catch (e) {
+      toast.error("網路錯誤", { id: loadingToast });
+    } finally {
+      setBriefLoading(false);
     }
   };
 
@@ -189,6 +210,61 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ lead, onClose, onUp
               )}
             </div>
           </div>
+        </div>
+
+        {/* v3.2: AI Company Intelligence Section */}
+        <div className="pt-6 border-t border-white/5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Brain size={16} className="text-accent-teal" />
+              <h4 className="text-sm font-bold text-white uppercase tracking-wider">AI 業務情報 (Intelligence)</h4>
+            </div>
+            {!lead.ai_brief && (
+              <button 
+                onClick={handleGenerateBrief}
+                disabled={briefLoading}
+                className="text-[10px] bg-accent-teal/10 hover:bg-accent-teal/20 text-accent-teal border border-accent-teal/30 px-2 py-1 rounded transition-all flex items-center gap-1"
+              >
+                {briefLoading ? <RotateCcw size={10} className="animate-spin" /> : <Sparkles size={10} />}
+                立即生成
+              </button>
+            )}
+          </div>
+
+          {lead.ai_brief ? (
+            <div className="space-y-4">
+              <div className="p-4 rounded-xl bg-accent-teal/5 border border-accent-teal/10">
+                <div className="text-[10px] font-bold text-accent-teal mb-2 uppercase tracking-widest flex items-center gap-1.5">
+                  <CheckCircle2 size={10} /> 公司業務摘要
+                </div>
+                <div className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
+                  {lead.ai_brief}
+                </div>
+              </div>
+
+              {lead.ai_suggestions && (
+                <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
+                  <div className="text-[10px] font-bold text-primary mb-2 uppercase tracking-widest flex items-center gap-1.5">
+                    <Sparkles size={10} /> 建議開發切入點
+                  </div>
+                  <ul className="space-y-2">
+                    {JSON.parse(lead.ai_suggestions).map((s: string, i: number) => (
+                      <li key={i} className="text-[11px] text-slate-400 flex items-start gap-2">
+                        <span className="text-primary mt-1">•</span>
+                        {s}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-6 bg-white/5 rounded-xl border border-dashed border-white/10">
+              <p className="text-[10px] text-text-muted italic">
+                {briefLoading ? 'AI 正在分析公司網站與領域...' : '尚未生成情報摘要，點擊上方按鈕開始'}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Sync Info */}

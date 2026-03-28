@@ -86,9 +86,13 @@
   font-size: var(--font-size-body);
   gap: 16px;
   min-height: 56px;
+  writing-mode: horizontal-tb !important; /* 強制水平排列，修復垂直文字 Bug */
 }
 .page-banner > div {
-  min-width: 0; /* 防止子元素縮成 0 寬度導致文字垂直排列 */
+  min-width: 0;
+  display: flex;
+  flex-direction: column; /* 內層標題與副標垂直排列 */
+  gap: 2px;
 }
 .page-banner--warning {
   background: rgba(245,158,11,0.12);

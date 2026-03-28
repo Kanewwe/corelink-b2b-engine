@@ -78,7 +78,7 @@ const History: React.FC = () => {
               開發紀錄專區
               <span className="page-title__en">Campaign Archive</span>
             </h1>
-            <span className="version-badge">LINKORA V2</span>
+            <span className="version-badge">LINKORA V3.2 (AI Intelligence)</span>
           </div>
           <p className="page-subtitle">查看所有探勘任務的執行記錄、結果與狀態。</p>
         </div>
