@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useState, useEffect } from 'react';
-import { Shield, Cpu, Database, Sparkles, Save, RefreshCw, Trash2, Plus, X, Clock } from 'lucide-react';
+import { Shield, Cpu, Database, Sparkles, Save, RefreshCw, Trash2, Plus, X, Clock, Edit2, Check } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { 
   getSystemSettings, 
@@ -10,7 +10,12 @@ import {
   getAdminProposals,
   resolveProposal,
   getAdminGlobalLeads,
-  getAdminAllLeads
+  getAdminAllLeads,
+  updateGlobalLead,
+  deleteGlobalLead,
+  batchDeleteGlobalLeads,
+  updateAdminLead,
+  deleteAdminLead
 } from '../services/api';
 
 
@@ -81,6 +86,14 @@ const SystemSettings: React.FC = () => {
   const [loadingExplorer, setLoadingExplorer] = useState(false);
   const [explorerTab, setExplorerTab] = useState<'global' | 'users'>('global');
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // CRUD State (v3.7.29)
+  const [editingLead, setEditingLead] = useState<any | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [deletingLead, setDeletingLead] = useState<any | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [saving, setSaving] = useState(false);
 
   const fetchGlobalStats = async () => {
     setRefreshing(true);
@@ -209,6 +222,121 @@ const SystemSettings: React.FC = () => {
     } catch (e) {
       toast.error("讀取探勘資料失敗");
     } finally {
+      setLoadingExplorer(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'explorer') fetchExplorerData();
+  }, [activeTab]);
+
+  // ── CRUD Handlers (v3.7.29) ────────────────────────────────────────────────
+  
+  const handleEdit = (lead: any) => {
+    setEditingLead({ ...lead });
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingLead) return;
+    setSaving(true);
+    try {
+      const isGlobal = explorerTab === 'global';
+      const apiCall = isGlobal ? updateGlobalLead : updateAdminLead;
+      const resp = await apiCall(editingLead.id, editingLead);
+      if (resp.ok) {
+        toast.success('已更新');
+        setShowEditModal(false);
+        fetchExplorerData();
+      } else {
+        const err = await resp.json();
+        toast.error(err.detail || '更新失敗');
+      }
+    } catch (e) {
+      toast.error('連線錯誤');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = (lead: any) => {
+    setDeletingLead(lead);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingLead) return;
+    setSaving(true);
+    try {
+      const isGlobal = explorerTab === 'global';
+      const apiCall = isGlobal ? deleteGlobalLead : deleteAdminLead;
+      const resp = await apiCall(deletingLead.id);
+      if (resp.ok) {
+        toast.success('已刪除');
+        setShowDeleteModal(false);
+        setDeletingLead(null);
+        fetchExplorerData();
+        fetchGlobalStats();
+      } else {
+        const err = await resp.json();
+        toast.error(err.detail || '刪除失敗');
+      }
+    } catch (e) {
+      toast.error('連線錯誤');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSelectOne = (id: number) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = () => {
+    const leads = explorerTab === 'global' ? globalLeads : allUserLeads;
+    const allIds = leads.map((l: any) => l.id);
+    if (selectedIds.length === allIds.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(allIds);
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedIds.length === 0) {
+      toast.error('請選擇要刪除的資料');
+      return;
+    }
+    if (!window.confirm(`確定要刪除選取的 ${selectedIds.length} 筆資料嗎？`)) return;
+    
+    setSaving(true);
+    try {
+      if (explorerTab === 'global') {
+        const resp = await batchDeleteGlobalLeads(selectedIds);
+        if (resp.ok) {
+          const data = await resp.json();
+          toast.success(data.message);
+          setSelectedIds([]);
+          fetchExplorerData();
+          fetchGlobalStats();
+        }
+      } else {
+        // 用戶工作區逐筆刪除
+        for (const id of selectedIds) {
+          await deleteAdminLead(id);
+        }
+        toast.success(`已刪除 ${selectedIds.length} 筆`);
+        setSelectedIds([]);
+        fetchExplorerData();
+      }
+    } catch (e) {
+      toast.error('批次刪除失敗');
+    } finally {
+      setSaving(false);
+    }
+  };
       setLoadingExplorer(false);
     }
   };
@@ -535,21 +663,42 @@ const SystemSettings: React.FC = () => {
               </button>
             </div>
 
+            {/* Batch Actions (v3.7.29) */}
+            {selectedIds.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 16px', background: 'var(--color-primary-glow)', borderRadius: 8, border: '1px solid var(--color-primary-border)' }}>
+                <span style={{ fontSize: 13 }}>已選取 {selectedIds.length} 筆</span>
+                <button onClick={handleBatchDelete} disabled={saving} className="btn-outline danger" style={{ fontSize: 12, padding: '4px 12px' }}>
+                  <Trash2 size={12} /> 批次刪除
+                </button>
+                <button onClick={() => setSelectedIds([])} className="btn-outline" style={{ fontSize: 12, padding: '4px 12px' }}>
+                  取消選取
+                </button>
+              </div>
+            )}
+
             <div style={{ overflowX: 'auto', border: '1px solid var(--color-neutral-glow)', borderRadius: 12 }}>
               <table className="leads-table">
                 <thead>
                   <tr>
+                    <th style={{ width: 40 }}>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedIds.length === (explorerTab === 'global' ? globalLeads.length : allUserLeads.length) && selectedIds.length > 0}
+                        onChange={handleSelectAll}
+                      />
+                    </th>
                     <th>公司名稱</th>
                     <th>網域 / 網址</th>
                     <th>聯絡信箱</th>
                     {explorerTab === 'users' && <th>所屬成員</th>}
                     <th>AI 標籤</th>
                     <th>來源/狀態</th>
+                    <th style={{ width: 80 }}>操作</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loadingExplorer ? (
-                    <tr><td colSpan={explorerTab === 'users' ? 6 : 5} style={{ textAlign: 'center', padding: '40px 0' }}>載入中...</td></tr>
+                    <tr><td colSpan={explorerTab === 'users' ? 8 : 7} style={{ textAlign: 'center', padding: '40px 0' }}>載入中...</td></tr>
                   ) : (explorerTab === 'global' ? globalLeads : allUserLeads)
                       .filter((l: any) => 
                         !searchTerm || 
@@ -559,6 +708,13 @@ const SystemSettings: React.FC = () => {
                       )
                       .map((lead: any) => (
                     <tr key={lead.id}>
+                      <td>
+                        <input 
+                          type="checkbox"
+                          checked={selectedIds.includes(lead.id)}
+                          onChange={() => handleSelectOne(lead.id)}
+                        />
+                      </td>
                       <td className="font-bold">{lead.company_name}</td>
                       <td>
                         <div style={{ fontSize: 12 }}>{lead.domain}</div>
@@ -575,6 +731,16 @@ const SystemSettings: React.FC = () => {
                         <div style={{ fontSize: 11 }}>{lead.source || lead.status}</div>
                         <div className="text-text-muted" style={{ fontSize: 10 }}>
                           {formatToLocalTime(lead.created_at)}
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button onClick={() => handleEdit(lead)} className="btn-icon-sm" title="編輯">
+                            <Edit2 size={12} />
+                          </button>
+                          <button onClick={() => handleDelete(lead)} className="btn-icon-sm danger" title="刪除">
+                            <Trash2 size={12} />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -636,6 +802,139 @@ const SystemSettings: React.FC = () => {
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal (v3.7.29) */}
+      {showEditModal && editingLead && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+          <div className="bg-slate-800 border border-white/10 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[80vh]">
+            <div className="p-6 border-b border-white/10 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                <Edit2 className="text-primary" /> 編輯公司資料
+              </h3>
+              <button onClick={() => setShowEditModal(false)} className="p-2 hover:bg-white/10 rounded-lg text-text-muted">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-text-muted mb-1 block">公司名稱</label>
+                  <input 
+                    className="form-input"
+                    value={editingLead.company_name || ''}
+                    onChange={e => setEditingLead({ ...editingLead, company_name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-text-muted mb-1 block">網域</label>
+                  <input 
+                    className="form-input"
+                    value={editingLead.domain || ''}
+                    onChange={e => setEditingLead({ ...editingLead, domain: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-text-muted mb-1 block">網站</label>
+                <input 
+                  className="form-input"
+                  value={editingLead.website_url || ''}
+                  onChange={e => setEditingLead({ ...editingLead, website_url: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-text-muted mb-1 block">聯絡信箱</label>
+                  <input 
+                    className="form-input"
+                    value={editingLead.contact_email || ''}
+                    onChange={e => setEditingLead({ ...editingLead, contact_email: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-text-muted mb-1 block">電話</label>
+                  <input 
+                    className="form-input"
+                    value={editingLead.phone || ''}
+                    onChange={e => setEditingLead({ ...editingLead, phone: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-text-muted mb-1 block">地址</label>
+                <input 
+                  className="form-input"
+                  value={editingLead.address || ''}
+                  onChange={e => setEditingLead({ ...editingLead, address: e.target.value })}
+                />
+              </div>
+              {explorerTab === 'users' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-text-muted mb-1 block">狀態</label>
+                    <select 
+                      className="form-input"
+                      value={editingLead.status || 'new'}
+                      onChange={e => setEditingLead({ ...editingLead, status: e.target.value })}
+                    >
+                      <option value="new">新名單</option>
+                      <option value="contacted">已聯繫</option>
+                      <option value="replied">已回覆</option>
+                      <option value="converted">已成交</option>
+                      <option value="lost">已流失</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-text-muted mb-1 block">評分 (0-100)</label>
+                    <input 
+                      type="number"
+                      className="form-input"
+                      value={editingLead.lead_score || 0}
+                      onChange={e => setEditingLead({ ...editingLead, lead_score: parseInt(e.target.value) })}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="p-6 border-t border-white/10 flex justify-end gap-3">
+              <button onClick={() => setShowEditModal(false)} className="btn-outline">取消</button>
+              <button onClick={handleSaveEdit} disabled={saving} className="btn-primary">
+                {saving ? '儲存中...' : <><Check size={14} /> 儲存變更</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal (v3.7.29) */}
+      {showDeleteModal && deletingLead && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+          <div className="bg-slate-800 border border-white/10 rounded-2xl w-full max-w-md shadow-2xl">
+            <div className="p-6">
+              <h3 className="text-xl font-bold text-white flex items-center gap-3 mb-4">
+                <Trash2 className="text-red-400" /> 確認刪除
+              </h3>
+              <p className="text-text-muted mb-4">確定要刪除這筆資料嗎？此操作無法復原。</p>
+              <div className="bg-slate-700/50 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-text-muted">公司：</span>
+                  <span className="text-white font-medium">{deletingLead.company_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-text-muted">網域：</span>
+                  <span className="text-white">{deletingLead.domain || 'N/A'}</span>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 border-t border-white/10 flex justify-end gap-3">
+              <button onClick={() => setShowDeleteModal(false)} className="btn-outline">取消</button>
+              <button onClick={handleConfirmDelete} disabled={saving} className="btn-primary danger">
+                {saving ? '刪除中...' : '確認刪除'}
+              </button>
             </div>
           </div>
         </div>

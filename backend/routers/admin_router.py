@@ -76,6 +76,39 @@ class ProposalResolve(BaseModel):
     note: Optional[str] = None
 
 
+# ─── Global Lead CRUD Schemas ────────────────────────────────────────────────
+
+class GlobalLeadUpdate(BaseModel):
+    company_name: Optional[str] = None
+    domain: Optional[str] = None
+    website_url: Optional[str] = None
+    contact_email: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    industry_code: Optional[str] = None
+    industry_name: Optional[str] = None
+    sub_industry_code: Optional[str] = None
+    sub_industry_name: Optional[str] = None
+    industry_tags: Optional[str] = None
+    employee_count: Optional[int] = None
+    description: Optional[str] = None
+
+
+class LeadUpdate(BaseModel):
+    company_name: Optional[str] = None
+    domain: Optional[str] = None
+    contact_email: Optional[str] = None
+    phone: Optional[str] = None
+    status: Optional[str] = None
+    tags: Optional[str] = None
+    notes: Optional[str] = None
+    lead_score: Optional[int] = None
+
+
+class BatchDeletePayload(BaseModel):
+    ids: list[int]
+
+
 # ─── Debug Routes (no admin required) ────────────────────────────────────────
 
 @router.get("/debug")
@@ -247,6 +280,148 @@ def update_member(member_id: int, updates: MemberUpdateReq, db: Session = Depend
 def get_admin_all_leads(db: Session = Depends(get_db), current_user: models.User = Depends(auth_module.require_role(["admin"]))):
     leads = db.query(models.Lead).order_by(models.Lead.id.desc()).limit(500).all()
     return [l.to_dict() for l in leads]
+
+
+# ─── Global Pool CRUD (v3.7.29) ─────────────────────────────────────────────
+
+@router.get("/admin/global-leads")
+def get_admin_global_leads(
+    skip: int = 0,
+    limit: int = 500,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth_module.require_role(["admin"]))
+):
+    """取得全域池所有公司資料"""
+    leads = db.query(models.GlobalLead).order_by(
+        models.GlobalLead.id.desc()
+    ).offset(skip).limit(limit).all()
+    return [l.to_dict() for l in leads]
+
+
+@router.patch("/admin/global-leads/{lead_id}")
+def update_global_lead(
+    lead_id: int,
+    payload: GlobalLeadUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth_module.require_role(["admin"]))
+):
+    """編輯全域池單筆資料"""
+    lead = db.query(models.GlobalLead).filter(
+        models.GlobalLead.id == lead_id
+    ).first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="找不到該公司")
+    
+    # 更新欄位
+    for key, value in payload.dict(exclude_unset=True).items():
+        setattr(lead, key, value)
+    
+    lead.updated_at = datetime.utcnow()
+    db.commit()
+    
+    add_log(f"Admin {current_user.email} 更新全域池公司: {lead.company_name}")
+    return lead.to_dict()
+
+
+@router.delete("/admin/global-leads/{lead_id}")
+def delete_global_lead(
+    lead_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth_module.require_role(["admin"]))
+):
+    """刪除全域池單筆資料"""
+    lead = db.query(models.GlobalLead).filter(
+        models.GlobalLead.id == lead_id
+    ).first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="找不到該公司")
+    
+    company_name = lead.company_name
+    
+    # 清除相關私域池的 FK
+    db.query(models.Lead).filter(
+        models.Lead.global_id == lead_id
+    ).update({"global_id": None})
+    
+    db.delete(lead)
+    db.commit()
+    
+    add_log(f"Admin {current_user.email} 刪除全域池公司: {company_name}")
+    return {"message": "已刪除", "company_name": company_name}
+
+
+@router.post("/admin/global-leads/batch-delete")
+def batch_delete_global_leads(
+    payload: BatchDeletePayload,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth_module.require_role(["admin"]))
+):
+    """批次刪除全域池資料"""
+    leads = db.query(models.GlobalLead).filter(
+        models.GlobalLead.id.in_(payload.ids)
+    ).all()
+    
+    count = len(leads)
+    for lead in leads:
+        # 清除相關私域池 FK
+        db.query(models.Lead).filter(
+            models.Lead.global_id == lead.id
+        ).update({"global_id": None})
+        db.delete(lead)
+    
+    db.commit()
+    
+    add_log(f"Admin {current_user.email} 批次刪除全域池 {count} 筆資料")
+    return {"message": f"已刪除 {count} 筆", "count": count}
+
+
+# ─── User Leads CRUD (v3.7.29) ───────────────────────────────────────────────
+
+@router.patch("/admin/leads/{lead_id}")
+def update_user_lead(
+    lead_id: int,
+    payload: LeadUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth_module.require_role(["admin"]))
+):
+    """編輯用戶私域池單筆資料"""
+    lead = db.query(models.Lead).filter(
+        models.Lead.id == lead_id
+    ).first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="找不到該名單")
+    
+    for key, value in payload.dict(exclude_unset=True).items():
+        setattr(lead, key, value)
+    
+    lead.updated_at = datetime.utcnow()
+    db.commit()
+    
+    add_log(f"Admin {current_user.email} 更新用戶名單: {lead.company_name}")
+    return lead.to_dict()
+
+
+@router.delete("/admin/leads/{lead_id}")
+def delete_user_lead(
+    lead_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth_module.require_role(["admin"]))
+):
+    """刪除用戶私域池單筆資料"""
+    lead = db.query(models.Lead).filter(
+        models.Lead.id == lead_id
+    ).first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="找不到該名單")
+    
+    company_name = lead.company_name
+    user_email = lead.user.email if lead.user else "Unknown"
+    
+    db.delete(lead)
+    db.commit()
+    
+    add_log(f"Admin {current_user.email} 刪除用戶 {user_email} 的名單: {company_name}")
+    return {"message": "已刪除", "company_name": company_name}
 
 
 # ─── Proposals ───────────────────────────────────────────────────────────────

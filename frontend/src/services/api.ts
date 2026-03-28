@@ -100,6 +100,36 @@ export const clearGlobalPool = () => fetchWithAuth('/admin/global-pool/clear', {
 export const getAdminGlobalLeads = () => fetchWithAuth('/admin/global-leads');
 export const getAdminAllLeads = () => fetchWithAuth('/admin/all-leads');
 
+// Admin - Global Pool CRUD (v3.7.29)
+export const updateGlobalLead = (id: number, data: any) => 
+  fetchWithAuth(`/admin/global-leads/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data)
+  });
+
+export const deleteGlobalLead = (id: number) => 
+  fetchWithAuth(`/admin/global-leads/${id}`, {
+    method: 'DELETE'
+  });
+
+export const batchDeleteGlobalLeads = (ids: number[]) => 
+  fetchWithAuth('/admin/global-leads/batch-delete', {
+    method: 'POST',
+    body: JSON.stringify({ ids })
+  });
+
+// Admin - User Leads CRUD (v3.7.29)
+export const updateAdminLead = (id: number, data: any) => 
+  fetchWithAuth(`/admin/leads/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data)
+  });
+
+export const deleteAdminLead = (id: number) => 
+  fetchWithAuth(`/admin/leads/${id}`, {
+    method: 'DELETE'
+  });
+
 // Settings - SMTP
 export const getSmtpSettings = () => fetchWithAuth('/settings/smtp');
 export const saveSmtpSettings = (data: any) => fetchWithAuth('/settings/smtp', {
