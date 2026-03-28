@@ -11,8 +11,8 @@ import {
   getUserPoints
 } from '../services/api';
 import { 
-  Users, Send, BarChart3, ShieldAlert, Cpu, Search, Sparkles, 
-  Zap, Mail, Globe, Edit3, Save, X, User, Star, Brain, CheckCircle, RotateCcw
+  Users, Send, BarChart, ShieldAlert, Cpu, Search, Sparkles, 
+  Zap, Mail, Globe, Edit, Save, X, User, Star, Brain, CheckCircle, RotateCcw
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { generateLeadBrief } from '../services/api';
@@ -146,7 +146,7 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ lead, onClose, onUp
               onClick={() => setEditMode(!editMode)}
               className="text-xs flex items-center gap-1.5 text-primary hover:underline"
             >
-              {editMode ? <><Save size={12}/> 取消</> : <><Edit3 size={12}/> 編輯個人參數</>}
+              {editMode ? <><Save size={12}/> 取消</> : <><Edit size={12}/> 編輯個人參數</>}
             </button>
           </div>
 
@@ -495,7 +495,7 @@ const LeadEngine: React.FC = () => {
   const kpiData = [
     { label: '客戶總數',  value: kpi.total,      note: '無上限',    iconColor: 'var(--color-primary)',  bg: 'rgba(91,127,255,0.15)',  icon: Users },
     { label: '本月寄信',  value: kpi.sentMonth,  note: '無上限',    iconColor: 'var(--color-accent-teal)', bg: 'rgba(78,205,196,0.15)', icon: Send },
-    { label: '開信率',    value: kpi.openRate,   note: '統計開發中', iconColor: 'var(--color-warning)',  bg: 'rgba(245,158,11,0.15)', icon: BarChart3 },
+    { label: '開信率',    value: kpi.openRate,   note: '統計開發中', iconColor: 'var(--color-warning)',  bg: 'rgba(245,158,11,0.15)', icon: BarChart },
     { label: '退信率',    value: kpi.bounceRate, note: '統計開發中', iconColor: 'var(--color-danger)',   bg: 'rgba(239,68,68,0.15)',  icon: ShieldAlert },
   ];
 
@@ -530,8 +530,11 @@ const LeadEngine: React.FC = () => {
           {/* v3.5: 點數餘額顯示 */}
           <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 rounded-xl">
             <Zap size={14} className="text-primary fill-primary" />
-            <div className="flex flex-col">
-              <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider leading-none">Credits</span>
+            <div className="flex-1">
+              <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-bold uppercase tracking-wider mb-2">
+                <BarChart size={10} />
+                搜尋效率
+              </div>
               <span className="text-sm font-black text-white leading-none mt-1">
                 {balance !== null ? balance.toLocaleString() : '---'}
               </span>
@@ -803,7 +806,7 @@ const LeadEngine: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="btn-icon-sm" onClick={(e: React.MouseEvent) => { e.stopPropagation(); setSelectedLead(lead); }}><Edit3 size={13}/></button>
+                      <button className="btn-icon-sm" onClick={(e: React.MouseEvent) => { e.stopPropagation(); setSelectedLead(lead); }}><Edit size={13}/></button>
                       <button className="btn-icon-sm" onClick={(e: React.MouseEvent) => { e.stopPropagation(); }} style={{ color: 'var(--color-primary)' }}><Send size={13}/></button>
                     </div>
                   </div>

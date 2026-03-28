@@ -49,7 +49,7 @@ def deduct_points(user_id: int, action_type: str, meta: dict = None) -> bool:
             user_id=user_id,
             action_type=action_type,
             point_delta=-points_to_deduct,
-            meta_info=json.dumps(meta) if meta else None
+            description=json.dumps(meta) if meta else None
         )
         db.add(new_tx)
         
@@ -81,6 +81,9 @@ def get_point_balance(user_id: int) -> int:
         balance = db.query(func.sum(models.TransactionLog.point_delta)).filter(
             models.TransactionLog.user_id == user_id
         ).scalar() or 1000 # Default for existing users
-        return int(balance)
+    except Exception as e:
+        print(f"⚠️ [Billing] Balance check fallback: {e}")
+        return 1000  # Fallback during initial migration (v3.5)
     finally:
         db.close()
+    return int(balance)

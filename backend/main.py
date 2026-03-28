@@ -172,10 +172,11 @@ async def catch_exceptions_middleware(request: Request, call_next):
 # --- Health Check ---
 @app.get("/api/health")
 def health_check():
+    """v3.5: 極簡健康檢查，確保 Render 啟動不被 DB 鎖死"""
     return {
         "status": "healthy", 
         "timestamp": datetime.now().isoformat(),
-        "db_v3_4": "synced" if "migrate_v3_4" in str(SYSTEM_LOGS) else "pending"
+        "version": "linkora-v3.5-recovery"
     }
 
 # --- Pydantic Schemas ---
