@@ -337,13 +337,6 @@ const SystemSettings: React.FC = () => {
       setSaving(false);
     }
   };
-      setLoadingExplorer(false);
-    }
-  };
-
-  useEffect(() => {
-    if (activeTab === 'explorer') fetchExplorerData();
-  }, [activeTab]);
 
   const addMapping = () => {
     if (!newMappingKey || !newMappingLabel) {
