@@ -6,10 +6,6 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
-from typing import List, Optional, Any
-import os
-import json
-from datetime import datetime, timezone, timedelta
 
 from database import engine, Base, get_db
 import models
