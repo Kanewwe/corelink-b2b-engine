@@ -86,6 +86,27 @@ const Templates: React.FC = () => {
     fetchSettings();
   }, []);
 
+  // v3.7: AI 輸出清洗工具 (防範 Markdown 符號與重複標籤)
+  const sanitizeAiOutput = (content: string): string => {
+    let cleaned = content.trim();
+    
+    // 1. 強力移除所有 Markdown 程式碼塊包裹
+    cleaned = cleaned.replace(/^```[a-z]*\n?/i, '');
+    cleaned = cleaned.replace(/```$/i, '');
+    
+    // 2. 移除所有 HTML 文件宣告與根標籤 (避免在主 Layout 中嵌套)
+    cleaned = cleaned.replace(/<!DOCTYPE[^>]*>/gi, '');
+    cleaned = cleaned.replace(/<\/?html[^>]*>/gi, '');
+    cleaned = cleaned.replace(/<\/?head[^>]*>/gi, '');
+    cleaned = cleaned.replace(/<\/?body[^>]*>/gi, '');
+    cleaned = cleaned.replace(/<meta[^>]*>/gi, '');
+    cleaned = cleaned.replace(/<link[^>]*>/gi, '');
+    cleaned = cleaned.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ''); // 內部樣式由 Layout 統一提供
+    cleaned = cleaned.replace(/<title[^>]*>[\s\S]*?<\/title>/gi, '');
+    
+    return cleaned.trim();
+  };
+
   const handleAiGenerate = async () => {
     if (!aiPrompt) {
       toast.error("請描述您想生成的信件內容");
@@ -105,7 +126,9 @@ const Templates: React.FC = () => {
       const data = await resp.json();
       if (resp.ok && data.html) {
         toast.success("AI 生成成功！已套用至編輯器。", { id: loadingToast });
-        setForm(prev => ({ ...prev, body: data.html, subject: data.subject || prev.subject }));
+        const cleanHtml = sanitizeAiOutput(data.html);
+        const finalBody = `<html>\n<head>\n<style>\nbody { font-family: sans-serif; line-height: 1.6; color: #333; }\n</style>\n</head>\n<body>\n${cleanHtml}\n</body>\n</html>`;
+        setForm(prev => ({ ...prev, body: finalBody, subject: data.subject || prev.subject }));
         setEditorMode('split');
       } else {
         toast.error(data.detail || "AI 服務暫時無法回應", { id: loadingToast });
@@ -181,7 +204,12 @@ const Templates: React.FC = () => {
   const applyABVersion = (version: 'version_a' | 'version_b') => {
     if (!abVersions) return;
     const v = abVersions[version];
-    setForm(prev => ({ ...prev, subject: v.subject, body: `<html><body>\n${v.body}\n</body></html>` }));
+    const cleanBody = sanitizeAiOutput(v.body);
+    setForm(prev => ({ 
+      ...prev, 
+      subject: v.subject, 
+      body: `<html>\n<head>\n<style>\nbody { font-family: sans-serif; line-height: 1.6; color: #333; }\n</style>\n</head>\n<body>\n${cleanBody}\n<p>Corelink From Concept to Connect</p>\n</body>\n</html>` 
+    }));
     setShowABModal(false);
     setAbVersions(null);
     setEditorMode('split');

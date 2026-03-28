@@ -8,8 +8,27 @@ load_dotenv()
 # Initialize OpenAI (Set dynamically per request)
 from config_utils import get_api_key, get_openai_model
 
-# Import rule-based classifier (saves tokens)
+import re
 from classifier import classify_lead as rule_classify
+
+def _clean_html_fragment(text: str) -> str:
+    """
+    清洗 AI 輸出的 HTML 片段，移除 Markdown 代碼塊與多餘標籤。
+    """
+    if not text:
+        return ""
+    # 移除 Markdown 代碼塊 (如 ```html ... ```)
+    text = re.sub(r'```(?:html|json)?\n?', '', text)
+    text = text.replace('```', '')
+    
+    # 移除 HTML 框架標籤
+    text = re.sub(r'<!DOCTYPE[^>]*>', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'<\/?html[^>]*>', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'<\/?head[^>]*>', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'<\/?body[^>]*>', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'<meta[^>]*>', '', text, flags=re.IGNORECASE)
+    
+    return text.strip()
 
 def analyze_company_and_tag(company_name: str, description: str, use_gpt: bool = False, db = None, user_id: int = None) -> dict:
     """
@@ -198,16 +217,16 @@ def generate_html_template(prompt: str, style: str = "formal", language: str = "
     
     system_prompt = f"""You are a world-class B2B email marketing expert. Your goal is to write a highly converting HTML email template in {language} language.
     
-The template MUST be:
-1. Professional and modern HTML (inline CSS only).
-2. Fully responsive and visually appealing.
-3. Include placeholders like {{company_name}}, {{bd_name}}, {{contact_name}}, {{keywords}}, {{description}}.
-4. Tone should be: {style_hints.get(style, "Formal")}.
+The template MUST:
+1. Use professional and modern HTML (inline CSS ONLY).
+2. BE FULLY RESPONSIVE.
+3. STRICTLY USE these placeholders: {{company_name}}, {{bd_name}}, {{industry}}, {{product_name}}, {{contact_name}}. Do NOT use [Name] or other formats.
+4. Tone: {style_hints.get(style, "Formal")}.
 
-Output ONLY JSON format:
+Output ONLY JSON format, without any markdown code blocks (NO ```json):
 {{
   "subject": "A compelling email subject",
-  "html": "<html>...</html>"
+  "html": "The HTML content starting with <html> or <div>"
 }}"""
 
     try:
@@ -221,13 +240,10 @@ Output ONLY JSON format:
         )
         content = response.choices[0].message.content.strip()
         # Handle cases where GPT might wrap in ```json
-        if content.startswith("```"):
-            chunks = content.split("```")
-            content = chunks[1]
-            if content.startswith("json"):
-                content = content[4:]
-        
-        return json.loads(content)
+        result = json.loads(content)
+        if "html" in result:
+            result["html"] = _clean_html_fragment(result["html"])
+        return result
     except Exception as e:
         print(f"Error generating HTML template: {e}")
         return {
@@ -437,20 +453,20 @@ async def generate_ab_test_versions(company_name: str, tag: str, keywords: list,
 【AI 分類】: {tag}
 【核心關鍵字】: {', '.join(keywords)}
 
+變數規範：請務必在內容中使用 {{company_name}}, {{product_name}} 等佔位符。
+
 版本 A（理性/數據型）：
-- 使用數據、具體數字、專業術語
-- 直接說明價值主張
-- 主旨包含具體數字或效益
+- 使用數據、具體數字、專業術語。直接說明價值主張。
+- 主旨包含具體數字或效益。
 
 版本 B（故事/情感型）：
-- 以一個情境或問題開始
-- 喚起情感共鳴
-- 主旨更具故事性或好奇心
+- 以一個情境或問題開始。喚起情感共鳴。
+- 主旨更具故事性或好奇心。
 
-每封信控制在 150 字以內，輸出 JSON：
+每封信控制在 150 字以內，輸出格式為純 JSON (無 ```json)，且 Body 部分請輸出清潔的 HTML 段落（不含 <html> 標籤）：
 {{
-  "version_a": {{"subject": "主旨", "body": "信件內容"}},
-  "version_b": {{"subject": "主旨", "body": "信件內容"}}
+  "version_a": {{"subject": "主旨", "body": "HTML 內容片段"}},
+  "version_b": {{"subject": "主旨", "body": "HTML 內容片段"}}
 }}
 """
     
@@ -463,7 +479,12 @@ async def generate_ab_test_versions(company_name: str, tag: str, keywords: list,
             ],
             temperature=0.8
         )
-        return json.loads(response.choices[0].message.content)
+        result = json.loads(response.choices[0].message.content)
+        if "version_a" in result:
+            result["version_a"]["body"] = _clean_html_fragment(result["version_a"]["body"])
+        if "version_b" in result:
+            result["version_b"]["body"] = _clean_html_fragment(result["version_b"]["body"])
+        return result
     except Exception as e:
         return {
             "version_a": {"subject": "合作提案", "body": str(e)},

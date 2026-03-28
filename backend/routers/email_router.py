@@ -175,27 +175,26 @@ def delete_template(template_id: int, db: Session = Depends(get_db), current_use
 
 
 @router.post("/templates/ai-generate")
-def ai_generate_template(req: AITemplateRequest, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    import openai
-    from config_utils import get_api_key, get_openai_model
-    api_key = get_api_key(db, "openai", current_user.id)
-    if not api_key:
-        return {"success": False, "html": "", "message": "OpenAI API Key not set"}
-    openai.api_key = api_key
-    model = get_openai_model(db, current_user.id)
-    style_guide = {"professional": "語氣正式、專業", "friendly": "語氣親切、溫溫", "technical": "強調技術細節"}
-    try:
-        response = openai.ChatCompletion.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": "你是 B2B 商務開發信設計師，產生完整 HTML Email 模板（inline CSS，含 {{company_name}}、{{bd_name}}、{{keywords}} 佔位符），只輸出純 HTML。"},
-                {"role": "user", "content": f"需求：{req.prompt}\n語言：{req.language}\n風格：{style_guide.get(req.style, style_guide['professional'])}"}
-            ],
-            max_tokens=2000
-        )
-        return {"success": True, "html": response.choices[0].message.content, "message": "AI 生成完成"}
-    except Exception as e:
-        return {"success": False, "html": "", "message": str(e)}
+async def ai_generate_template(req: AITemplateRequest, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    import ai_service
+    from billing_service import deduct_points
+    
+    # Deduct 5 points per AI generation
+    if not deduct_points(current_user.id, "ai_intelligence", {"action": "template_generate"}):
+        raise HTTPException(status_code=402, detail="點數不足，無法生成 AI 模板。")
+        
+    result = await ai_service.generate_html_template(
+        prompt=req.prompt,
+        style=req.style,
+        language=req.language,
+        db=db,
+        user_id=current_user.id
+    )
+    
+    if result.get("success") is False:
+        return {"success": False, "html": "", "message": result.get("message", "AI 生成失敗")}
+        
+    return {"success": True, "html": result.get("html", ""), "subject": result.get("subject", ""), "message": "AI 生成完成"}
 
 
 @router.post("/templates/ai-optimize-subject")
