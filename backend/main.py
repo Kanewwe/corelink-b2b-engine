@@ -135,26 +135,21 @@ async def lifespan(app: FastAPI):
         from database import init_db
         try:
             init_db()
-            add_log("🚀 [System] Database initialized in background(v3.5)")
+            from migrations import run_migrations
+            run_migrations()
+            # v3.5 Start: 在背景執行剩餘初始與管理檢查
+            init_default_plans()
+            ensure_admin_exists()
+            add_log("🚀 [System] Database & Admin & Migrations initialized in background(v3.5)")
         except Exception as e:
             add_log(f"🚨 [System] Background init error: {str(e)}")
             
     threading.Thread(target=async_init_db, daemon=True).start()
     
-    try:
-        from migrations import run_migrations
-        run_migrations()
-        add_log("✅ 資料庫結構確認完成")
-    except Exception as e:
-        add_log(f"⚠️ Migration warning: {e}")
-
     # Set tracking base URL
     base_url = os.getenv("APP_BASE_URL", "https://linkoratw.com")
     email_tracker.set_track_base_url(base_url)
     
-    # Initialize default plans
-    init_default_plans()
-    ensure_admin_exists()
     
     # v3.5 Start: 延遲啟動背景寄信任務，打破 circular import
     import email_sender_job
