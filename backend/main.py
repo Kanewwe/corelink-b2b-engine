@@ -122,11 +122,12 @@ def health_check():
 
 
 # ─── Mount Routers ────────────────────────────────────────────────────────────
-from routers import auth_router, leads_router, email_router, scraper_router, admin_router, track_router
+from routers import auth_router, leads_router, email_router, scraper_router, admin_router, track_router, ai_router
 
 app.include_router(auth_router.router,    prefix="/api", tags=["Auth"])
 app.include_router(leads_router.router,   prefix="/api", tags=["Leads"])
 app.include_router(email_router.router,   prefix="/api", tags=["Email"])
+app.include_router(ai_router.router,     prefix="/api", tags=["AI Intelligence"])
 app.include_router(scraper_router.router, prefix="/api", tags=["Scraper"])
 app.include_router(admin_router.router,   prefix="/api", tags=["Admin"])
 app.include_router(track_router.router,               tags=["Tracking"])

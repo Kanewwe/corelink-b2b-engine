@@ -765,11 +765,33 @@ class EmailLog(Base):
     replied_at = Column(DateTime, nullable=True)
     reply_source = Column(String(50), nullable=True)
     
+    # v3.3: AI 回信分析 (Sprint 2)
+    reply_intent = Column(String(50), nullable=True) # 'positive', 'needs_info', 'declined', etc.
+    reply_analysis = Column(Text, nullable=True)
+    reply_next_action = Column(Text, nullable=True)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    lead = relationship("Lead")
     template = relationship("EmailTemplate")
+    
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "log_uuid": self.log_uuid,
+            "lead_id": self.lead_id,
+            "recipient": self.recipient,
+            "subject": self.subject,
+            "sent_at": self.sent_at.isoformat() if self.sent_at else None,
+            "status": self.status,
+            "opened": self.opened,
+            "open_count": self.open_count,
+            "clicked": self.clicked,
+            "replied": self.replied,
+            "reply_intent": self.reply_intent,
+            "reply_analysis": self.reply_analysis,
+            "reply_next_action": self.reply_next_action
+        }
 class SystemSetting(Base):
     """General key-value storage for system-wide or user-specific settings (e.g., Variable Mapping)"""
     __tablename__ = "system_settings"

@@ -82,6 +82,10 @@ def _run_migrations(engine):
         ("leads", "ai_suggestions", "TEXT"),
         ("leads", "ai_scored_at", "TIMESTAMP"),
         ("leads", "error_message", "TEXT"),
+        # email_logs 表新增 AI 回信分析欄位 (Sprint 2)
+        ("email_logs", "reply_intent", "VARCHAR(50)"),
+        ("email_logs", "reply_analysis", "TEXT"),
+        ("email_logs", "reply_next_action", "TEXT"),
     ]
     
     with engine.connect() as conn:
