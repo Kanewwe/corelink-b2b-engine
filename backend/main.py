@@ -12,7 +12,7 @@ import models
 import email_tracker
 import auth as auth_module
 from contextlib import asynccontextmanager
-import email_sender_job
+# import email_sender_job (Lazy Loaded in lifespan)
 from logger import add_log, SYSTEM_LOGS
 # from billing_service import deduct_points, get_point_balance (Lazy Loaded)
 # import ai_service (Lazy Loaded)
@@ -148,6 +148,16 @@ async def lifespan(app: FastAPI):
     # Initialize default plans
     init_default_plans()
     ensure_admin_exists()
+    
+    # v3.5 Start: 延遲啟動背景寄信任務，打破 circular import
+    import email_sender_job
+    try:
+        import threading
+        sender_thread = threading.Thread(target=email_sender_job.start_sender_loop, daemon=True)
+        sender_thread.start()
+        add_log("✉️ [System] Email sender job started via lifespan(v3.5)")
+    except Exception as e:
+        add_log(f"🚨 [System] Sender error: {str(e)}")
     
     yield
 
@@ -1072,8 +1082,9 @@ async def generate_analytics_summary(
 ):
     """AI 成效摘要報告（v3.2）"""
     # 取得本月統計
-    now = datetime.now(timezone.utc)
-    month_start = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
+    # v3.5: 使用 GMT+8 (TAIPEI_TZ) 進行統計
+    now = datetime.now(TAIPEI_TZ)
+    month_start = datetime(now.year, now.month, 1, tzinfo=TAIPEI_TZ)
     
     email_logs = db.query(models.EmailLog).filter(
         models.EmailLog.user_id == current_user.id,
