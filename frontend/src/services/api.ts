@@ -123,7 +123,7 @@ export const generateAiKeywords = (keyword: string, count: number = 5) => fetchW
 });
 
 // System Settings
-export const getSystemSettings = () => fetchWithAuth('/admin/settings');
+export const getSystemSettings = () => fetchWithAuth('/system/settings');
 export const updateSystemSetting = (key: string, value: any) => fetchWithAuth('/system/settings', {
   method: 'POST',
   body: JSON.stringify({ key, value })

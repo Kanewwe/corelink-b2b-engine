@@ -254,7 +254,7 @@ const SystemSettings: React.FC = () => {
               系統控制中心
               <span className="page-title__en">System Hub</span>
             </h1>
-            <span className="version-badge">LINKORA V3.1.9</span>
+            <span className="version-badge">V3.2 (AI Intelligence)</span>
           </div>
           <p className="page-subtitle">管理 Linkora 全球探勘引擎的核心配置，包含 AI 標籤、Lead 隔離池 (Global Pool) 以及 API 連線。</p>
         </div>
