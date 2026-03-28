@@ -8,6 +8,14 @@ from database import engine
 def run_migrations():
     """Run all database migrations."""
     import sqlalchemy
+    import os
+    
+    # v3.7.26: 支援 UAT schema
+    schema_name = os.getenv("APP_ENV", "public")
+    if schema_name == "uat":
+        schema_name = "uat"
+    else:
+        schema_name = "public"
     
     tables_to_patch = {
         "users": ["role", "reset_token", "reset_expires", "verify_token"],
@@ -41,11 +49,15 @@ def run_migrations():
     }
 
     print(f"🚀 Starting migration on: {engine.url.render_as_string(hide_password=True)}")
+    print(f"📦 Schema: {schema_name}")
     
     with engine.connect() as conn:
+        # 設定 search_path
+        conn.execute(text(f"SET search_path TO {schema_name}"))
+        
         # 1. Ensure global_leads table exists (The Isolation Pool)
-        create_global_table = """
-            CREATE TABLE IF NOT EXISTS global_leads (
+        create_global_table = f"""
+            CREATE TABLE IF NOT EXISTS {schema_name}.global_leads (
                 id SERIAL PRIMARY KEY,
                 company_name VARCHAR(200),
                 domain VARCHAR(100) UNIQUE,
@@ -67,13 +79,13 @@ def run_migrations():
         try:
             conn.execute(text(create_global_table))
             conn.commit()
-            print("✅ global_leads table ensured (PostgreSQL)")
+            print(f"✅ {schema_name}.global_leads table ensured")
         except Exception as e:
             print(f"⚠️ Error ensuring global_leads: {e}")
 
         # 2. Patch existing tables
         for table, columns in tables_to_patch.items():
-            print(f"🔎 Checking table: {table}")
+            print(f"🔎 Checking table: {schema_name}.{table}")
             for column in columns:
                 try:
                     # Define type based on column name
@@ -98,32 +110,28 @@ def run_migrations():
                     if column in ["ai_score_tags", "ai_brief", "ai_suggestions"]: col_type = "TEXT"
                     if column == "ai_scored_at": col_type = "TIMESTAMP"
                     
-                    # More aggressive check
+                    # Check if column exists
                     has_column = False
                     try:
-                        if "postgresql" in str(engine.url):
-                            check_sql = text(f"SELECT 1 FROM information_schema.columns WHERE table_name='{table}' AND column_name='{column}'")
-                            has_column = conn.execute(check_sql).fetchone() is not None
-                        else:
-                            res = conn.execute(text(f"PRAGMA table_info({table})"))
-                            has_column = column in [row[1] for row in res.fetchall()]
+                        check_sql = text(f"SELECT 1 FROM information_schema.columns WHERE table_schema='{schema_name}' AND table_name='{table}' AND column_name='{column}'")
+                        has_column = conn.execute(check_sql).fetchone() is not None
                     except:
                         pass
 
                     if not has_column:
-                        print(f"➕ Adding {column} to {table}...")
-                        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+                        print(f"➕ Adding {column} to {schema_name}.{table}...")
+                        conn.execute(text(f"ALTER TABLE {schema_name}.{table} ADD COLUMN {column} {col_type}"))
                         conn.commit()
-                        print(f"✅ {table}.{column} added successfully")
+                        print(f"✅ {schema_name}.{table}.{column} added successfully")
                     else:
-                        print(f"✔️ {table}.{column} already exists")
+                        print(f"✔️ {schema_name}.{table}.{column} already exists")
                         
                 except Exception as e:
                     err_msg = str(e).lower()
                     if "already exists" in err_msg or "duplicate" in err_msg:
-                        print(f"✔️ {table}.{column} already exists (confirmed by error)")
+                        print(f"✔️ {schema_name}.{table}.{column} already exists (confirmed by error)")
                         continue
-                    print(f"❌ Failed to process {table}.{column}: {e}")
+                    print(f"❌ Failed to process {schema_name}.{table}.{column}: {e}")
         
     print("🎉 Database migration check complete!")
 
