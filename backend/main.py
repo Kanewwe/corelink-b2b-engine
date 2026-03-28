@@ -163,15 +163,25 @@ app.add_middleware(
 
 @app.middleware("http")
 async def catch_exceptions_middleware(request: Request, call_next):
+    start_time = time.time()
     try:
-        return await call_next(request)
+        response = await call_next(request)
+        process_time = time.time() - start_time
+        response.headers["X-Process-Time"] = str(process_time)
+        return response
     except Exception as e:
+        add_log(f"🔥 [API Error] {request.method} {request.url.path}: {e}")
         raise e
 
 # --- Health Check ---
 @app.get("/api/health")
-def health_check():
-    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+def health_check(db: Session = Depends(get_db)):
+    return {
+        "status": "healthy", 
+        "timestamp": datetime.now().isoformat(),
+        "db_v3_4": "synced" if "migrate_v3_4" in str(SYSTEM_LOGS) else "pending",
+        "system_points": get_point_balance(db, 1) if hasattr(models, 'User') else 0
+    }
 
 # --- Pydantic Schemas ---
 class LeadCreateReq(BaseModel):
@@ -1009,6 +1019,7 @@ class SubjectOptimizeRequest(BaseModel):
 @app.post("/api/templates/ai-optimize-subject")
 async def optimize_subject(
     req: SubjectOptimizeRequest,
+    db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user_id)
 ):
     # v3.5: Billing Check (AI = 5 pts)
@@ -1018,7 +1029,7 @@ async def optimize_subject(
     result = await ai_service.optimize_email_subject(
         subject=req.subject,
         company_name=req.company_name,
-        db=db if 'db' in dir() else None,
+        db=db,
         user_id=current_user.id
     )
     return {"success": True, "suggestions": result.get("suggestions", [req.subject])}
@@ -1032,6 +1043,7 @@ class ABTestRequest(BaseModel):
 @app.post("/api/templates/ai-generate-ab")
 async def generate_ab_versions(
     req: ABTestRequest,
+    db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user_id)
 ):
     # v3.5: Billing Check (AI = 5 pts)
@@ -1042,7 +1054,7 @@ async def generate_ab_versions(
         company_name=req.company_name,
         tag=req.tag,
         keywords=req.keywords,
-        db=db if 'db' in dir() else None,
+        db=db,
         user_id=current_user.id
     )
     return {"success": True, **result}
@@ -1280,7 +1292,7 @@ def list_members(
         ).first()
         
         # 取得本月用量
-        usage = UsageLog.get_or_create(db, u.id) if u.role == 'member' else None
+        usage = models.UsageLog.get_or_create(db, u.id) if u.role == 'member' else None
         
         result.append({
             **u.to_dict(),
@@ -1301,7 +1313,7 @@ def get_member_detail(member_id: int, db: Session = Depends(get_db), current_use
     sub = db.query(models.Subscription).filter(models.Subscription.user_id == user.id).first()
     
     # 用量統計
-    usage = UsageLog.get_or_create(db, user.id)
+    usage = models.UsageLog.get_or_create(db, user.id)
     
     # Leads 數量
     leads_count = db.query(models.Lead).filter(models.Lead.user_id == user.id).count()
@@ -1403,6 +1415,27 @@ def reset_member_password(member_id: int, db: Session = Depends(get_db), current
         "temp_password": temp_password,
         "reset_token": user.reset_token
     }
+
+# ── v3.5 Billing Endpoints ──
+@app.get("/api/user/points")
+async def get_user_points_api(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user_id)
+):
+    """v3.5: 回傳當前用戶可用點數 (Credits)"""
+    balance = get_point_balance(db, current_user.id)
+    return {"points": balance}
+
+# ── v3.4 Health Monitoring Stat ──
+def get_scraper_avg_latency(db: Session):
+    """計算過去 24 小時的平均爬取延遲"""
+    try:
+        avg = db.query(func.avg(models.ScrapeLog.response_time)).filter(
+            models.ScrapeLog.created_at >= datetime.now() - timedelta(hours=24)
+        ).scalar()
+        return round(avg, 2) if avg else 0.0
+    except:
+        return 0.0
 
 @app.get("/api/admin/stats")
 def get_admin_stats(db: Session = Depends(get_db), current_user: models.User = Depends(auth_module.require_role(["admin"]))):

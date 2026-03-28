@@ -182,6 +182,8 @@ export const cleanupStaleTasks = () =>
   fetchWithAuth('/admin/scrape-tasks/stale', { method: 'DELETE' });
 
 // ── v3.2: AI 評分與情報 ──
+export const getUserPoints = () => fetchWithAuth('/user/points');
+
 export const scoreLeads = (leadIds?: number[]) => fetchWithAuth('/leads/ai-score', {
   method: 'POST',
   body: JSON.stringify({ lead_ids: leadIds ?? null })

@@ -26,6 +26,7 @@ interface SystemStats {
     total_scrape_tasks: number;
     active_tasks: number;
     completed_tasks: number;
+    avg_latency: number;
   };
 }
 
@@ -200,10 +201,10 @@ const AdminDashboard: React.FC = () => {
           color="warning"
         />
         <StatCard 
-          title="探勘任務" 
-          value={stats?.usage.total_scrape_tasks || 0}
-          subtext={`${stats?.usage.active_tasks || 0} 進行中`}
-          icon={Zap}
+          title="探勘延遲" 
+          value={`${stats?.usage.avg_latency || 0}s`}
+          subtext="過去 24h 平均"
+          icon={Activity}
           color="danger"
         />
       </div>

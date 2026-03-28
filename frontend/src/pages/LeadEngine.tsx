@@ -7,7 +7,8 @@ import {
   generateAiKeywords, 
   updateLead, 
   proposeCorrection,
-  scoreLeads
+  scoreLeads,
+  getUserPoints
 } from '../services/api';
 import { 
   Users, Send, BarChart3, ShieldAlert, Cpu, Search, Sparkles, 
@@ -324,9 +325,23 @@ const LeadEngine: React.FC = () => {
   const [minerMode, setMinerMode] = useState('manufacturer');
   const [emailStrategy, setEmailStrategy] = useState<'free' | 'hunter'>('free');
   const [isMining, setIsMining] = useState(false);
+  const [balance, setBalance] = useState<number | null>(null); // v3.5: 點數餘額
+
+  const fetchPoints = async () => {
+    try {
+      const resp = await getUserPoints();
+      if (resp.ok) {
+        const data = await resp.json();
+        setBalance(data.points);
+      }
+    } catch (e) {
+      console.error("Failed to fetch points", e);
+    }
+  };
 
   const fetchDashboardData = async () => {
     setLoading(true);
+    fetchPoints(); // 非阻塞獲取點數
     try {
       const [statsResp, leadsResp] = await Promise.all([
         getDashboardStats(),
@@ -400,6 +415,9 @@ const LeadEngine: React.FC = () => {
         setActiveKeywords([]);
         setKeywordInput('');
         fetchDashboardData();
+        fetchPoints(); // 探勘成功後更新點數 (v3.5)
+      } else if (resp.status === 402) {
+        toast.error("點數不足，請聯繫管理員儲值", { id: loadingToast });
       } else {
         const err = await resp.json();
         toast.error(err.detail || "啟動失敗", { id: loadingToast });
@@ -454,6 +472,7 @@ const LeadEngine: React.FC = () => {
             return lead;
           }));
         }
+        fetchPoints(); // 評分後更新點數 (v3.5)
       } else {
         toast.error("評分失敗", { id: loadingToast });
       }
@@ -506,6 +525,18 @@ const LeadEngine: React.FC = () => {
             <span className="version-badge">LINKORA V3.2 (AI Intelligence)</span>
           </div>
           <p className="page-subtitle">AI 驅動的全自動 B2B 客戶探勘引擎，精準發現潛在採購商並實現情報共享。</p>
+        </div>
+        <div className="page-header__right flex items-center gap-4">
+          {/* v3.5: 點數餘額顯示 */}
+          <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 rounded-xl">
+            <Zap size={14} className="text-primary fill-primary" />
+            <div className="flex flex-col">
+              <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider leading-none">Credits</span>
+              <span className="text-sm font-black text-white leading-none mt-1">
+                {balance !== null ? balance.toLocaleString() : '---'}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
