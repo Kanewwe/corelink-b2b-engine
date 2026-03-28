@@ -59,6 +59,7 @@ export const triggerScrapeSimple = (data: any) => fetchWithAuth('/scrape-simple'
   method: 'POST',
   body: JSON.stringify(data)
 });
+export const countGlobalLeads = (keyword: string) => fetchWithAuth(`/scrape/count-global?keyword=${keyword}`);
 export const getScraperHealthStats = () => fetchWithAuth('/health/stats');
 
 // Inbound Inbox

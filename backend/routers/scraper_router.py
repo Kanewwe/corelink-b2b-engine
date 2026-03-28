@@ -53,7 +53,9 @@ class ScrapeSimpleRequest(BaseModel):
     keyword: Optional[str] = None
     location: Optional[str] = None
     email_strategy: str = "free"
-    miner_mode: str = "yellowpages"
+    miner_mode: str = "general" # v4.0: general, manufacturer, sales, marketing
+    employee_range: Optional[str] = None
+    position_filter: Optional[str] = None
 
 
 class KeywordGenerateRequest(BaseModel):
@@ -145,8 +147,16 @@ def trigger_scrape_simple(
                     loop.close()
 
             background_tasks.add_task(run_manufacturer_task_sync)
-            scrape_msg = f"已啟動製造商模式，預計探勘剩餘 {rem_target} 筆名單。"
-        else:
+            scrape_msg = f"已啟動製造商模式 (Apollo+Hunter)，將搜刮 {rem_target} 筆 B2B 資料。"
+        elif req.miner_mode == "sales":
+            # LinkedIn Mode
+            scrape_msg = "已啟動業務模式 (LinkedIn)。"
+            # Placeholder for LinkedIn miner
+        elif req.miner_mode == "marketing":
+            # Search Engine Mode
+            scrape_msg = "已啟動行銷模式 (Google Search)。"
+            # Placeholder for Search miner
+        else: # general (formerly yellowpages)
             import scrape_simple as scrape_mod
             import asyncio
 
@@ -159,7 +169,7 @@ def trigger_scrape_simple(
                     loop.close()
 
             background_tasks.add_task(run_yellowpages_task_sync)
-            scrape_msg = f"已啟動黃頁模式，預計探勘剩餘 {rem_target} 筆名單。"
+            scrape_msg = f"已啟動一般模式 (Google Maps/YP)，將搜刮 {rem_target} 筆名單。"
 
         return {
             "success": True,
@@ -233,6 +243,17 @@ def stop_scheduler(current_user: models.User = Depends(get_current_user)):
 def get_scheduler_status(current_user: models.User = Depends(get_current_user)):
     import email_sender_job
     return email_sender_job.get_scheduler_status()
+
+
+@router.get("/scrape/count-global")
+def count_global_leads(keyword: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """v4.0: Pre-scan the global pool for matching leads before scraping external APIs"""
+    count = db.query(models.GlobalLead).filter(
+        (models.GlobalLead.company_name.ilike(f"%{keyword}%")) | 
+        (models.GlobalLead.industry_tags.ilike(f"%{keyword}%")) |
+        (models.GlobalLead.description.ilike(f"%{keyword}%"))
+    ).count()
+    return {"success": True, "count": count, "keyword": keyword}
 
 
 # ─── Scraper Health Dashboard (v3.7) ──────────────────────────────────────────

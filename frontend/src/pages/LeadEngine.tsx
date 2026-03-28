@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, Send, BarChart, ShieldAlert, Cpu, Search, Sparkles, 
   Zap, Mail, Globe, Edit, Save, X, User, Star, Brain, CheckCircle, RotateCcw, 
-  Download, RefreshCw
+  Download, RefreshCw, Factory, Briefcase, MapPin
 } from 'lucide-react';
 import { 
   getDashboardStats, 
@@ -15,7 +15,8 @@ import {
   getUserPoints,
   generateLeadBrief,
   getIndustryTree,
-  syncGlobalToPrivate
+  syncGlobalToPrivate,
+  countGlobalLeads
 } from '../services/api';
 import { toast } from 'react-hot-toast';
 
@@ -350,10 +351,14 @@ const LeadEngine: React.FC = () => {
   const [keywordInput, setKeywordInput] = useState('');
   const [activeKeywords, setActiveKeywords] = useState<string[]>([]);
   const [pages, setPages] = useState('3');
-  const [minerMode, setMinerMode] = useState('manufacturer');
+  const [minerMode, setMinerMode] = useState('general');
+  const [employeeRange, setEmployeeRange] = useState('11-50');
+  const [positionFilter, setPositionFilter] = useState('');
   const [emailStrategy, setEmailStrategy] = useState<'free' | 'hunter'>('free');
   const [isMining, setIsMining] = useState(false);
-  const [balance, setBalance] = useState<number | null>(null); // v3.5: 點數餘額
+  const [balance, setBalance] = useState<number | null>(null);
+  const [globalCount, setGlobalCount] = useState(0);
+  const [insightLoading, setInsightLoading] = useState(false);
 
   const fetchPoints = async () => {
     try {
@@ -438,7 +443,9 @@ const LeadEngine: React.FC = () => {
         keyword: finalKeywords.join(', '),
         location,
         miner_mode: minerMode,
-        email_strategy: emailStrategy
+        email_strategy: emailStrategy,
+        employee_range: minerMode === 'manufacturer' ? employeeRange : undefined,
+        position_filter: minerMode === 'sales' ? positionFilter : undefined
       });
       
       if (resp.ok) {
@@ -510,12 +517,34 @@ const LeadEngine: React.FC = () => {
       } else {
         toast.error("評分失敗", { id: loadingToast });
       }
-    } catch (e) {
-      toast.error("評分服務暫時不可用", { id: loadingToast });
     } finally {
       setScoring(false);
     }
   };
+
+  // v4.0: 全域探勘預檢
+  useEffect(() => {
+    const checkGlobal = async () => {
+      const kw = keywordInput || activeKeywords[0];
+      if (!kw) {
+        setGlobalCount(0);
+        return;
+      }
+      setInsightLoading(true);
+      try {
+        const resp = await countGlobalLeads(kw);
+        const data = await resp.json();
+        setGlobalCount(data.count || 0);
+      } catch (e) {
+        console.error("Global count check failed", e);
+      } finally {
+        setInsightLoading(false);
+      }
+    };
+    
+    const timer = setTimeout(checkGlobal, 800);
+    return () => clearTimeout(timer);
+  }, [keywordInput, activeKeywords]);
 
   const handleExportCSV = () => {
     if (leads.length === 0) return;
@@ -746,35 +775,96 @@ const LeadEngine: React.FC = () => {
             </div>
 
             <div className="p-4 bg-primary/5 border border-primary/10 rounded-xl">
-              <div className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
-                <Search className="w-3.5 h-3.5" /> 探勘模式 (Mining Mode)
-              </div>
-              <div className="flex flex-col gap-3">
-                <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer border transition-all ${minerMode === 'manufacturer' ? 'bg-primary/10 border-primary/30' : 'bg-white/5 border-transparent hover:bg-white/10'}`}>
-                  <input 
-                    type="radio" name="miner-mode" value="manufacturer" 
-                    checked={minerMode === 'manufacturer'} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMinerMode(e.target.value)}
-                    className="mt-1 accent-primary"
-                  />
-                  <div>
-                    <div className="text-xs font-bold text-white flex items-center gap-2">
-                      製造商模式 (推薦) <span className="bg-primary/20 text-primary text-[9px] px-1.5 py-0.5 rounded font-black italic">PRO</span>
+            <div className="space-y-4">
+              <label className="block text-[11px] font-bold text-text-muted uppercase tracking-widest mb-2 ml-1">
+                探勘模式 (Mining Mode v4.0)
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { id: 'general', name: '一般模式', desc: 'Google Maps / 零售', icon: MapPin, color: 'text-emerald-500' },
+                  { id: 'manufacturer', name: '製造商模式', desc: 'Apollo / B2B 工廠', icon: Factory, color: 'text-primary' },
+                  { id: 'sales', name: '業務模式', desc: 'LinkedIn / 決策者', icon: Briefcase, color: 'text-warning' },
+                  { id: 'marketing', name: '行銷模式', desc: 'Google / 大量清單', icon: Search, color: 'text-accent-teal' },
+                ].map((m) => (
+                  <div 
+                    key={m.id}
+                    onClick={() => setMinerMode(m.id)}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col gap-2 ${
+                      minerMode === m.id ? 'bg-white/10 border-white/20 ring-1 ring-white/20' : 'bg-white/5 border-transparent hover:bg-white/10'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <m.icon size={16} className={m.color} />
+                      {minerMode === m.id && <div className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_white]" />}
                     </div>
-                    <div className="text-[10px] text-text-muted mt-1 leading-relaxed">搜尋 B2B 製造商目錄 (Thomasnet / Google)。適合工業品、OEM、零件及原料供應商。</div>
+                    <div>
+                      <div className="text-[11px] font-black text-white">{m.name}</div>
+                      <div className="text-[9px] text-text-muted mt-0.5">{m.desc}</div>
+                    </div>
                   </div>
-                </label>
-                <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer border transition-all ${minerMode === 'yellowpages' ? 'bg-warning/10 border-warning/30' : 'bg-white/5 border-transparent hover:bg-white/10'}`}>
-                  <input 
-                    type="radio" name="miner-mode" value="yellowpages" 
-                    checked={minerMode === 'yellowpages'} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMinerMode(e.target.value)}
-                    className="mt-1 accent-warning"
-                  />
-                  <div>
-                    <div className="text-xs font-bold text-white">黃頁模式 (原版)</div>
-                    <div className="text-[10px] text-text-muted mt-1 leading-relaxed">搜尋 Yellowpages / Yelp。適合本地服務業、維修店、客路型 B2C 零售商。</div>
-                  </div>
-                </label>
+                ))}
               </div>
+            </div>
+
+            {/* Mode Specific Filters */}
+            {minerMode === 'manufacturer' && (
+              <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                <label className="block text-[11px] font-bold text-text-muted uppercase tracking-widest mb-2 ml-1">員工數範圍 (Employees)</label>
+                <select 
+                  className="input-field appearance-none"
+                  value={employeeRange} onChange={(e) => setEmployeeRange(e.target.value)}
+                >
+                  <option value="1-10">1-10 人 (小微企業)</option>
+                  <option value="11-50">11-50 人 (中小企業)</option>
+                  <option value="51-200">51-200 人 (中型企業)</option>
+                  <option value="201-500">201-500 人 (大型企業)</option>
+                  <option value="501+">501+ 人 (集團)</option>
+                </select>
+              </div>
+            )}
+
+            {minerMode === 'sales' && (
+              <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                <label className="block text-[11px] font-bold text-text-muted uppercase tracking-widest mb-2 ml-1">職位關鍵字 (Position)</label>
+                <input 
+                  type="text" placeholder="例如: CEO, Procurement Manager, Founder..."
+                  className="input-field"
+                  value={positionFilter} onChange={(e) => setPositionFilter(e.target.value)}
+                />
+              </div>
+            )}
+
+            {/* Global Intelligence Insight (v4.0) */}
+            <div className={`p-4 rounded-xl flex items-center justify-between gap-4 transition-all border ${
+              globalCount > 0 ? 'bg-primary/5 border-primary/20' : 'bg-white/5 border-white/5 opacity-60'
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                  globalCount > 0 ? 'bg-primary/20 text-primary' : 'bg-white/10 text-text-muted'
+                }`}>
+                  {insightLoading ? <RotateCcw size={16} className="animate-spin" /> : <Brain size={16} />}
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+                    全域情資預檢 (Intel Check)
+                  </div>
+                  <div className="text-[11px] text-white font-medium">
+                    {globalCount > 0 
+                      ? `發現 ${globalCount} 筆相關名單可立即同步` 
+                      : (keywordInput || activeKeywords.length > 0 ? '全域情資庫尚無此關鍵字資料' : '輸入關鍵字開始預檢')}
+                  </div>
+                </div>
+              </div>
+              {globalCount > 0 && (
+                <button 
+                  type="button"
+                  onClick={handleScrape}
+                  className="text-[10px] bg-primary text-white px-3 py-1.5 rounded-lg font-bold hover:scale-105 transition-all shadow-lg shadow-primary/20"
+                >
+                  立即同步
+                </button>
+              )}
+            </div>
             </div>
 
             <button 

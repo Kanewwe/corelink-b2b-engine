@@ -5,7 +5,7 @@ Industry Tags API Router (v3.7.29)
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from database import get_db
-import models
+from industry_tags import IndustryTag
 import auth as auth_module
 
 router = APIRouter()
@@ -22,17 +22,17 @@ def get_industries(
     - level: 1=一級行業, 2=二級行業
     - parent_code: 父級代碼（取得子行業）
     """
-    query = db.query(models.IndustryTag).filter(
-        models.IndustryTag.is_active == True
+    query = db.query(IndustryTag).filter(
+        IndustryTag.is_active == True
     )
     
     if level:
-        query = query.filter(models.IndustryTag.level == level)
+        query = query.filter(IndustryTag.level == level)
     
     if parent_code:
-        query = query.filter(models.IndustryTag.parent_code == parent_code)
+        query = query.filter(IndustryTag.parent_code == parent_code)
     
-    tags = query.order_by(models.IndustryTag.sort_order).all()
+    tags = query.order_by(IndustryTag.sort_order).all()
     
     return {
         "total": len(tags),
@@ -44,20 +44,20 @@ def get_industries(
 def get_industry_tree(db: Session = Depends(get_db)):
     """取得行業樹狀結構"""
     # 取得一級行業
-    level1 = db.query(models.IndustryTag).filter(
-        models.IndustryTag.level == 1,
-        models.IndustryTag.is_active == True
-    ).order_by(models.IndustryTag.sort_order).all()
+    level1 = db.query(IndustryTag).filter(
+        IndustryTag.level == 1,
+        IndustryTag.is_active == True
+    ).order_by(IndustryTag.sort_order).all()
     
     tree = []
     for l1 in level1:
         node = l1.to_dict()
         
         # 取得子行業
-        children = db.query(models.IndustryTag).filter(
-            models.IndustryTag.parent_code == l1.code,
-            models.IndustryTag.is_active == True
-        ).order_by(models.IndustryTag.sort_order).all()
+        children = db.query(IndustryTag).filter(
+            IndustryTag.parent_code == l1.code,
+            IndustryTag.is_active == True
+        ).order_by(IndustryTag.sort_order).all()
         
         node["children"] = [c.to_dict() for c in children]
         tree.append(node)
@@ -74,8 +74,8 @@ def get_industry_by_code(
     db: Session = Depends(get_db)
 ):
     """取得單一行業標籤"""
-    tag = db.query(models.IndustryTag).filter(
-        models.IndustryTag.code == code
+    tag = db.query(IndustryTag).filter(
+        IndustryTag.code == code
     ).first()
     
     if not tag:

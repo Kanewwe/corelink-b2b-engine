@@ -26,44 +26,6 @@ def _now_utc_naive():
 
 
 # ══════════════════════════════════════════
-# Industry Tags（行業標籤）v3.7.29
-# ══════════════════════════════════════════
-
-class IndustryTag(Base):
-    """行業標籤主檔"""
-    __tablename__ = "industry_tags"
-
-    id = Column(Integer, primary_key=True, index=True)
-    code = Column(String(20), unique=True, nullable=False)
-    parent_code = Column(String(20))
-    name_en = Column(String(100), nullable=False)
-    name_zh = Column(String(100), nullable=False)
-    name_short = Column(String(50))
-    level = Column(Integer, default=1)
-    keywords = Column(String(500))
-    company_count = Column(Integer, default=0)
-    icon = Column(String(50))
-    color = Column(String(20))
-    sort_order = Column(Integer, default=0)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "code": self.code,
-            "parent_code": self.parent_code,
-            "name_en": self.name_en,
-            "name_zh": self.name_zh,
-            "name_short": self.name_short,
-            "level": self.level,
-            "keywords": self.keywords,
-            "company_count": self.company_count,
-            "icon": self.icon,
-            "color": self.color,
-            "sort_order": self.sort_order,
-            "is_active": self.is_active
-        }
 
 
 # ══════════════════════════════════════════
