@@ -1,36 +1,44 @@
 # Linkora v3.2 → v3.5 長期 Roadmap
 
-> **版本：** 1.0.0  
-> **建立日期：** 2026-03-28  
+> **版本：** 1.1.0（2026-03-28 更新）  
 > **適用對象：** Kane（技術創辦人）  
 > **Review 頻率：** 每兩週一次（每個 Sprint 結束）
 
 ---
 
-## 現況診斷（2026-03-28）
+## 現況診斷（2026-03-28 v2 — 重大發現）
 
-### 🔴 緊急（Blocker）
-| 問題 | 影響 | 根本原因 |
-|------|------|---------|
-| Junipr YellowPages Actor 返回餐廳 | 黃頁模式資料品質零 | Actor 爬蟲演算法有缺陷 |
-| 製造商模式從未成功完成 | 核心功能缺失 | Thomasnet actor + 全域池超時 |
-| 81 筆舊 Leads 無 email | 系統不可用 | 爬蟲失敗累積 + 去重過度 |
+### 🔴 緊急（Blocker）— 所有爬蟲失效的根本原因
 
-### 🟡 高優先（需一週內處理）
-| 問題 | 影響 |
+經過完整診斷，發現**三層次問題**疊加：
+
+| 層次 | 問題 | 根本原因 | 狀態 |
+|------|------|---------|------|
+| **Token** | 錯誤 Apify key（JdJ vs GdJ）| 之前用錯誤 key 測試所有 actors | ✅ 已確認正確 key |
+| **Actor Path** | Junipr 正確路徑是 `junipr~yellow-pages-scraper`（波浪號）| 之前用斜線路徑 | ✅ 已修復 |
+| **Junipr Actor** | SUCCEEDED 但 items=0, datasetId=none | **Actor 已實質下架（2026-03已確認）** | 🔴 已確認 |
+| **Direct Scraping** | YellowPages.com 回 403 Forbidden | 需要更換 UA 或 proxy | 🟡 需處理 |
+| **Thomasnet** | `zen-studio/thomasnet-suppliers-scraper` → 404 | Actor 已下架 | 🔴 需替代方案 |
+| **所有付費 Actors** | yellowpages-scraper → FAILED/404/400 | 帳號訂閱問題或 actors 下架 | 🔴 需重新評估 |
+
+### 🟡 高優先（已修復）
+| 問題 | 修復 |
 |------|------|
-| `find_emails_free()` 需 200+ 秒 | free 模式永遠 timeout |
-| SystemSettings API 路由錯誤 | Admin 無法管理設定 |
-| 全域池去重太 aggressive | 新公司全部被當重複 |
-| 版本號顯示 V3.1.9 | 文件與實作不同步 |
+| SystemSettings API 路由錯誤 | ✅ GET `/admin/settings` → `/system/settings` |
+| 版本號顯示 V3.1.9 | ✅ 改為 `V3.2 (AI Intelligence)` |
+| ScrapeMonitor TypeScript 錯誤 | ✅ 移除未使用變數 |
 
-### 🟢 中優先（次兩週）
-| 問題 |
-|------|
-| ScrapeMonitor TypeScript 錯誤（已修） |
-| AI 成效摘要卡在「需要更多數據」 |
-| 最佳發送時間無 UI 入口 |
-| 爬蟲日誌無前端即時刷新 |
+### 🔧 Sprint 0 新任務（更新後）
+
+| Task | 優先 | 說明 |
+|------|------|------|
+| S0-A. Junipr 確認下架 | 🔴 | ✅ 已確認，items=0，需替代方案 | ✅ 已確認 |
+
+### 📊 目前系統狀態（2026-03-28 09:00）
+- Leads 總數：81（全部 email_candidates=null，無用）
+- 所有 Apify YellowPages/Thomasnet actors 已確認失效
+- Direct YellowPages → 403 Forbidden
+- **結論：需採購 B2B Data API 或重構爬蟲策略**
 
 ---
 
@@ -41,10 +49,11 @@
 
 | Task | 負責 | 預期產出 | 優先 |
 |------|------|---------|------|
-| S0-1. 測試備援 YellowPages Actor | Ann | 找到能返回製造商資料的 actor | 🔴 |
-| S0-2. 替換 Junipr → 備援 actor | Ann | scrape_simple.py 使用正確 actor | 🔴 |
+| S0-1. 確認 Junipr 狀態 | Ann | ✅ 已確認：items=0，Actor 已實質下架 | 🔴 |
+| S0-2. Direct YellowPages 繞過 403 | Ann | 測試 Selenium/Playwright headless 方案 | 🔴 |
+| S0-3. B2B Data API 整合 | Ann | Apollo.io / Hunter.io 取代 Apify scraper | 🔴 |
 | S0-3. 清空舊 Leads，重新爬取乾淨測試 | Ann | 至少 10 筆有 email_candidates 的 Leads | 🔴 |
-| S0-4. 製造商模式 Thomasnet 替換 | Ann | manufacturer_miner.py 更換備援或加大 timeout | 🟡 |
+| S0-4. 清空舊 Leads，重新爬取 | Ann | 清理 81 筆無用資料，用新方案重新開始 | 🟡 |
 | S0-5. 重建 `find_emails_free()` 支援超時 | Ann | free_email_hunter.py 可中断的 async 版本 | 🟡 |
 | S0-6. 調整全域池去重邏輯 | Ann | domain 精確 > name 模糊 | 🟡 |
 | S0-7. 前端 API 路由 + 版本號（已修） | Ann | SystemSettings 正常讀取設定 | ✅ |

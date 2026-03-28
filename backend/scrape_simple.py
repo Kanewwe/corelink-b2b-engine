@@ -316,7 +316,7 @@ def scrape_keyword_page_apify(keyword: str, page: int, market: str = "US", db=No
     location = location_map.get(market, market)
     
     # 支援新版 Actor (junipr)
-    actor_id = "junipr/yellow-pages-scraper"
+    actor_id = "junipr~yellow-pages-scraper"
     # v3.2: searchTerms 應為字串（非陣列），否則返回垃圾資料
     run_input = {
         "searchTerms": keyword,
