@@ -26,8 +26,10 @@ import time
 import threading
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 
@@ -81,14 +83,53 @@ async def lifespan(app: FastAPI):
 
 
 # ─── App Init ────────────────────────────────────────────────────────────────
+# ─── Middleware Definitions ───────────────────────────────────────────────
+
+class LinkoraSecurityMiddleware(BaseHTTPMiddleware):
+    """
+    v3.20: 全局安全與異常處理中介層 (不含 CORS，交由外層處理)
+    """
+    async def dispatch(self, request: Request, call_next):
+        try:
+            # 1. 執行後續邏輯
+            start_time = time.time()
+            response = await call_next(request)
+            
+            # 2. 注入 X-Process-Time 與 CSP
+            response.headers["X-Process-Time"] = str(time.time() - start_time)
+            response.headers["Content-Security-Policy"] = CSP_RULES
+            return response
+            
+        except Exception as e:
+            import traceback
+            error_trace = traceback.format_exc()
+            add_log(f"🔥 [API Error] {request.method} {request.url.path}: {e}")
+            
+            resp = JSONResponse(
+                status_code=500,
+                content={
+                    "detail": str(e),
+                    "path": request.url.path,
+                    "msg": "Internal Server Error (Captured by Middleware)",
+                    "trace": error_trace if os.getenv("APP_ENV") != "production" else None
+                }
+            )
+            resp.headers["Content-Security-Policy"] = CSP_RULES
+            return resp
+
+# ─── App Init & Middleware Registry ───────────────────────────────────────
+
 app = FastAPI(
     title="Linkora B2B Engine API",
-    version="3.6.0",
+    version="3.7.20",
     description="Commercial B2B Lead Generation & Outreach Platform",
     lifespan=lifespan
 )
 
-# v3.7.16: 定義精確的授權原點 (避免與 allow_credentials=True 發生衝突)
+# [STEP 1] 首先註冊內部安全中介層
+app.add_middleware(LinkoraSecurityMiddleware)
+
+# [STEP 2] 最後註冊 CORSMiddleware (使其成為最外層，負責所有授權標頭)
 ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:8000",
@@ -103,69 +144,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-# ─── Global Error Middleware ──────────────────────────────────────────────────
-@app.middleware("http")
-async def catch_exceptions_middleware(request: Request, call_next):
-    """
-    v3.17: 極致 CORS 相容化 - 全局強制注入標頭
-    """
-    # 預先識別原點
-    origin = request.headers.get("Origin")
-    is_allowed = origin in ALLOWED_ORIGINS
-    
-    # 手動處裡 OPTIONS 預檢，避免進入後續邏輯 (解決 Missing Header 最快方式)
-    if request.method == "OPTIONS" and is_allowed:
-        response = Response()
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Allow-Methods"] = "*"
-        response.headers["Access-Control-Allow-Headers"] = "*"
-        return response
-
-    try:
-        # 1. 執行後續邏輯
-        start_time = time.time()
-        response = await call_next(request)
-        response.headers["X-Process-Time"] = str(time.time() - start_time)
-        
-        # 2. 解決 'eval' 被瀏覽器阻擋的問題
-        response.headers["Content-Security-Policy"] = CSP_RULES
-        
-        # 3. 強制注入 CORS 標頭 (不論成功碼為何)
-        if is_allowed:
-            response.headers["Access-Control-Allow-Origin"] = origin
-            response.headers["Access-Control-Allow-Credentials"] = "true"
-            response.headers["Access-Control-Allow-Methods"] = "*"
-            response.headers["Access-Control-Allow-Headers"] = "*"
-            
-        return response
-    except Exception as e:
-        import traceback
-        error_trace = traceback.format_exc()
-        add_log(f"🔥 [API Error] {request.method} {request.url.path}: {e}")
-        
-        # 建立 JSON 錯誤回應
-        resp = JSONResponse(
-            status_code=500,
-            content={
-                "detail": str(e),
-                "path": request.url.path,
-                "msg": "Internal Server Error (Captured by Middleware)",
-                "trace": error_trace if os.getenv("APP_ENV") != "production" else None
-            }
-        )
-        
-        # 即使在 Error 回應中也必須強制注入 CORS，否則前端看不見 Detail
-        if is_allowed:
-            resp.headers["Access-Control-Allow-Origin"] = origin
-            resp.headers["Access-Control-Allow-Credentials"] = "true"
-            resp.headers["Access-Control-Allow-Methods"] = "*"
-            resp.headers["Access-Control-Allow-Headers"] = "*"
-            
-        resp.headers["Content-Security-Policy"] = CSP_RULES
-        return resp
 
 
 # ─── Health Check ─────────────────────────────────────────────────────────────
