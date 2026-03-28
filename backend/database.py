@@ -25,11 +25,11 @@ connect_args = {}
 schema_name = "uat" if APP_ENV == "uat" else "public"
 connect_args["options"] = f"-c search_path={schema_name}"
 # v3.5: 強制在 connect_args 映射中明確指定 (針對多執行緒池優化)
-if "postgresql" in DATABASE_URL:
+if DATABASE_URL and "postgresql" in DATABASE_URL:
     connect_args["options"] = f"-c search_path={schema_name}"
 
 # Ensure SSL is active for remote connections
-if "render.com" in DATABASE_URL:
+if DATABASE_URL and "render.com" in DATABASE_URL:
     # Some drivers might need sslmode in the URL, but options handle it for SQLAlchemy usually
     # To be safe, ensure the URL has sslmode=require if not present
     if "sslmode" not in DATABASE_URL:
