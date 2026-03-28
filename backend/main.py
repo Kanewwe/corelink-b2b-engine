@@ -2196,15 +2196,8 @@ def test_smtp_connection(
         }
     return {"message": "Pricing updated", "config": models.pricing_config}
 
-# --- Health Check ---
-@app.get("/health")
-async def health_check():
-    return {
-        "status": "healthy",
-        "admin_user": os.getenv("ADMIN_USER", "none"),
-        "admin_password_set": bool(os.getenv("ADMIN_PASSWORD")),
-        "database_url": os.getenv("DATABASE_URL", "NOT SET"),
-    }
+# v3.5: [REMOVED] Old health check at bottom. 
+# Render should use /api/health defined at the top.
 
 # --- Static Files Hosting ---
 possible_paths = [
