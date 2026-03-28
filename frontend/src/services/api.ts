@@ -84,6 +84,14 @@ export const triggerScrapeSimple = (data: any) => fetchWithAuth('/scrape-simple'
 });
 export const getScraperHealthStats = () => fetchWithAuth('/health/stats');
 
+// Inbound Inbox
+export const getInboundEmails = (status?: string) => {
+  const query = status ? `?status=${status}` : '';
+  return fetchWithAuth(`/inbound${query}`);
+};
+export const getInboundDetail = (id: number) => fetchWithAuth(`/inbound/${id}`);
+export const archiveInboundEmail = (id: number) => fetchWithAuth(`/inbound/${id}/archive`, { method: 'POST' });
+
 // Admin - Vendors
 export const getEngagements = (vendorId?: number) => {
   const query = vendorId ? `?vendor_id=${vendorId}` : '';

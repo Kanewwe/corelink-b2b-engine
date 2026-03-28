@@ -898,3 +898,51 @@ class TransactionLog(Base):
             "description": self.description,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
+# ══════════════════════════════════════════
+# InboundEmails（收件匣回信 v3.7）
+# ══════════════════════════════════════════
+
+class InboundEmail(Base):
+    __tablename__ = "inbound_emails"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    lead_id = Column(Integer, ForeignKey("leads.id", ondelete="SET NULL"), nullable=True, index=True)
+    
+    message_id = Column(String(255), unique=True, index=True) # Postmark MessageID
+    from_email = Column(String(255), nullable=False)
+    from_name = Column(String(255), nullable=True)
+    subject = Column(String(512))
+    
+    body_text = Column(Text)
+    body_html = Column(Text)
+    
+    # AI 分析預存
+    reply_intent = Column(String(50), nullable=True)
+    ai_draft_suggested = Column(Text, nullable=True)
+    
+    status = Column(String(20), default="unread") # 'unread', 'read', 'archived', 'replied'
+    
+    received_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # 關聯
+    user = relationship("User")
+    lead = relationship("Lead")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "lead_id": self.lead_id,
+            "lead": self.lead.to_dict() if self.lead else None,
+            "from_email": self.from_email,
+            "from_name": self.from_name,
+            "subject": self.subject,
+            "body_text": self.body_text,
+            "body_html": self.body_html,
+            "reply_intent": self.reply_intent,
+            "ai_draft_suggested": self.ai_draft_suggested,
+            "status": self.status,
+            "received_at": self.received_at.isoformat() if self.received_at else None
+        }

@@ -20,6 +20,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import ScrapeMonitor from './pages/ScrapeMonitor';
 import CrawlerResearch from './pages/CrawlerResearch';
 import ScraperHealth from './pages/ScraperHealth';
+import Inbox from './pages/Inbox';
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
             <Route path="campaigns" element={<Campaigns />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="history" element={<History />} />
+            <Route path="inbox" element={<Inbox />} />
             <Route path="smtp" element={<SmtpSettings />} />
             
             {/* Admin Routes */}

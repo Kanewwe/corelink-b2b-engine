@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   Search, FileText, Send, BarChart2, Clock, Settings, Users, LogOut, Cpu, UserCog,
-  ChevronLeft, ChevronRight, Monitor, Bug, FlaskConical, Activity, type LucideIcon
+  ChevronLeft, ChevronRight, Monitor, Bug, FlaskConical, Activity, Inbox as InboxIcon, type LucideIcon
 } from 'lucide-react';
 
 interface NavItemData {
@@ -37,6 +37,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: '/analytics', icon: BarChart2, label: '成效分析雷達' },
       { to: '/history', icon: Clock, label: '開發紀錄專區' },
+      { to: '/inbox', icon: InboxIcon, label: 'AI 智慧收件匣' },
     ],
   },
   {

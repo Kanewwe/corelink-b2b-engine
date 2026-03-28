@@ -636,3 +636,55 @@ async def analyze_reply_intent(email_body: str, db = None, user_id: int = None) 
         return json.loads(response.choices[0].message.content)
     except Exception as e:
         return {"intent": "unknown", "confidence": "low", "analysis": str(e)}
+
+
+async def generate_reply_draft(original_body: str, intent: str, db = None, user_id: int = None) -> str:
+    """
+    v3.7: 根據回信內容與意圖，產生 AI 回覆草稿
+    """
+    api_key = get_api_key(db, "openai", user_id)
+    model = get_openai_model(db, user_id)
+    
+    if not api_key:
+        return "OpenAI API Key 未設定，無法產生草稿。"
+    
+    openai.api_key = api_key
+
+    # 針對不同意圖設定建議語氣
+    tone_guides = {
+        "positive": "熱情、專業且直接。提議安排 15 分鐘的短暫會議或提供行事曆連結。",
+        "needs_info": "專業且提供價值。承諾會提供所需資訊，並詢問是否有特定的產品規格。",
+        "follow_up": "有禮貌、體諒。表示感謝，並詢問適合再次聯繫的時間（通常是幾個月後）。",
+        "declined": "得體、感激。感謝對方的回覆，並表示如果未來有需求歡迎隨時聯繫。",
+        "out_of_office": "告知性質。表示收到訊息，將在對方返回後再次聯繫。"
+    }
+
+    prompt = f"""
+你是一位專業的 B2B 業務代表，代表 Corelink 公司（台灣客製化工業件採購專家）。
+請根據客戶發來的【原信內容】與分析出的【意圖】，撰寫一封精確且專業的回覆草稿。
+
+【原信內容】：
+{original_body[:1000]}
+
+【意圖標籤】：{intent}
+【撰寫建議】：{tone_guides.get(intent, "專業、商業化")}
+
+【要求】：
+1. 輸出**僅包含**郵件內容（不含主旨、不含 JSON）。
+2. 使用 Professional English。
+3. 採用簡潔、易讀的段落。
+4. 結尾請固定包含 "Corelink Sales Team"。
+"""
+
+    try:
+        response = openai.ChatCompletion.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "You are a professional B2B Sales Assistant. Output ONLY the email body text."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"(AI 草稿生成失敗: {str(e)})"
