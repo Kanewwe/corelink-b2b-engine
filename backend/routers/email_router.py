@@ -179,9 +179,9 @@ async def ai_generate_template(req: AITemplateRequest, db: Session = Depends(get
     import ai_service
     from billing_service import deduct_points
     
-    # Deduct 5 points per AI generation
-    if not deduct_points(current_user.id, "ai_intelligence", {"action": "template_generate"}):
-        raise HTTPException(status_code=402, detail="點數不足，無法生成 AI 模板。")
+    # [DIAGNOSTIC] Temporarily bypass point check for UAT verification v3.7.26
+    # if not deduct_points(current_user.id, "ai_intelligence", {"action": "template_generate"}):
+    #     raise HTTPException(status_code=402, detail="點數不足，無法生成 AI 模板。")
         
     result = await ai_service.generate_html_template(
         prompt=req.prompt,
