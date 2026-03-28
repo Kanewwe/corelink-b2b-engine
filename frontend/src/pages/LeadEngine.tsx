@@ -7,14 +7,14 @@ import {
   updateLead, 
   proposeCorrection,
   scoreLeads,
-  getUserPoints
+  getUserPoints,
+  generateLeadBrief
 } from '../services/api';
 import { 
   Users, Send, BarChart, ShieldAlert, Cpu, Search, Sparkles, 
   Zap, Mail, Globe, Edit, Save, X, User, Star, Brain, CheckCircle, RotateCcw
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { generateLeadBrief } from '../services/api';
 
 interface Lead {
   id: number;

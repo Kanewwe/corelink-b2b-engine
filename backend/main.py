@@ -9,15 +9,13 @@ from pydantic import BaseModel
 
 from database import engine, Base, get_db
 import models
-import ai_service
 import email_tracker
 import auth as auth_module
 from contextlib import asynccontextmanager
 import email_sender_job
 from logger import add_log, SYSTEM_LOGS
-# from billing_service import deduct_points, get_point_balance (Moved to inline lazy imports for v3.5 stability)
-
-# 台灣時區常數
+# from billing_service import deduct_points, get_point_balance (Lazy Loaded)
+# import ai_service (Lazy Loaded)
 TAIPEI_TZ = timezone(timedelta(hours=8))
 
 # Create database tables automatically (supports schema switching)
