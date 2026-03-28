@@ -111,6 +111,19 @@ async def catch_exceptions_middleware(request: Request, call_next):
         # 2. 執行後續邏輯
         response = await call_next(request)
         response.headers["X-Process-Time"] = str(time.time() - time.time()) # Placeholder for original logic
+        
+        # 3. 解決 'eval' 被瀏覽器阻擋的問題 (v3.7.4)
+        csp_rules = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "font-src 'self' data:; "
+            "img-src 'self' data: https:; "
+            "connect-src 'self' https:; "
+            "frame-ancestors 'self';"
+        )
+        response.headers["Content-Security-Policy"] = csp_rules
+        
         return response
     except Exception as e:
         add_log(f"🔥 [API Error] {request.method} {request.url.path}: {e}")
