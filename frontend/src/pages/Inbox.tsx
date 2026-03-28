@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Inbox as InboxIcon, MessageSquare, Trash2, Send, CheckCircle, Clock, AlertCircle, Copy, Edit3, Trash } from 'lucide-react';
+import { Mail, Inbox as InboxIcon, MessageSquare, Trash2, Clock, Copy, Edit3, RefreshCw } from 'lucide-react';
 import { getInboundEmails, getInboundDetail, archiveInboundEmail } from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -77,12 +77,13 @@ const Inbox: React.FC = () => {
           <p className="page-subtitle">自動捕捉回信意圖，並為您產生最佳回饋草稿 (Sprint 3.3)</p>
         </div>
         <div className="page-header__right">
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            {loading && <RefreshCw size={14} className="animate-spin text-primary" />}
             <span className="text-xs text-text-muted mt-1 mr-2 flex items-center gap-1">
               <Clock size={12} /> 最後同步: {new Date().toLocaleTimeString()}
             </span>
             <button onClick={fetchEmails} className="btn-icon">
-              <Clock size={16} />
+              <RefreshCw size={16} />
             </button>
           </div>
         </div>
@@ -149,72 +150,81 @@ const Inbox: React.FC = () => {
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
-                {/* 原始內容 */}
-                <div className="mb-8">
-                  <div className="flex items-center gap-2 text-xs text-text-muted mb-4">
-                    <div className="w-6 h-px bg-white/10" />
-                    <span>Lead 回信內容 / Customer Reply</span>
-                    <div className="flex-1 h-px bg-white/10" />
+                {detailLoading ? (
+                  <div className="flex flex-col items-center justify-center h-full text-primary/40">
+                    <RefreshCw size={48} className="animate-spin mb-4" />
+                    <p className="text-sm font-medium">正在讀取郵件內容與 AI 分析...</p>
                   </div>
-                  <div className="bg-white/[0.03] p-6 rounded-2xl border border-white/[0.05] whitespace-pre-wrap text-sm leading-relaxed text-text-main shadow-inner">
-                    {selectedEmail.body_text || '(無內文)'}
-                  </div>
-                </div>
-
-                {/* AI 助手建議 */}
-                <div className="animate-slide-up">
-                  <div className="flex items-center gap-2 text-xs text-primary mb-4 font-bold tracking-widest">
-                    <div className="w-10 h-px bg-primary/30" />
-                    <span className="flex items-center gap-2">
-                      <MessageSquare size={14} /> AI 智慧回覆建議 / Reply Assistant
-                    </span>
-                    <div className="flex-1 h-px bg-primary/30" />
-                  </div>
-                  
-                  <div className="bg-gradient-to-br from-primary/10 to-accent/10 p-8 rounded-3xl border border-primary/20 shadow-xl relative group">
-                    <div className="absolute -top-4 -right-4 bg-primary text-bg-dark text-[10px] font-black py-1 px-3 rounded-full shadow-lg">
-                      AI RECOMENDED
-                    </div>
-                    
-                    <div className="flex items-center gap-2 mb-6 text-sm font-bold text-white">
-                      💡 建議語氣: 
-                      <span className="text-primary uppercase tracking-tighter">
-                        {selectedEmail.reply_intent === 'positive' ? 'Professional & Warm' : 'Polite & Follow-up'}
-                      </span>
-                    </div>
-
-                    <div className="bg-bg-dark/60 p-6 rounded-2xl border border-white/5 text-sm leading-relaxed text-text-main font-mono whitespace-pre-wrap">
-                      {selectedEmail.ai_draft_suggested || 'AI 正在分析最佳回覆策略...'}
-                    </div>
-
-                    <div className="mt-6 flex gap-4">
-                      <button 
-                        onClick={() => {
-                          navigator.clipboard.writeText(selectedEmail.ai_draft_suggested);
-                          toast.success('草稿已複製到剪貼簿');
-                        }}
-                        className="btn-primary flex-1 flex items-center justify-center gap-2"
-                      >
-                        <Copy size={16} /> 複製草稿內容
-                      </button>
-                      <button className="btn-outline flex-1 flex items-center justify-center gap-2">
-                        <Edit3 size={16} /> 進入編輯並回覆
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-6 p-4 bg-white/[0.02] rounded-2xl border border-white/[0.05]">
-                    <div className="flex items-start gap-3">
-                      <Clock size={16} className="text-text-muted mt-1" />
-                      <div>
-                        <h4 className="text-xs font-bold text-white mb-1">AI 決策建議</h4>
-                        <p className="text-[10px] text-text-muted leading-relaxed">
-                          根據客戶的意圖「{selectedEmail.reply_intent}」，建議在 24 小時內完成回覆。此草稿已考量 Corelink 的 B2B 產品線優勢與台灣供應鏈整合能力。
-                        </p>
+                ) : (
+                  <>
+                    {/* 原始內容 */}
+                    <div className="mb-8">
+                      <div className="flex items-center gap-2 text-xs text-text-muted mb-4">
+                        <div className="w-6 h-px bg-white/10" />
+                        <span>Lead 回信內容 / Customer Reply</span>
+                        <div className="flex-1 h-px bg-white/10" />
+                      </div>
+                      <div className="bg-white/[0.03] p-6 rounded-2xl border border-white/[0.05] whitespace-pre-wrap text-sm leading-relaxed text-text-main shadow-inner">
+                        {selectedEmail.body_text || '(無內文)'}
                       </div>
                     </div>
-                  </div>
-                </div>
+
+                    {/* AI 助手建議 */}
+                    <div className="animate-slide-up">
+                      <div className="flex items-center gap-2 text-xs text-primary mb-4 font-bold tracking-widest">
+                        <div className="w-10 h-px bg-primary/30" />
+                        <span className="flex items-center gap-2">
+                          <MessageSquare size={14} /> AI 智慧回覆建議 / Reply Assistant
+                        </span>
+                        <div className="flex-1 h-px bg-primary/30" />
+                      </div>
+                      
+                      <div className="bg-gradient-to-br from-primary/10 to-accent/10 p-8 rounded-3xl border border-primary/20 shadow-xl relative group">
+                        <div className="absolute -top-4 -right-4 bg-primary text-bg-dark text-[10px] font-black py-1 px-3 rounded-full shadow-lg">
+                          AI RECOMENDED
+                        </div>
+                        
+                        <div className="flex items-center gap-2 mb-6 text-sm font-bold text-white">
+                          💡 建議語氣: 
+                          <span className="text-primary uppercase tracking-tighter">
+                            {selectedEmail.reply_intent === 'positive' ? 'Professional & Warm' : 'Polite & Follow-up'}
+                          </span>
+                        </div>
+
+                        <div className="bg-bg-dark/60 p-6 rounded-2xl border border-white/5 text-sm leading-relaxed text-text-main font-mono whitespace-pre-wrap">
+                          {selectedEmail.ai_draft_suggested || 'AI 正在分析最佳回覆策略...'}
+                        </div>
+
+                        <div className="mt-6 flex gap-4">
+                          <button 
+                            onClick={() => {
+                              navigator.clipboard.writeText(selectedEmail.ai_draft_suggested);
+                              toast.success('草稿已複製到剪貼簿');
+                            }}
+                            className="btn-primary flex-1 flex items-center justify-center gap-2"
+                          >
+                            <Copy size={16} /> 複製草稿內容
+                          </button>
+                          <button className="btn-outline flex-1 flex items-center justify-center gap-2">
+                            <Edit3 size={16} /> 進入編輯並回覆
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-6 p-4 bg-white/[0.02] rounded-2xl border border-white/[0.05]">
+                        <div className="flex items-start gap-3">
+                          <Clock size={16} className="text-text-muted mt-1" />
+                          <div>
+                            <h4 className="text-xs font-bold text-white mb-1">AI 決策建議</h4>
+                            <p className="text-[10px] text-text-muted leading-relaxed">
+                              根據客戶的意圖「{selectedEmail.reply_intent}」，建議在 24 小時內完成回覆。此草稿已考量 Corelink 的 B2B 產品線優勢與台灣供應鏈整合能力。
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </>
           )}
