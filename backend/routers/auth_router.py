@@ -162,6 +162,7 @@ def auth_logout(response: Response, session_id: str = Cookie(None), db: Session 
     return {"message": "已登出"}
 
 
+@router.get("/auth/me")
 def get_me(request: Request, session_id: str = Cookie(None), db: Session = Depends(get_db)):
     """取得當前用戶資訊"""
     # 支援 Bearer Token
