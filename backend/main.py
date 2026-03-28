@@ -171,12 +171,11 @@ async def catch_exceptions_middleware(request: Request, call_next):
 
 # --- Health Check ---
 @app.get("/api/health")
-def health_check(db: Session = Depends(get_db)):
+def health_check():
     return {
         "status": "healthy", 
         "timestamp": datetime.now().isoformat(),
-        "db_v3_4": "synced" if "migrate_v3_4" in str(SYSTEM_LOGS) else "pending",
-        "system_points": get_point_balance(db, 1) if hasattr(models, 'User') else 0
+        "db_v3_4": "synced" if "migrate_v3_4" in str(SYSTEM_LOGS) else "pending"
     }
 
 # --- Pydantic Schemas ---
