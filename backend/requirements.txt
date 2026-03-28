@@ -15,3 +15,5 @@ bcrypt==4.1.2
 pytest==7.4.3
 pytest-mock
 apify-client>=1.0.0
+postmark==1.0.0
+python-multipart==0.0.6
