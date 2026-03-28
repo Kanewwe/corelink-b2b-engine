@@ -92,6 +92,11 @@ export const getInboundEmails = (status?: string) => {
 export const getInboundDetail = (id: number) => fetchWithAuth(`/inbound/${id}`);
 export const archiveInboundEmail = (id: number) => fetchWithAuth(`/inbound/${id}/archive`, { method: 'POST' });
 
+// Analytics Real Stats
+export const getDeliveryStats = (days = 30) => fetchWithAuth(`/analytics/delivery-stats?days=${days}`);
+export const getTagFunnel = () => fetchWithAuth('/analytics/tag-funnel');
+export const generateAnalyticsSummary = () => fetchWithAuth('/ai/stats-insight'); // Fixed matching backend naming
+
 // Admin - Vendors
 export const getEngagements = (vendorId?: number) => {
   const query = vendorId ? `?vendor_id=${vendorId}` : '';
@@ -272,8 +277,6 @@ export const generateABVersions = (companyName: string, tag: string = '', keywor
     body: JSON.stringify({ company_name: companyName, tag, keywords })
   });
 
-export const generateAnalyticsSummary = () =>
-  fetchWithAuth('/analytics/ai-summary', { method: 'POST' });
 
 // ── v3.2/v3.6: 最佳寄信時間 & 回覆意圖 ──
 export const getOptimalSendTime = () =>

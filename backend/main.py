@@ -151,7 +151,7 @@ def health_check():
 
 
 # ─── Mount Routers ────────────────────────────────────────────────────────────
-from routers import auth_router, leads_router, email_router, scraper_router, admin_router, track_router, ai_router, webhook_router, inbound_router
+from routers import auth_router, leads_router, email_router, scraper_router, admin_router, track_router, ai_router, webhook_router, inbound_router, analytics_router
 
 app.include_router(auth_router.router,    prefix="/api", tags=["Auth"])
 app.include_router(leads_router.router,   prefix="/api", tags=["Leads"])
@@ -159,6 +159,7 @@ app.include_router(email_router.router,   prefix="/api", tags=["Email"])
 app.include_router(ai_router.router, prefix="/api", tags=["AI Intelligence 2.0"])
 app.include_router(webhook_router.router, prefix="/api", tags=["Webhooks"])
 app.include_router(inbound_router.router, prefix="/api", tags=["Inbound Reply Bench"])
+app.include_router(analytics_router.router, prefix="/api", tags=["Analytics Radar"])
 app.include_router(scraper_router.router, prefix="/api", tags=["Scraper"])
 app.include_router(admin_router.router,   prefix="/api", tags=["Admin"])
 app.include_router(track_router.router,               tags=["Tracking"])

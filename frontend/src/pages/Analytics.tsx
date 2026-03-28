@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getEngagements, getAdminVendors, generateAnalyticsSummary } from '../services/api';
+import { getEngagements, getAdminVendors, generateAnalyticsSummary, getDeliveryStats, getTagFunnel } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { BarChart3, Users, DollarSign, Calendar, Building2, Brain, RotateCcw, Lightbulb, TrendingUp } from 'lucide-react';
 
@@ -21,6 +21,10 @@ const Analytics: React.FC = () => {
   const [aiSummary, setAiSummary] = useState<any>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
   
+  // v3.5: 真實遙測狀態
+  const [deliveryStats, setDeliveryStats] = useState<any>(null);
+  const [tagFunnel, setTagFunnel] = useState<any>(null);
+  
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -29,6 +33,12 @@ const Analytics: React.FC = () => {
         const result = await resp.json();
         setData(result);
       }
+      
+      // v3.5: 真實投遞數據與行業漏斗
+      const statsResp = await getDeliveryStats();
+      const funnelResp = await getTagFunnel();
+      if (statsResp.ok) setDeliveryStats(await statsResp.json());
+      if (funnelResp.ok) setTagFunnel(await funnelResp.json());
       
       if (user?.role === 'admin' && vendors.length === 0) {
         const vResp = await getAdminVendors();
@@ -154,15 +164,15 @@ const Analytics: React.FC = () => {
             <p className="text-sm text-white/90 leading-relaxed">{aiSummary.summary}</p>
           </div>
           
-          {/* Stats row */}
+          {/* Stats row - v3.5: Real Data Mapping */}
           <div className="grid grid-cols-4 gap-3 mb-4">
             {[
-              { label: '寄送', value: aiSummary.sent || 0, color: 'var(--color-primary)' },
-              { label: '開信率', value: `${aiSummary.open_rate || 0}%`, color: 'var(--color-accent-teal)' },
-              { label: '點擊率', value: `${aiSummary.click_rate || 0}%`, color: 'var(--color-warning)' },
-              { label: '退信率', value: `${aiSummary.bounce_rate || 0}%`, color: aiSummary.bounce_rate > 5 ? 'var(--color-danger)' : 'var(--color-success)' },
+              { label: '寄送', value: deliveryStats?.funnel?.sent || 0, color: 'var(--color-primary)' },
+              { label: '開信率', value: `${deliveryStats?.funnel?.open_rate || 0}%`, color: 'var(--color-accent-teal)' },
+              { label: '點擊率', value: `${deliveryStats?.funnel?.click_rate || 0}%`, color: 'var(--color-warning)' },
+              { label: '回覆率', value: `${deliveryStats?.funnel?.reply_rate || 0}%`, color: 'var(--color-success)' },
             ].map(stat => (
-              <div key={stat.label} className="bg-white/[0.03] rounded-xl p-3 text-center">
+              <div key={stat.label} className="bg-white/[0.03] rounded-xl p-3 text-center transition-transform hover:scale-105">
                 <div className="text-lg font-black" style={{ color: stat.color }}>{stat.value}</div>
                 <div className="text-[10px] text-text-muted mt-0.5">{stat.label}</div>
               </div>
@@ -239,41 +249,79 @@ const Analytics: React.FC = () => {
 
       {/* ── Charts ── */}
       <div className="analytics-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-        {/* 行業分佈 */}
+        {/* ── v3.5: Conversion Funnel ── */}
+        <div className="card">
+          <div className="card__header">
+            <h3 className="card__title">
+              <TrendingUp size={16} className="text-primary" />
+              投遞轉換漏斗 (Delivery Funnel)
+            </h3>
+          </div>
+          <div className="flex flex-col gap-4 py-4">
+            {[
+              { label: '探勘名單 (Sent)', count: deliveryStats?.funnel?.sent || 0, percent: 100, color: 'bg-primary' },
+              { label: '成功送達 (Delivered)', count: deliveryStats?.funnel?.sent || 0, percent: 100, color: 'bg-accent-teal' },
+              { label: '客戶開信 (Opened)', count: deliveryStats?.funnel?.opened || 0, percent: deliveryStats?.funnel?.open_rate || 0, color: 'bg-accent-blue' },
+              { label: '點擊連結 (Clicked)', count: deliveryStats?.funnel?.clicked || 0, percent: deliveryStats?.funnel?.click_rate || 0, color: 'bg-warning' },
+              { label: '回覆對話 (Replied)', count: deliveryStats?.funnel?.replied || 0, percent: deliveryStats?.funnel?.reply_rate || 0, color: 'bg-success' },
+            ].map((step, i) => (
+              <div key={step.label} className="relative">
+                <div className="flex justify-between items-center mb-1.5 px-2">
+                  <span className="text-xs font-bold text-white/80">{step.label}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-white">{step.count}</span>
+                    <span className="text-[10px] text-text-muted">({step.percent}%)</span>
+                  </div>
+                </div>
+                <div className="h-2.5 w-full bg-white/5 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full ${step.color} transition-all duration-1000 ease-out`}
+                    style={{ width: `${step.percent}%`, opacity: 1 - (i * 0.15) }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 行業分佈 - v3.5: Real Industry Mapping */}
         <div className="card">
           <div className="card__header">
             <h3 className="card__title">
               <BarChart3 size={16} style={{ color: 'var(--color-primary)' }} />
-              各行業界別分佈
+              各行業界別分佈 (Industry Impact)
             </h3>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', maxHeight: 400 }}>
-            {Object.entries(data?.tag_stats || {}).map(([tag, stats]: [string, any]) => (
-              <div key={tag}>
+            {Object.entries(tagFunnel || {}).map(([tag, stats]: [string, any]) => (
+              <div key={tag} className="hover:bg-white/[0.02] p-2 rounded-lg transition-colors">
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
                   <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>{tag}</span>
-                  <span style={{ color: 'var(--color-text-muted)' }}>{stats.total} 筆</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-accent-teal font-bold">{stats.open_rate}% 開信</span>
+                    <span style={{ color: 'var(--color-text-muted)' }}>{stats.sent} 筆</span>
+                  </div>
                 </div>
-                <div style={{ height: 8, background: 'var(--color-border)', borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{ height: 6, background: 'var(--color-border)', borderRadius: 3, overflow: 'hidden' }}>
                   <div style={{
                     height: '100%',
                     background: 'linear-gradient(90deg, var(--color-primary), var(--color-accent-teal))',
-                    width: `${Math.min(100, (stats.total / (data.total_leads || 1)) * 100)}%`,
+                    width: `${Math.min(100, (stats.sent / (deliveryStats?.funnel?.sent || 1)) * 100)}%`,
                     transition: 'width 1s ease',
-                    borderRadius: 4
+                    borderRadius: 3
                   }} />
                 </div>
-                <div style={{ display: 'flex', gap: 16, fontSize: 10, color: 'var(--color-text-muted)', marginTop: 4 }}>
-                  <span>已送達: {stats.delivered}</span>
+                <div style={{ display: 'flex', gap: 16, fontSize: 10, color: 'var(--color-text-muted)', marginTop: 6 }}>
+                  <span>已送達: {stats.sent}</span>
                   <span style={{ color: 'var(--color-accent-teal)' }}>已開信: {stats.opened}</span>
                   <span style={{ color: 'var(--color-primary)' }}>已點擊: {stats.clicked}</span>
                 </div>
               </div>
             ))}
-            {Object.keys(data?.tag_stats || {}).length === 0 && (
+            {Object.keys(tagFunnel || {}).length === 0 && (
               <div className="empty-state" style={{ padding: '40px 20px' }}>
                 <div className="empty-state__icon">📊</div>
-                <p className="empty-state__title">尚無分析資料</p>
+                <p className="empty-state__title">尚無產業數據</p>
               </div>
             )}
           </div>
