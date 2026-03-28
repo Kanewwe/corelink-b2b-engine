@@ -7,15 +7,17 @@
 
 ## 1. 問題分類矩陣
 
-| 層次 | 問題 | 嚴重性 | 狀態 |
-|------|------|--------|------|
-| Apify Actor | Junipr YellowPages 返回餐廳/無效公司 | 🔴 高 | 待替換 Actor |
-| Apify Actor | `searchTerms` 需為**字串**，非陣列 | 🔴 高 | ✅ 已修復 |
-| Email 補強 | `find_emails_free()` 每 domain 需 210 秒 | 🔴 高 | ✅ 已修復（free 模式跳過） |
-| 去重邏輯 | 全域/私域池去重太 aggressive | 🟡 中 | 需觀察 |
-| 任務超時 | 製造商模式超時 | 🟡 中 | 需優化 |
-| Leads 入庫 | 所有舊 Leads 無 email_candidates | 🟡 中 | 需重新爬取 |
-| API 路由 | SystemSettings 前端呼叫錯誤接口 | 🟡 中 | ✅ 需修復 |
+| 層次 | 問題 | 嚴重性 | 狀態 | 確認日期 |
+|------|------|--------|------|---------|
+| Apify Actor | Junipr YellowPages items=0，**Actor 已實質下架** | 🔴 高 | 🔴 已確認 | 2026-03-28 |
+| Apify Actor | `searchTerms` 需為**字串**，非陣列 | 🔴 高 | ✅ 已修復 | 2026-03-27 |
+| Apify Actor | `wWqrTazDTGHCGTFvw` → FAILED | 🔴 高 | 🔴 已確認 | 2026-03-28 |
+| Apify Actor | Thomasnet `zen-studio/thomasnet` → HTTP 404 | 🔴 高 | 🔴 已確認 | 2026-03-28 |
+| Direct Scraping | YellowPages.com → HTTP 403 Forbidden | 🔴 高 | 🟡 需繞過 | 2026-03-28 |
+| Email 補強 | `find_emails_free()` 每 domain 需 210 秒 | 🔴 高 | ✅ 已修復（free 模式跳過） | 2026-03-28 |
+| 去重邏輯 | 全域/私域池去重太 aggressive | 🟡 中 | 🟡 需觀察 | 2026-03-28 |
+| Leads 入庫 | 所有舊 Leads 無 email_candidates | 🟡 中 | 🟡 需重新爬取 | 2026-03-28 |
+| API 路由 | SystemSettings 前端呼叫錯誤接口 | 🟡 中 | ✅ 已修復 | 2026-03-28 |
 
 ---
 
