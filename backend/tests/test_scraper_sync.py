@@ -43,6 +43,7 @@ def test_domain_deduplication(db_session):
     驗證 Domain 去重邏輯。
     """
     user_a = models.User(email="user_a@test.com", name="User A")
+    user_a.set_password("pass123")
     db_session.add(user_a)
     db_session.commit()
     
@@ -63,6 +64,7 @@ def test_sync_disabled_scenario(db_session):
     驗證當同步功能關閉時，不應從全域池拉取資料。
     """
     user_c = models.User(email="user_c@test.com", name="User C")
+    user_c.set_password("pass123")
     db_session.add(user_c)
     db_session.commit()
     

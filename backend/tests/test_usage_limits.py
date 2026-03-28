@@ -9,6 +9,7 @@ def test_free_plan_limits(db_session):
     """
     # 1. 建立 Free 方案用戶
     user = models.User(email="free_user@test.com", name="Free User")
+    user.set_password("pass123")
     db_session.add(user)
     db_session.commit()
     
@@ -44,6 +45,7 @@ def test_pro_plan_extended_limits(db_session):
     預設 Pro 方案 max_customers=500。
     """
     user = models.User(email="pro_user@test.com", name="Pro User")
+    user.set_password("pass123")
     db_session.add(user)
     db_session.commit()
     
@@ -70,6 +72,7 @@ def test_vendor_unlimited_access(db_session):
     驗證 Vendor 角色無限制。
     """
     vendor = models.User(email="vendor_api@test.com", name="Vendor", role="vendor")
+    vendor.set_password("pass123")
     db_session.add(vendor)
     db_session.commit()
     

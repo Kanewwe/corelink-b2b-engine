@@ -22,9 +22,13 @@ USER_AGENTS = [
 ]
 
 
-def _make_request(url: str, timeout: int = 15) -> Optional[str]:
-    """發送 HTTP GET，自動處理 User-Agent 輪換和基本錯誤"""
+def _make_request(url: str, timeout: int = 15) -> tuple:
+    """
+    發送 HTTP GET，自動處理 User-Agent 輪換和格式分析
+    Returns: (html: str, status_code: int, response_time: float)
+    """
     import random
+    import time as _time
     headers = {
         "User-Agent": random.choice(USER_AGENTS),
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
@@ -33,18 +37,23 @@ def _make_request(url: str, timeout: int = 15) -> Optional[str]:
         "Connection": "keep-alive",
         "Upgrade-Insecure-Requests": "1",
     }
+    start_time = _time.time()
     try:
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=timeout) as resp:
+            status = resp.status
             charset = "utf-8"
             ct = resp.headers.get("Content-Type", "")
             if "charset=" in ct:
                 charset = ct.split("charset=")[-1].split(";")[0].strip()
             html = resp.read().decode(charset, errors="replace")
-            return html
+            duration = _time.time() - start_time
+            return html, status, duration
     except Exception as e:
-        logger.warning(f"Request failed: {url} — {e}")
-        return None
+        duration = _time.time() - start_time
+        status = getattr(e, 'code', 500) if hasattr(e, 'code') else 500
+        logger.warning(f"Request failed: {url} — {e} | Status: {status}")
+        return None, status, duration
 
 
 def _extract_emails(text: str) -> List[str]:
@@ -100,7 +109,7 @@ def _is_valid_business(name: str) -> bool:
 
 
 def scrape_yellowpages(keyword: str, location: str = "United States", 
-                       max_pages: int = 1) -> List[Dict]:
+                       max_pages: int = 1, task_id: int = None) -> List[Dict]:
     """
     直接爬取 YellowPages.com 搜尋結果
     
@@ -108,10 +117,12 @@ def scrape_yellowpages(keyword: str, location: str = "United States",
         keyword: 搜尋關鍵字（例：electronics manufacturer）
         location: 地點（例：United States）
         max_pages: 最大頁數（每頁約 30 筆）
+        task_id: 選填，用於紀錄健康指標 (v3.4)
     
     Returns:
         List of dicts with: name, website, phone, address, emails
     """
+    from scraper_utils import log_scrape_health
     results = []
     seen_domains = set()
     
@@ -129,7 +140,20 @@ def scrape_yellowpages(keyword: str, location: str = "United States",
         search_url = "https://www.yellowpages.com/search?" + urllib.parse.urlencode(params)
         logger.info(f"🌐 Scraping page {page}: {search_url[:80]}")
         
-        html = _make_request(search_url, timeout=20)
+        html, status, duration = _make_request(search_url, timeout=20)
+        
+        # SA v3.4: 紀錄爬取健康指標
+        if task_id:
+            log_scrape_health(
+                task_id=task_id,
+                message=f"YellowPages Page {page} scraped",
+                level="success" if html else "error",
+                response_time=duration,
+                http_status=status,
+                keyword=keyword,
+                page=page
+            )
+
         if not html:
             logger.warning(f"Failed to fetch page {page}")
             continue

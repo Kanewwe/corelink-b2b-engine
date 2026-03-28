@@ -9,6 +9,7 @@ import models
 import email_tracker
 from database import SessionLocal
 from logger import add_log
+from billing_service import deduct_points
 
 load_dotenv()
 
@@ -114,6 +115,9 @@ def send_email_job():
                     
                     # Update email log
                     email_tracker.update_email_log_status(email_log.log_uuid, "delivered")
+                    
+                    # v3.5: Billing Check (Email = 1 pt)
+                    deduct_points(lead.user_id, "email_sent", {"log_id": email_log.id})
                     
                     add_log(f"✅ [發信] 成功寄送至 {to_email} ({lead.company_name})")
                 else:

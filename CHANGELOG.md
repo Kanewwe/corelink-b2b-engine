@@ -4,6 +4,13 @@
 
 ---
 
+## [v3.5-scope-spec] - 2026-03-28
+### 📋 產品規劃與通道配置 (PM & Channel Spec)
+- **v3.5 完整 Scope 定義**：發送 `COMPLETE_SCOPE_v3.5.md`，明確定義「批發結算引擎」與「Vendor-Member 深度關聯」架構。
+- **Postmark 配置規範**：建立 `POSTMARK_CONFIG_SPEC.md`，規劃五步引導式的專業發信通道配置流程。
+- **異常處理 SOP**：更新 `BUSINESS_PROCESS.md`，納入爬蟲 Fallback 與 SMTP 黑名單防禦機制。
+- **Agent 規則更新**：在 `.cursorrules` 中正式確立「任務完善與封鎖 (Archiving)」標準流程。
+
 ## [v3.1.8-resilience] - 2026-03-27
 ### 🏭 製造商引擎重構 (Engine Resilience)
 - **核心升級**：全面升級至 `zen-studio` 爬蟲驅動，支援深度抓取與更好的反爬繞過。

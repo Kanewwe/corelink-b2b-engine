@@ -19,6 +19,7 @@ import auth as auth_module
 from contextlib import asynccontextmanager
 import email_sender_job
 from logger import add_log, SYSTEM_LOGS
+from billing_service import deduct_points, get_point_balance
 
 # 台灣時區常數
 TAIPEI_TZ = timezone(timedelta(hours=8))
@@ -799,6 +800,10 @@ def trigger_scrape_simple(
         rem_target = target_total - total_found_in_intel
         adj_pages = max(1, (rem_target + 9) // 10)
 
+        # v3.5: Billing Check (Scrape = 10 pts)
+        if not deduct_points(current_user.id, "scrape", {"keyword": keywords[0], "pages": adj_pages}):
+            raise HTTPException(status_code=402, detail="點數不足，請儲值後再進行探勘。")
+
         if req.miner_mode == "manufacturer":
             import manufacturer_miner
             import asyncio
@@ -964,6 +969,10 @@ async def generate_lead_brief(
         user_keywords=lead.extracted_keywords or ""
     )
     
+    # v3.5: Billing Check (AI = 5 pts)
+    if not deduct_points(current_user.id, "ai_intelligence", {"lead_id": lead_id}):
+        raise HTTPException(status_code=402, detail="點數不足，無法生成 AI 情報。")
+
     # 生成情報摘要
     brief_result = await ai_service.generate_lead_brief(
         company_name=lead.company_name or "",
@@ -1003,7 +1012,10 @@ async def optimize_subject(
     req: SubjectOptimizeRequest,
     current_user: models.User = Depends(get_current_user_id)
 ):
-    """AI 優化信件主旨，生成 3 個高開信率版本（v3.2）"""
+    # v3.5: Billing Check (AI = 5 pts)
+    if not deduct_points(current_user.id, "ai_intelligence", {"action": "subject_optimize"}):
+        raise HTTPException(status_code=402, detail="點數不足，無法優化主旨。")
+
     result = await ai_service.optimize_email_subject(
         subject=req.subject,
         company_name=req.company_name,
@@ -1023,7 +1035,10 @@ async def generate_ab_versions(
     req: ABTestRequest,
     current_user: models.User = Depends(get_current_user_id)
 ):
-    """AI 生成 A/B 測試雙版本（v3.2）"""
+    # v3.5: Billing Check (AI = 5 pts)
+    if not deduct_points(current_user.id, "ai_intelligence", {"action": "ab_test"}):
+        raise HTTPException(status_code=402, detail="點數不足，無法生成 A/B 版本。")
+
     result = await ai_service.generate_ab_test_versions(
         company_name=req.company_name,
         tag=req.tag,
@@ -1093,7 +1108,10 @@ async def analyze_reply_intent(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user_id)
 ):
-    """AI 回覆意圖分類（v3.2）"""
+    # v3.5: Billing Check (AI = 5 pts)
+    if not deduct_points(current_user.id, "ai_intelligence", {"action": "reply_intent"}):
+        raise HTTPException(status_code=402, detail="點數不足，無法分析意圖。")
+
     email_body = req.get("email_body", "")
     result = await ai_service.analyze_reply_intent(email_body, db, current_user.id)
     return {"success": True, **result}

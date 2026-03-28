@@ -13,7 +13,11 @@ Always refer to docs/AGENT_SKILL_BOOK.md for full context.
 - Frontend API: frontend/src/services/api.ts
 - Routing: frontend/src/App.tsx
 
-## Token-Saving Instructions
-- Do not read node_modules, dist, or .venv.
-- Prefer reading specific files over listing directories recursively.
-- When modifying the UI, prioritize existing Tailwind utility classes.
+## Task Completion & Archiving
+- **Deliverable**: All tasks MUST follow the **VCP (Verify-Commit-Push)** rule before closure.
+- **Manual Archive**: After coding, the Agent MUST:
+    1. Update `CHANGELOG.md` with a summary of the version change.
+    2. Update `ROADMAP.md` to mark tasks as completed.
+    3. Finalize the `task.md` and provide a `walkthrough.md`.
+    4. Run `/commit` to sync changes to the `uat` branch.
+- **Zero-Waste**: Delete any temporary or scratch files in `/tmp` or root before ending.
