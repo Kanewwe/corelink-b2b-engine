@@ -14,7 +14,7 @@ if not DATABASE_URL and APP_ENV == "test":
     print("ℹ️ [Database] APP_ENV=test and no DATABASE_URL found. Using SQLite In-Memory.")
 
 # Fix Render's postgres:// -> postgresql://
-if DATABASE_URL.startswith("postgres://"):
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 # ─── PostgreSQL Connection Arguments ───
