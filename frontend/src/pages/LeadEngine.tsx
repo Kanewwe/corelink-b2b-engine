@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Send, BarChart, ShieldAlert, Cpu, Search, Sparkles, 
-  Zap, Mail, Globe, Edit, Save, X, User, Star, Brain, CheckCircle, RotateCcw, 
+  Zap, Globe, Edit, Save, X, User, Star, Brain, CheckCircle, RotateCcw, 
   Download, RefreshCw, Factory, Briefcase, MapPin
 } from 'lucide-react';
 import { 
@@ -39,6 +39,7 @@ interface Lead {
   ai_score_tags?: string;
   ai_brief?: string;
   ai_suggestions?: string;
+  industry_code?: string;
 }
 
 // ── Lead Detail Drawer Component ──
@@ -354,7 +355,6 @@ const LeadEngine: React.FC = () => {
   const [minerMode, setMinerMode] = useState('general');
   const [employeeRange, setEmployeeRange] = useState('11-50');
   const [positionFilter, setPositionFilter] = useState('');
-  const [emailStrategy, setEmailStrategy] = useState<'free' | 'hunter'>('free');
   const [isMining, setIsMining] = useState(false);
   const [balance, setBalance] = useState<number | null>(null);
   const [globalCount, setGlobalCount] = useState(0);
@@ -443,7 +443,6 @@ const LeadEngine: React.FC = () => {
         keyword: finalKeywords.join(', '),
         location,
         miner_mode: minerMode,
-        email_strategy: emailStrategy,
         employee_range: minerMode === 'manufacturer' ? employeeRange : undefined,
         position_filter: minerMode === 'sales' ? positionFilter : undefined
       });
@@ -551,7 +550,7 @@ const LeadEngine: React.FC = () => {
     
     const filtered = leads.filter((l: Lead) => 
       (!search || l.display_name?.toLowerCase().includes(search.toLowerCase())) &&
-      (!industryFilter || l.domain?.includes(industryFilter)) // Temporary domain match for demo
+      (!industryFilter || (l as any).industry_code === industryFilter)
     );
 
     const headers = ["ID", "Company Name", "Domain", "Email", "AI Score", "Notes"];
@@ -578,7 +577,8 @@ const LeadEngine: React.FC = () => {
   };
 
   const filteredLeads = leads.filter((l: Lead) => 
-    (!search || l.display_name?.toLowerCase().includes(search.toLowerCase()))
+    (!search || l.display_name?.toLowerCase().includes(search.toLowerCase())) &&
+    (!industryFilter || l.industry_code?.startsWith(industryFilter))
   );
 
   if (loading && leads.length === 0) {
@@ -618,9 +618,9 @@ const LeadEngine: React.FC = () => {
           <div className="page-header__title-row">
             <h1 className="page-title">
               精準開發雷達
-              <span className="page-title__en">Precision Radar</span>
+              <span className="page-title__en">Precision Radar v4.0</span>
             </h1>
-            <span className="version-badge">LINKORA V3.2 (AI Intelligence)</span>
+            <span className="version-badge">LINKORA V4.0 (Autonomous B2B)</span>
           </div>
           <p className="page-subtitle">AI 驅動的全自動 B2B 客戶探勘引擎，精準發現潛在採購商並實現情報共享。</p>
         </div>
@@ -631,7 +631,7 @@ const LeadEngine: React.FC = () => {
             <div className="flex-1">
               <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-bold uppercase tracking-wider mb-2">
                 <BarChart size={10} />
-                搜尋效率
+                點數餘額 (Balance)
               </div>
               <span className="text-sm font-black text-white leading-none mt-1">
                 {balance !== null ? balance.toLocaleString() : '---'}
@@ -664,76 +664,45 @@ const LeadEngine: React.FC = () => {
         {/* Left Column: Miner Form */}
         <section className="card lg:col-span-5 h-fit shadow-xl border-white/5">
           <div className="card__header">
-            <h3 className="card__title">🕷️ 全自動化探勘引擎 (Auto-Miner)</h3>
+            <h3 className="card__title">🕸️ 自主探勘指揮中心 (Autonomous Miner)</h3>
           </div>
 
           <form onSubmit={handleScrape} className="flex flex-col gap-5 mt-4">
-            <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl">
-              <div className="text-[11px] font-bold text-emerald-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-                <Mail className="w-3.5 h-3.5" /> Email 發現策略 (Discovery)
-              </div>
-              <div className="flex gap-4">
-                <label className="flex-1 flex items-center gap-2 p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors group">
-                  <input
-                    type="radio" name="email-strategy" value="free"
-                    checked={emailStrategy === 'free'} onChange={() => setEmailStrategy('free')}
-                    className="accent-emerald-500"
-                  />
-                  <div className="flex items-center gap-2">
-                    <span className="bg-emerald-500/10 text-emerald-500 text-[10px] px-1.5 py-0.5 rounded border border-emerald-500/20 font-bold">FREE</span>
-                    <span className="text-xs text-text-muted group-hover:text-white transition-colors">免費模式</span>
-                  </div>
-                </label>
-                <label className="flex-1 flex items-center gap-2 p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors group">
-                  <input 
-                    type="radio" name="email-strategy" value="hunter" 
-                    checked={emailStrategy === 'hunter'} onChange={() => setEmailStrategy('hunter')}
-                    className="accent-warning"
-                  />
-                  <div className="flex items-center gap-2">
-                    <Zap className="w-3 h-3 text-warning fill-warning" />
-                    <span className="text-xs text-text-muted group-hover:text-white transition-colors">Hunter.io</span>
-                  </div>
-                </label>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[11px] font-bold text-text-muted uppercase tracking-widest mb-2 ml-1">目標市場 (Market)</label>
-                <div className="relative">
-                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-                  <select 
-                    className="input-field pl-10 appearance-none"
-                    value={market} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setMarket(e.target.value)}
-                  >
-                    <option value="US">美國 (US)</option>
-                    <option value="EU">歐洲 (EU)</option>
-                    <option value="TW">台灣 (TW)</option>
-                  </select>
-                </div>
+            <div className="grid grid-cols-2 gap-4 p-4 bg-white/5 border border-white/5 rounded-xl">
+              <div className="col-span-2 text-[10px] font-bold text-text-muted uppercase tracking-widest mb-1 flex items-center gap-2">
+                <Globe className="w-3 h-3" /> 探勘參數 (Search Config)
               </div>
               <div>
-                <label className="block text-[11px] font-bold text-text-muted uppercase tracking-widest mb-2 ml-1">爬取深度 (Pages)</label>
+                <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-1.5 ml-1">市場 (Market)</label>
                 <select 
-                  className="input-field appearance-none"
-                  value={pages} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setPages(e.target.value)}
+                  className="input-field appearance-none py-1.5 text-xs"
+                  value={market} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setMarket(e.target.value)}
                 >
-                  <option value="1">1 頁 (10筆)</option>
-                  <option value="3">3 頁 (30筆)</option>
-                  <option value="5">5 頁 (50筆)</option>
-                  <option value="10">10 頁 (100筆)</option>
+                  <option value="US">美國 (US)</option>
+                  <option value="EU">歐洲 (EU)</option>
+                  <option value="TW">台灣 (TW)</option>
                 </select>
               </div>
-            </div>
-            
-            <div>
-              <label className="block text-[11px] font-bold text-text-muted uppercase tracking-widest mb-2 ml-1">探勘所在地區 (Location)</label>
-              <input 
-                type="text" placeholder="例如: California, Seattle..."
-                className="input-field"
-                value={location} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocation(e.target.value)}
-              />
+              <div>
+                <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-1.5 ml-1">深度 (Depth)</label>
+                <select 
+                  className="input-field appearance-none py-1.5 text-xs"
+                  value={pages} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setPages(e.target.value)}
+                >
+                  <option value="1">10 筆</option>
+                  <option value="3">30 筆</option>
+                  <option value="5">50 筆</option>
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-1.5 ml-1">區域中心 (Location)</label>
+                <input 
+                  type="text" placeholder="例如: California..."
+                  className="input-field py-1.5 text-xs"
+                  value={location} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocation(e.target.value)}
+                />
+              </div>
             </div>
             
             <div className="space-y-3">
@@ -885,45 +854,51 @@ const LeadEngine: React.FC = () => {
               <span className="text-xs font-normal text-text-muted ml-2">{leads.length} 筆資料</span>
             </h3>
             <div className="flex items-center gap-2">
-              {/* Industry Filter */}
               <select 
-                className="form-input py-1.5 text-xs bg-slate-800 border-white/10 w-32"
+                className="form-input py-1.5 text-xs bg-slate-800 border-white/10 w-44"
                 value={industryFilter}
                 onChange={(e) => setIndustryFilter(e.target.value)}
               >
-                <option value="">所有產業</option>
-                {Array.isArray(industryTree) && industryTree.map(node => (
-                  <option key={node.code} value={node.code}>{node.name_zh}</option>
+                <option value="">所有產業 (All Categories)</option>
+                {Array.isArray(industryTree) && industryTree.map((cat: any) => (
+                  <optgroup key={cat.code} label={cat.name_zh}>
+                    <option value={cat.code}>{cat.name_zh} (全體)</option>
+                    {cat.children && cat.children.map((sub: any) => (
+                      <option key={sub.code} value={sub.code}>└ {sub.name_zh}</option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
 
-              {/* Export Button */}
-              <button
-                onClick={handleExportCSV}
-                className="btn-outline btn--sm flex items-center gap-1.5 px-3"
-                title="匯出 CSV"
-              >
-                <Download size={13} />
-              </button>
-
-              {/* v3.2: AI 評分按鈕 */}
-              <button
-                onClick={handleAiScore}
-                disabled={scoring || leads.length === 0}
-                className="btn-outline btn--sm flex items-center gap-1.5"
-                style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
-                title="AI 評分"
-              >
-                {scoring ? <div className="spinner w-3 h-3" /> : <Brain size={13} />}
-                {scoring ? '評分中...' : '✨ AI 評分'}
-              </button>
-              <div className="relative w-36">
+              <div className="relative w-40">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
                 <input
-                  type="text" placeholder="搜尋..."
+                  type="text" placeholder="搜尋名單..."
                   value={search} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
                   className="form-input pl-9 py-1.5 text-xs"
                 />
+              </div>
+
+              <div className="flex items-center gap-1.5 ml-1">
+                <button
+                  onClick={handleAiScore}
+                  disabled={scoring || leads.length === 0}
+                  className="btn-outline btn--sm flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold"
+                  style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
+                  title="AI 評分"
+                >
+                  {scoring ? <RotateCcw size={12} className="animate-spin" /> : <Brain size={12} />}
+                  {scoring ? '評分中' : 'AI 評分'}
+                </button>
+                <button
+                  onClick={handleExportCSV}
+                  disabled={leads.length === 0}
+                  className="btn-outline btn--sm flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold"
+                  title="匯出 CSV"
+                >
+                  <Download size={12} />
+                  匯出
+                </button>
               </div>
             </div>
           </div>
