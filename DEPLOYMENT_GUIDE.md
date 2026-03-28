@@ -32,6 +32,7 @@ Perform full end-to-end testing on the **UAT URL**. Confirm that:
 
 > [!IMPORTANT]
 > **Strict Rule**: You must obtain explicit user approval after UAT verification before proceeding to the next step.
+> **DBA Rule**: If the deployment includes database changes, the DBA must perform the verification on Render Shell before final approval.
 
 ### 3. Promotion to Production (PRD)
 Once UAT is verified and approved, promote the changes to the `prd` branch using the provided sync script.
@@ -60,6 +61,28 @@ Ensure the following variables are consistent across both sets of services:
 - `OPENAI_API_KEY`: GPT-4o-mini access.
 - `ALLOWED_ORIGINS`: Set to `*` or specific frontend URLs.
 - `PORT`: Must be set to `10000`.
+
+---
+
+## 🗄️ Database Verification (DBA SOP)
+If the deployment contains **Database Schema Migrations**, the DBA must execute the following checks on the **Render Dashboard -> Shell**:
+
+### 1. Verification Commands
+Use `psql` (automatically connected in Render Shell) to verify table structures:
+
+```sql
+-- Check ScrapeLog for Health Monitoring (v3.4)
+\d+ scrape_logs;
+-- Expect: response_time (FLOAT), http_status (INT) columns exist.
+
+-- Check TransactionLog for Billing (v3.5)
+\d+ transaction_logs;
+-- Expect: Table exists with user_id, action_type, point_delta.
+```
+
+### 2. Post-Migration Audit
+1.  Check **Backend Logs** for `[System] Database schema check completed`.
+2.  Update **[Migration Log](file:///Users/borenxiao/corelink-b2b-engine/docs/process/MIGRATION_LOG.md)** with the verification timestamp and DBA name.
 
 ---
 

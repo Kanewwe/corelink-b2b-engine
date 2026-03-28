@@ -152,8 +152,29 @@ Monthly: 結算流程
 
 - **爬蟲來源被封**: 採兩層 Fallback (Thomasnet → Bing → Google CSE)
 - **郵件進入垃圾匣**: 實施 SPF/DKIM 硬性校準與個人化 AI 開頭
-- **開發不穩定**: 強制執行 **VCP (Verify-Commit-Push) 交付規約**
+- **開發不穩定**: 強制執行 **VCP+ (Verify-Commit-Push + DBA Check) 交付規約**
+- **資料庫風險**: 所有結構異動 (Schema Migration) 必須由 DBA 於 Render Shell 實地驗收，非經查驗不得標記為「部署完成」。
 - **法規合規 (GDPR)**: 嚴格執行 `SearchPath` 數據隔離與隱私過濾
+
+---
+
+## 六、技術維運與交付規約 (VCP+)
+
+為確保 Linkora 邁向 v3.5 商業化穩定性，所有技術交付均需遵循 **VCP+** 標準：
+
+### 6.1 資料庫遷移標準程序 (DB Migration SOP)
+
+1.  **PR 審核期**: 開發者需附上 `migrate_vX_Y.py` 與所產生的 SQL 變動清單。
+2.  **UAT 部署期**: 推送後，開發者確保 **Self-Healing Migration** 成功執行（檢查 Render 啟動日誌）。
+3.  **DBA 簽章期**: **(強制)** DBA 需登入 Render Dashboard 利用 Shell 執行 `\d+ table_name` 檢查新欄位（如 `response_time`, `points`）是否就緒。
+4.  **紀錄填寫**: 查驗完成後，更新 `docs/process/MIGRATION_LOG.md`。
+
+### 6.2 監控指標驗收
+
+- **Scraper Health**: 每次遷移後需手動檢查 `/api/health` 確保日誌表可讀寫。
+- **Billing Integrity**: 確保 `/api/search-history` 能正確關聯 `TransactionLog`。
+
+---
 
 ---
 *Created by Antigravity AI - Detailed Business Operations v3.2 AI Intelligence*
