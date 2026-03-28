@@ -129,13 +129,17 @@ def ensure_admin_exists():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # v3.5 Start: 延遲執行資料庫初始化以確保 Render Health Check 通過
-    from database import init_db
-    try:
-        init_db()
-        add_log("🚀 [System] Database initialized via lifespan(v3.5)")
-    except Exception as e:
-        add_log(f"🚨 [System] Init error: {str(e)}")
+    # v3.5 Start: 異步資料庫初始化以確保 Render Health Check 瞬間通過
+    import threading
+    def async_init_db():
+        from database import init_db
+        try:
+            init_db()
+            add_log("🚀 [System] Database initialized in background(v3.5)")
+        except Exception as e:
+            add_log(f"🚨 [System] Background init error: {str(e)}")
+            
+    threading.Thread(target=async_init_db, daemon=True).start()
     
     try:
         from migrations import run_migrations
