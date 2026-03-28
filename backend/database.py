@@ -20,13 +20,11 @@ if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
 # ─── PostgreSQL Connection Arguments ───
 connect_args = {}
 
-# 1. SSL is required for Render PG
-# 2. Schema switching via search_path (Disabled for v3.5 Global Stability)
-# schema_name = "uat" if APP_ENV == "uat" else "public"
-# connect_args["options"] = f"-c search_path={schema_name}"
-# v3.5: 強制在 connect_args 映射中明確指定 (針對多執行緒池優化)
-# if DATABASE_URL and "postgresql" in DATABASE_URL:
-#     connect_args["options"] = f"-c search_path={schema_name}"
+# Schema switching via search_path (v3.7.28: 重新啟用)
+schema_name = "uat" if APP_ENV == "uat" else "public"
+if DATABASE_URL and "postgresql" in DATABASE_URL:
+    connect_args["options"] = f"-c search_path={schema_name}"
+    print(f"📦 [Database] Using schema: {schema_name}")
 
 # Ensure SSL is active for remote connections
 if DATABASE_URL and "render.com" in DATABASE_URL:
