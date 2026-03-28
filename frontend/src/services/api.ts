@@ -15,10 +15,15 @@ export const API_BASE_URL = envUrl || (
 // v3.7 Security Secret (應與後端一致)
 export const getAuthHeaders = (): HeadersInit => {
   const token = localStorage.getItem('token');
-  return {
+  const headers: any = {
     'Content-Type': 'application/json',
-    'Authorization': token ? `Bearer ${token}` : ''
   };
+  
+  if (token && token !== 'undefined' && token !== 'null') {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
 };
 
 export const fetchWithAuth = async (endpoint: string, options: RequestInit = {}): Promise<Response> => {

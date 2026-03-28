@@ -88,9 +88,17 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# v3.7.16: 定義精確的授權原點 (避免與 allow_credentials=True 發生衝突)
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://localhost:8000",
+    "https://linkora-frontend-uat.onrender.com",
+    "https://linkora-frontend.onrender.com"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -109,8 +117,9 @@ async def catch_exceptions_middleware(request: Request, call_next):
         # v3.7: HMAC 安全簽名核查 (已於 v3.7.12 停用)
         
         # 2. 執行後續邏輯
+        start_time = time.time()
         response = await call_next(request)
-        response.headers["X-Process-Time"] = str(time.time() - time.time()) # Placeholder for original logic
+        response.headers["X-Process-Time"] = str(time.time() - start_time)
         
         # 3. 解決 'eval' 被瀏覽器阻擋的問題 (v3.7.6 強化版)
         response.headers["Content-Security-Policy"] = CSP_RULES
