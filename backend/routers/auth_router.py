@@ -123,16 +123,16 @@ def auth_login(req: AuthLoginReq, request: Request, response: Response, db: Sess
     if not user.is_active:
         raise HTTPException(status_code=403, detail="帳號已被停用")
 
-    session = auth_module.create_session(
+    session_result = auth_module.create_session(
         db, user,
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent")
     )
-    if not session:
+    if not session_result:
         raise HTTPException(status_code=500, detail="建立連線階段失敗，請重試")
     
-    # v3.7 stability: 提前抓取 ID
-    session_id = session.id
+    # v3.7.22: create_session 返回 (session_id, user_id) tuple
+    session_id, _ = session_result
 
     response.set_cookie(key="session_id", value=session_id, httponly=True, max_age=86400 * 30, samesite="lax")
     add_log(f"✅ 用戶登入: {user.email}")

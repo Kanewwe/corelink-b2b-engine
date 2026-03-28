@@ -19,10 +19,10 @@ SESSION_EXPIRY_DAYS = 30
 # Session 管理
 # ══════════════════════════════════════════
 
-def create_session(db: Session, user: User, ip_address: str = None, user_agent: str = None) -> SessionModel:
+def create_session(db: Session, user: User, ip_address: str = None, user_agent: str = None) -> tuple:
     """
-    為用戶建立新 session (v3.7 stability: Decoupled Session ID)
-    回傳：session 模型物件 (但外部應優先使用 session.id 字串)
+    為用戶建立新 session (v3.7.22 stability: 返回 session_id 字串)
+    回傳：(session_id, user_id) tuple，避免返回可能被清理的 ORM 物件
     """
     session_id = str(uuid.uuid4())
     session = SessionModel(
@@ -43,9 +43,8 @@ def create_session(db: Session, user: User, ip_address: str = None, user_agent: 
         db.rollback()
         raise e
         
-    # v3.7: 不再強行 refresh，直接返回已包含 ID 的對象
-    # ID 是在本地產生的 UUID，因此 session.id 保證可用且正確
-    return session
+    # v3.7.22: 返回 tuple (session_id, user_id)，避免 ORM 物件被清理後存取錯誤
+    return (session_id, user.id)
 
 
 def get_session(db: Session, session_id: str) -> Optional[SessionModel]:
