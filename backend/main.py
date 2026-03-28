@@ -19,8 +19,7 @@ from logger import add_log, SYSTEM_LOGS
 TAIPEI_TZ = timezone(timedelta(hours=8))
 
 # Create database tables automatically (supports schema switching)
-from database import init_db
-init_db()
+# v3.5: Moved to lifespan for non-blocking startup
 
 # Initialize default plans on startup
 def init_default_plans():
@@ -127,6 +126,14 @@ def ensure_admin_exists():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # v3.5 Start: 延遲執行資料庫初始化以確保 Render Health Check 通過
+    from database import init_db
+    try:
+        init_db()
+        add_log("🚀 [System] Database initialized via lifespan(v3.5)")
+    except Exception as e:
+        add_log(f"🚨 [System] Init error: {str(e)}")
+    
     try:
         from migrations import run_migrations
         run_migrations()
