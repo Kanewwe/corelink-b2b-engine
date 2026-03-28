@@ -200,7 +200,7 @@ Return ONLY a JSON array of {count} strings, nothing else."""
             seed_keyword + " manufacturer"
         ][:count]
 
-def generate_html_template(prompt: str, style: str = "formal", language: str = "English", db = None, user_id: int = None) -> dict:
+async def generate_html_template(prompt: str, style: str = "formal", language: str = "English", db = None, user_id: int = None) -> dict:
     """
     Generate a professional HTML email template based on user prompt.
     """
