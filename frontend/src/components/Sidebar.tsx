@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
-  Search, FileText, Send, BarChart2, Clock, Settings, Users, LogOut, Cpu, UserCog,
+  Search, FileText, Send, BarChart2, Clock, Settings, Users, Cpu, UserCog,
   ChevronLeft, ChevronRight, Monitor, Bug, FlaskConical, Activity, Inbox as InboxIcon, type LucideIcon
 } from 'lucide-react';
 
@@ -62,14 +62,9 @@ const NAV_SECTIONS: NavSection[] = [
 ];
 
 const Sidebar: React.FC = () => {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
 
   const toggleCollapse = () => setCollapsed(v => !v);
 
@@ -187,32 +182,10 @@ const Sidebar: React.FC = () => {
           )}
         </button>
 
-        {/* User Info */}
-        {collapsed ? (
-          <div className="relative group flex justify-center py-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center font-bold text-bg-dark text-xs cursor-pointer" onClick={handleLogout}>
-              {user?.email?.charAt(0).toUpperCase() || 'U'}
-            </div>
-            <div className="absolute bottom-full mb-2 px-3 py-1.5 bg-[#1e2538] text-white text-xs rounded-lg shadow-xl border border-white/10 whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
-              {user?.email}
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-3 p-3 m-2 mb-3 bg-primary/10 rounded-lg">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center font-bold text-bg-dark shrink-0">
-              {user?.email?.charAt(0).toUpperCase() || 'U'}
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <div className="font-semibold text-sm truncate text-text-main">{user?.username || user?.email || 'User'}</div>
-              <div className="text-[10px] text-text-muted uppercase tracking-wider">{user?.role || 'Member'}</div>
-            </div>
-            <button 
-              onClick={handleLogout}
-              className="p-1 text-text-muted hover:text-red-400 transition-colors"
-              title="登出"
-            >
-              <LogOut size={16} />
-            </button>
+        {/* User Info (Removed in v3.7.21, consolidated to Top-Right Header) */}
+        {!collapsed && (
+          <div className="px-4 py-2 text-[10px] text-text-muted text-center border-t border-white/5 opacity-50">
+            Linkora Engine v3.7.21
           </div>
         )}
       </div>

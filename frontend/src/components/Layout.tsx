@@ -85,7 +85,7 @@ const Layout: React.FC = () => {
       />
 
       {/* ── Main Content ── */}
-      <main className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden pb-5 layout-main">
+      <main className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden pb-24 layout-main">
 
         {/* Top Bar */}
         <div className="flex justify-between items-center py-3 mb-2 shrink-0">
