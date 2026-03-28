@@ -13,8 +13,6 @@ export const API_BASE_URL = envUrl || (
 );
 
 // v3.7 Security Secret (應與後端一致)
-const SECURITY_SECRET = 'linkora-dev-secret-key-123456';
-
 export const getAuthHeaders = (): HeadersInit => {
   const token = localStorage.getItem('token');
   return {
@@ -22,33 +20,6 @@ export const getAuthHeaders = (): HeadersInit => {
     'Authorization': token ? `Bearer ${token}` : ''
   };
 };
-
-/**
- * v3.7: 使用 Web Crypto API 產生 HMAC-SHA256 簽名
- */
-async function generateSignature(payload: string, timestamp: string): Promise<string> {
-  try {
-    const encoder = new TextEncoder();
-    const keyData = encoder.encode(SECURITY_SECRET);
-    const message = encoder.encode(`${timestamp}.${payload}`);
-    
-    const key = await window.crypto.subtle.importKey(
-      'raw', 
-      keyData, 
-      { name: 'HMAC', hash: 'SHA-256' }, 
-      false, 
-      ['sign']
-    );
-    
-    const signature = await window.crypto.subtle.sign('HMAC', key, message);
-    return Array.from(new Uint8Array(signature))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-  } catch (e) {
-    console.error('Signature generation failed', e);
-    return '';
-  }
-}
 
 export const fetchWithAuth = async (endpoint: string, options: RequestInit = {}): Promise<Response> => {
   const headers: any = getAuthHeaders();

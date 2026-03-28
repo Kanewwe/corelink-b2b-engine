@@ -38,7 +38,7 @@
 
 ## 🛡️ 品質基準 (Quality Standards)
 
-1.  **完整性**：所有新增接口必須具備 X-Signature (HMAC) 校驗或對應之安全層。
+1.  **完整性**：所有新增接口必須具備標準 Bearer Token 驗證並支援多環境路由 (Local/UAT/Prod)。
 2.  **穩定性**：所有 SQLAlchemy 操作必須遵循 v3.7 的 Session 解耦規範。
 3.  **可讀性**：關鍵邏輯必須包含清晰的中文註釋 (v3.1.8+ 標準)。
 
