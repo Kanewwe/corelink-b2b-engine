@@ -15,7 +15,7 @@ import auth as auth_module
 from contextlib import asynccontextmanager
 import email_sender_job
 from logger import add_log, SYSTEM_LOGS
-from billing_service import deduct_points, get_point_balance
+# from billing_service import deduct_points, get_point_balance (Moved to inline lazy imports for v3.5 stability)
 
 # 台灣時區常數
 TAIPEI_TZ = timezone(timedelta(hours=8))
@@ -806,6 +806,7 @@ def trigger_scrape_simple(
         adj_pages = max(1, (rem_target + 9) // 10)
 
         # v3.5: Billing Check (Scrape = 10 pts)
+        from billing_service import deduct_points
         if not deduct_points(current_user.id, "scrape", {"keyword": keywords[0], "pages": adj_pages}):
             raise HTTPException(status_code=402, detail="點數不足，請儲值後再進行探勘。")
 
@@ -975,6 +976,7 @@ async def generate_lead_brief(
     )
     
     # v3.5: Billing Check (AI = 5 pts)
+    from billing_service import deduct_points
     if not deduct_points(current_user.id, "ai_intelligence", {"lead_id": lead_id}):
         raise HTTPException(status_code=402, detail="點數不足，無法生成 AI 情報。")
 
@@ -1019,6 +1021,7 @@ async def optimize_subject(
     current_user: models.User = Depends(get_current_user_id)
 ):
     # v3.5: Billing Check (AI = 5 pts)
+    from billing_service import deduct_points
     if not deduct_points(current_user.id, "ai_intelligence", {"action": "subject_optimize"}):
         raise HTTPException(status_code=402, detail="點數不足，無法優化主旨。")
 
@@ -1043,6 +1046,7 @@ async def generate_ab_versions(
     current_user: models.User = Depends(get_current_user_id)
 ):
     # v3.5: Billing Check (AI = 5 pts)
+    from billing_service import deduct_points
     if not deduct_points(current_user.id, "ai_intelligence", {"action": "ab_test"}):
         raise HTTPException(status_code=402, detail="點數不足，無法生成 A/B 版本。")
 
@@ -1116,6 +1120,7 @@ async def analyze_reply_intent(
     current_user: models.User = Depends(get_current_user_id)
 ):
     # v3.5: Billing Check (AI = 5 pts)
+    from billing_service import deduct_points
     if not deduct_points(current_user.id, "ai_intelligence", {"action": "reply_intent"}):
         raise HTTPException(status_code=402, detail="點數不足，無法分析意圖。")
 
@@ -1419,7 +1424,8 @@ async def get_user_points_api(
     current_user: models.User = Depends(get_current_user_id)
 ):
     """v3.5: 回傳當前用戶可用點數 (Credits)"""
-    balance = get_point_balance(db, current_user.id)
+    from billing_service import get_point_balance
+    balance = get_point_balance(current_user.id)
     return {"points": balance}
 
 # ── v3.4 Health Monitoring Stat ──
