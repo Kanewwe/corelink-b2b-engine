@@ -52,7 +52,10 @@ const Intelligence: React.FC = () => {
         if (resp.ok) setLeads(await resp.json());
       } else if (activeTab === 'taxonomy') {
         const resp = await getIndustryTree();
-        if (resp.ok) setIndustryTree(await resp.json());
+        if (resp.ok) {
+          const data = await resp.json();
+          setIndustryTree(data.tree || []);
+        }
       } else if (activeTab === 'proposals') {
         const resp = await getAdminProposals('Pending');
         if (resp.ok) setProposals(await resp.json());
@@ -260,7 +263,7 @@ const Intelligence: React.FC = () => {
               </div>
               
               <div className="space-y-2">
-                {industryTree.map(node => (
+                {Array.isArray(industryTree) && industryTree.map(node => (
                   <div key={node.id} className="p-4 rounded-xl bg-white/5 border border-white/5 hover:border-primary/30 transition-all cursor-pointer group">
                     <div className="flex items-center justify-between text-sm font-bold text-white mb-2">
                       <div className="flex items-center gap-2 text-primary">

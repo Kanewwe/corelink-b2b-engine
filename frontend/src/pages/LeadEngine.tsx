@@ -392,7 +392,8 @@ const LeadEngine: React.FC = () => {
 
       const treeResp = await getIndustryTree();
       if (treeResp.ok) {
-        setIndustryTree(await treeResp.json());
+        const data = await treeResp.json();
+        setIndustryTree(data.tree || []);
       }
     } catch (e) {
       console.error("Failed to fetch dashboard data", e);
@@ -801,7 +802,7 @@ const LeadEngine: React.FC = () => {
                 onChange={(e) => setIndustryFilter(e.target.value)}
               >
                 <option value="">所有產業</option>
-                {industryTree.map(node => (
+                {Array.isArray(industryTree) && industryTree.map(node => (
                   <option key={node.code} value={node.code}>{node.name_zh}</option>
                 ))}
               </select>

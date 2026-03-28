@@ -40,22 +40,6 @@ def get_industries(
     }
 
 
-@router.get("/industries/{code}")
-def get_industry_by_code(
-    code: str,
-    db: Session = Depends(get_db)
-):
-    """取得單一行業標籤"""
-    tag = db.query(models.IndustryTag).filter(
-        models.IndustryTag.code == code
-    ).first()
-    
-    if not tag:
-        return {"error": "Not found"}
-    
-    return tag.to_dict()
-
-
 @router.get("/industries/tree")
 def get_industry_tree(db: Session = Depends(get_db)):
     """取得行業樹狀結構"""
@@ -82,3 +66,19 @@ def get_industry_tree(db: Session = Depends(get_db)):
         "total": len(tree),
         "tree": tree
     }
+
+
+@router.get("/industries/{code}")
+def get_industry_by_code(
+    code: str,
+    db: Session = Depends(get_db)
+):
+    """取得單一行業標籤"""
+    tag = db.query(models.IndustryTag).filter(
+        models.IndustryTag.code == code
+    ).first()
+    
+    if not tag:
+        return {"error": "Not found"}
+    
+    return tag.to_dict()
