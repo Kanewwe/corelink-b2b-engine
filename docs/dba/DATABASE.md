@@ -46,6 +46,8 @@ To prevent configuration loss during user sessions or infrastructure restarts:
 | email_candidates | VARCHAR | Comma-separated emails |
 | contact_email | VARCHAR | Primary contact email |
 | ai_tag | VARCHAR | Industry classification |
+| extracted_keywords | TEXT | AI extracted keywords for the lead |
+| scrape_location | TEXT | The source/geolocation of the scrape |
 | status | VARCHAR | Scraped/Tagged/Sent/etc |
 
 ### global_leads (Isolation Pool)
@@ -60,6 +62,7 @@ To prevent configuration loss during user sessions or infrastructure restarts:
 | contact_email | VARCHAR(255) | Extracted/Verified primary email |
 | email_candidates | TEXT | List of possible emails (comma-separated) |
 | ai_tag | VARCHAR(100) | Industry classification |
+| extracted_keywords | TEXT | AI extracted keywords (Shared) |
 | last_scraped_at | TIMESTAMP | Last update from any scraper |
 
 ### system_settings

@@ -26,6 +26,7 @@ To ensure high-quality delivery and efficient progress, follow these steps for e
 5. **Documentation Update**:
    - Keep `task.md` and `implementation_plan.md` in sync with the actual push status.
    - Update `walkthrough.md` for major feature releases.
+   - For role-specific SOPs, update the `README.md` in `docs/[role]/`.
 
 6. **User Notification**:
    - notify the user only after the push is completed and verified in the target environment (e.g., Render UAT).

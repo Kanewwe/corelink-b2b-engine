@@ -36,7 +36,10 @@ def get_api_key(db, tool_name: str, user_id: int = None) -> str:
                     "hunter": "hunter_key",
                     "openai_model": "openai_model",
                     "google": "google_key",
-                    "google_cse_id": "google_cse_id"
+                    "google_cse_id": "google_cse_id",
+                    "apify_miner_actor": "apify_miner_id",
+                    "apify_simple_actor": "apify_simple_id",
+                    "scraperapi": "scraperapi_key"
                 }
                 
                 db_key = mapping.get(tool_name)

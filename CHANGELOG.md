@@ -1,306 +1,61 @@
-## [v3.2.0] - 2026-03-27
+# 📝 Linkora 更新日誌 (Changelog)
 
-### 🤖 AI 功能擴充 (AI Intelligence Suite)
-
-#### 新增 AI 服務 (ai_service.py)
-- `score_lead()`: 規則引擎評分（0-100分，7維度）
-- `generate_lead_brief()`: AI 生成公司情報摘要
-- `optimize_email_subject()`: AI 優化主旨（3個高開信率版本）
-- `generate_ab_test_versions()`: A/B 測試雙版本生成
-- `generate_weekly_report_summary()`: AI 成效摘要報告
-- `recommend_optimal_send_time()`: 最佳寄信時間推薦
-- `analyze_reply_intent()`: 回覆意圖分類
-
-#### 新增 API 端點
-- `POST /api/leads/ai-score` - 批量評分 Leads
-- `POST /api/leads/{id}/ai-brief` - 生成情報摘要
-- `POST /api/templates/ai-optimize-subject` - AI 優化主旨
-- `POST /api/templates/ai-generate-ab` - A/B 雙版本
-- `POST /api/analytics/ai-summary` - 成效摘要報告
-- `POST /api/analytics/optimal-send-time` - 最佳寄信時間
-- `POST /api/analytics/reply-intent` - 回覆意圖分類
-
-#### 前端更新
-- **LeadEngine**: ✨ AI 評分按鈕 + 分數顯示 + 維度標籤
-- **Templates**: ✨ AI 主旨優化按鈕 + ⚡ A/B 雙版本 Modal
-- **Analytics**: 🤖 AI 成效摘要卡
-- **Campaigns**: ⏰ AI 最佳寄信時間推薦
-
-#### 模型更新
-- Lead 新增: `ai_score`, `ai_score_tags`, `ai_brief`, `ai_suggestions`, `ai_scored_at`
-
-### 🔴 Critical Security Fix: 用量配額漏洞修復
-
-#### 問題描述
-- 爬蟲 (`scrape_simple.py`, `manufacturer_miner.py`) 新增 Lead 時未計算用量
-- Member 可以透過爬蟲無限探勘，繞過配額限制
-- 全域池同步也未計入配額
-
-#### 修復內容
-- **配額檢查**: 爬蟲開始前呼叫 `check_user_quota()` 檢查剩餘配額
-- **即時追蹤**: 爬取過程中即時檢查是否超過配額
-- **用量計算**: 新增 Lead 後呼叫 `increment_usage("customers_count")`
-- **同步計入**: 全域池同步也算使用量（業務決策）
-
-### 📁 修改檔案
-- `backend/auth.py` - 新增 `check_user_quota()` 函式
-- `backend/scrape_simple.py` - 用量檢查 + 計算
-- `backend/manufacturer_miner.py` - 用量檢查 + 計算
+本文件紀錄了 Linkora 平台從初始版本至今的開發歷程、功能迭代與錯誤修復。
 
 ---
 
-## [v3.1.9] - 2026-03-27
+## [v3.1.8-resilience] - 2026-03-27
+### 🏭 製造商引擎重構 (Engine Resilience)
+- **核心升級**：全面升級至 `zen-studio` 爬蟲驅動，支援深度抓取與更好的反爬繞過。
+- **防卡死保護**：實作 180s 任務強制超時，徹底解決背景探勘任務「卡死」的問題。
+- **Email Guessing 2.0**：新增基於網域的自動前綴猜測機制，大幅提升製造商 Lead 的聯繫資訊獲取率。
+- **資料庫穩定性**：全面轉向 PostgreSQL 並實作 SSL 強制連線，確保數據在雲端環境的持久性。
 
-### 🐛 Critical Bug Fixes (全域池 / 私域池 / 時區)
+## [v2.7.2-localization] - 2026-03-27
+- 🌏 **時區本地化**：後端統一採用台灣時區 (UTC+8) 進行日誌記錄與儀表板統計。
+- 📊 **成效漏斗優化**：修復開信與點擊統計在跨月份時的計算誤差。
 
-#### 全域池修復
-- **BUG-1**: `clear_global_pool` 現在會先清除私域 `global_id` 引用，避免 FK 懸空
-- **BUG-2**: `domain` 空字串正規化為 `None`，避免 unique constraint 問題
-- **BUG-3**: Proposal 通過後同步更新所有私域 Lead (只更新未被個人覆寫的)
-- **BUG-4**: `company_name` 改用 `ilike` 做模糊比對，減少重複資料
-- **BUG-5**: Email Guessing 結果只存到 `email_candidates`，不污染全域池 `contact_email`
-- **BUG-6**: `save_to_global_pool` 更新時補足 `industry_taxonomy`
+## [v2.7.1-isolation] - 2026-03-26
+- 🛡️ **全域隔離池 (Global Isolation Pool)**：實作跨用戶去重邏輯，節省探勘與 AI API 呼叫成本。
+- 🧬 **探勘智控**：智能判斷情報庫存量，若資料充足則優先從全域池同步，不重複發動外部探勘。
 
-#### 時區修復
-- **TZ-1**: `UsageLog.get_or_create` 使用台灣時間計算年月，確保用量週期正確
-- **TZ-2**: API 回傳時間改用 ISO format 帶時區，讓前端處理本地化
-- 新增 `timezone_utils.py` 統一時間處理
-
-### 📁 新增檔案
-- `backend/timezone_utils.py` - 時區工具函式
-
-### 🔧 修改檔案
-- `backend/scrape_utils.py` - 全域池同步邏輯修復
-- `backend/manufacturer_miner.py` - Email Guessing 標記來源
-- `backend/models.py` - 時區統一處理
-- `backend/main.py` - 清空全域池 + Proposal 同步 + 時區修復
-
----
-
-## [v3.1.8] - 2026-03-27
-
-### 🛡️ Engine Resilience & Accuracy
-- **Modernized Scraper**: Switched to `zen-studio/thomasnet-suppliers-scraper` for superior B2B data extraction.
-- **Hang Protection**: Implemented 180s execution timeouts for all external crawler calls to prevent background process hangs.
-- **Email Discovery 2.0**: Added automated **Prefix Guessing** (`info@`, `sales@`, etc.) when direct email extraction fails, increasing manufacturer lead capture rates.
-- **Improved Logging**: Optimized heartbeat frequency (every 5 items) for better real-time monitoring without log bloat.
-
-### 🧬 Infrastructure Stabilization
-- **PostgreSQL Enforcement**: Officially deprecated SQLite and enforced strict PostgreSQL connectivity with SSL requirements.
-- **Settings Persistence**: Implemented User ID 1 fallback for system settings to guarantee configuration availability across admin accounts.
-- **Indentation & Whitespace Fixes**: Resolved critical `IndentationError` in `database.py` that caused deployment failures.
-
-## [v3.0.0] - 2026-03-27
-
-### 🧠 Shared Lead Intelligence (Dual-Layer Data Model)
-- **Dual-Layer Architecture**: Separation of **Canonical Facts** (shared corporate data) and **User Overlays** (personal overrides, notes, tags).
-- **Personal Overrides**: Users can now modify company names, emails, and notes without affecting the global database.
-- **Global Proposals**: Implemented a crowd-sourced data quality system where users suggest corrections to shared data.
-- **Admin Resolution**: Dedicated interface for administrators to approve/reject data proposals and verify global facts.
-
-### 🎨 UI/UX Revolution
-- **Lead Detail Drawer**: A high-speed flyout panel for managing individual lead intelligence and overrides.
-- **Intelligence Hub**: Rebranded System Settings with real-time stats, sync rules, and proposal management.
-- **Data Provenance Badges**: Visual indicators (Global vs Personal) to clarify data accuracy and source.
-
-### 🛠️ Core Engine
-- **Atomic Synchronization**: Scrapers now automatically link to `global_id` and respect the dual-layer boundaries.
-- **Smart Merging**: Backend `to_dict` logic dynamically merges canonical and personal layers (Priority: Personal > Global).
-
-## [v2.7.1] - 2026-03-26
-
-### 🚀 全域探勘隔離池 (Global Lead Pool) 與 系統控管中心
-- **Global Lead Pool**: 實作 `GlobalLead` 模型，支援跨使用者的高品質名單同步，大幅降低 API 探勘成本。
-- **System Settings Hub**: 開放「一般 (General)」設定分頁，提供全域池統計、同步開關與資料維護（清空池）功能。
-- **UI 視覺化提示**: 在客戶列表中新增 `GLOBAL SYNC` 與 `LIVE SCRAPE` 標記，提升資料來源透明度。
-- **工業級產業分類**: 整合 v2.7 產業 Taxonomy，優化 AI 標籤精準度與自動分類規則。
-- **Scraper 智慧同步**: 採集重構，支援根據系統設定決定是否與全域池進行同步。
-
-### 🛠️ 技術優化
-- **API 擴展**: 新增 `/api/admin/global-pool/stats` 與 `/api/admin/global-pool/clear` 端點。
-- **配置效能**: 優化 `config_utils` 讀取邏輯，支援 `general_settings` 階層式覆蓋。
-- **TypeScript 強化**: 修復前端型別定義，減少隱含 `any` 造成的潛在風險。
+## [v2.7.0-linkora-pro] - 2026-03-26
+- 🎨 **Pro 視覺標準**：導入 `bg-glass-panel` 毛玻璃高質感深色模式。
+- ⚙️ **系統控制中心**：全新 `admin` 專屬管理後台，集成 API Key 管理與變數映射。
+- 🏷️ **中文化標籤映射**：支援將工程變數（如 `{{company_name}}`）映射為親切的中文標籤。
+- 📧 **SMTP 配置優化**：圖像化配置分組，修復佈局切斷。
 
 ## [v2.5-postgresql-sync] - 2026-03-26
-
 ### 🚀 PostgreSQL Migration & Environment Isolation
 - **Database Migration**: Fully migrated from SQLite to PostgreSQL on Render.
 - **Schema-based Isolation**: Implemented `public` (PRD) and `uat` (UAT) schema switching via `APP_ENV`.
 - **Auth Unification**: Updated `auth.py` and `main.py` to support both Bearer tokens and Session cookies.
 - **Initialization**: Automated schema and table creation in `init_db`.
 
-### 📚 New Documentation
-- **[DATABASE_ENV.md]**: Guide for environment management and schema switching.
-- **[DEVELOPMENT_WORKFLOW.md]**: Formalized UAT-to-PRD release and migration process.
-- **[RENDER_SETUP_GUIDE.md]**: Technical insights on Render API and Postgres setup.
-
 ## [v2.4-stabilization] - 2026-03-25
-
-### 🚀 Formalized Deployment Lifecycle
-- **Dual Environments**: Established dedicated **UAT (Staging)** and **PRD (Production)** services on Render.
-- **UAT-First Policy**: Mandatory verification in UAT before promoting any code to Production.
-- **Render Blueprints**: Updated `render.yaml` to manage both environments with branch isolation (`uat` vs `prd`).
-- **Sync Script**: Introduced `./scripts/sync.ps1` for automated staging and production deployment.
-
-### 🐛 Critical Bug Fixes & Stability
-- **Authentication**: Resolved `AuthContext` race condition where users were redirected to login before the session was fully initialized.
-- **SMTP & Templates**: Implemented functional backend handlers for `/api/settings/smtp` and `/api/templates`.
-- **System Health**: Added `/api/health` endpoint for Render health monitoring.
-- **Code Fix**: Resolved `NameError` in `main.py` by fixing forward references for authentication dependencies.
-
-### 🛠️ Infrastructure
-- **Region Optimization**: Moved UAT services to `oregon` to match database region for lower latency.
-- **Port Mapping**: Corrected Docker port binding for Render (`PORT=10000`).
-
----
-
-## [v2.3-ux-redesign] - 2026-03-24
-
-### 🎨 Major UX Redesign
-
-#### Navigation
-- **Grouped Sidebar**: 主要功能 / 寄信作業 / 分析 / 設定
-- **Removed**: 新增客戶 nav item (整合進 Lead Engine)
-
-#### Lead Engine
-- **Email Strategy + Mining Mode**: Moved BEFORE CTA button
-- **Empty State**: 引導文字 + 手動新增按鈕
-- **Filter Bar**: 只在有客戶時顯示
-- **Batch Operations**: 全選、補找 Email、批次寄信、批次刪除
-- **Missing Email Warning**: 「X 筆尚未找到 Email」提示
-
-#### Email Templates
-- **Default Tab**: 改為「現有模板」列表
-- **HTML Editor**: min-height 400px
-- **Pill Toggle**: 語言風格/信件語言改為 Pill 按鈕
-- **Variable Preview**: 寄信前預覽變數替換結果
-- **Toast Notifications**: 儲存成功通知
-
-#### Campaign Logs (寄信記錄)
-- **SMTP Warning Card**: 未設定時顯示警告 + CTA
-- **Status Badges**: 已送出/已開信/已點擊/退信
-- **Batch Operations**: 批次重寄、批次刪除
-
-#### Engagements (觸及率)
-- **Removed**: 收費標準設定區塊
-- **KPI Row**: 寄出總數/開信率/點擊率/退信率
-- **Industry Stats**: 各行業統計
-- **Individual Tracking**: 個別追蹤記錄
-
-#### Search Logs → 探勘歷史
-- **Renamed**: 搜尋記錄 → 探勘歷史
-- **Collapsible System Logs**: 系統日誌預設折疊
-
-#### SMTP Settings
-- **Single Button**: 排程按鈕改為單一狀態顯示
-
-### 🆕 New API Endpoints
-
-```
-POST /api/leads/{lead_id}/find-email     # 單一客戶補找 Email
-POST /api/leads/batch-find-emails        # 批次補找 Email
-```
-
-### 🗄️ Database Changes
-
-```sql
-ALTER TABLE leads ADD COLUMN email_source VARCHAR(50);  -- Email 來源記錄
-```
-
-### 🐛 Bug Fixes
-- JavaScript syntax error (missing function opening brace)
-- Duplicate view sections in HTML
-- Navigation click handlers not working
-- Template fetch error handling (empty array vs error)
-
----
+- ⚙️ 新增「系統控制中心 (System Hub)」，集中管理 API 金鑰。
+- 🏷️ 變數映射功能正式遷移至系統控制中心。
+- 🎨 全站 UI/UX 升級為 Linkora Pro「玻璃面板」視覺標準。
+- 🛠️ 修復 SMTP 佈局切斷與 Autofill 視覺異常問題。
 
 ## [v2.2-manufacturer] - 2026-03-24
+- 🏭 新增「製造商模式」爬蟲（Thomasnet + Bing + Google CSE）。
+- 🔄 Google CSE 400 時自動切換 Bing 備援。
+- 🔑 Thomasnet 整合 ScraperAPI 繞過封鎖。
+- 🗄️ `migrations.py` 嵌入 FastAPI `lifespan`，確保資料庫欄位自動補齊。
 
-### 🏭 New: Manufacturer Mode (B2B Sourcing Engine)
-- **New file** `manufacturer_miner.py`: Multi-source B2B manufacturer scraper
-  - Google Custom Search API (primary)
-  - Bing Search (automatic fallback when Google CSE fails)
-  - Thomasnet via ScraperAPI (US B2B directory)
-- **Query expansion**: Keywords like `car battery` automatically expanded to B2B variants
-- **Frontend toggle**: Mining Mode selector (Manufacturer / Yellowpages)
-- **API**: `POST /api/scrape-simple` accepts `miner_mode` field
-
-### 🗄️ Database Migration Reliability Fix
-- `migrations.py`: Force-alter strategy with graceful error handling
-- `main.py` `lifespan()`: Auto-run migrations on startup
-
----
+## [v2.1-fixes] - 2026-03-23
+- 🐛 修復登入時 Session ID 未寫入 Cookie 導致狀態失效的嚴重問題。
+- ✨ 新增後台「登出」按鈕與清除狀態流程。
+- 💎 全站定價轉換為台幣（TWD），並統一前後端方案規格。
 
 ## [v2.0-optimized] - 2026-03-23
-
-### 🚀 New Features
-
-#### Brand & UI Redesign
-- **Brand Rename**: Corelink → Linkora
-- **New Logo**: Connected node icon design
-- **Color System**: Dark SaaS style
-- **Sidebar Redesign**: SVG icons, user avatar section
-
-#### Auto-Miner (Lead Engine)
-- **AI Keyword Generator**: Generate 5 related keywords
-- **Multi-Keyword Scraping**: Sequential scraping
-- **Yellowpages integration**: With ScraperAPI bypass
-
-#### Email Finder
-- **3-Layer Strategy**: Website → Pattern guess → Google CSE
-- **Bug Fixes**: EMAIL_REGEX, SMTP ports, catch-all detection
-
-#### Email Tracking System
-- **Tracking Pixel**: `/track/open?id=xxx`
-- **Click Redirect**: `/track/click?id=xxx&url=yyy`
-
-#### Subscription System
-- **Models**: Plan, User, Session, Subscription, UsageLog
-- **Auth**: Session-based with bcrypt
-- **Permission**: Feature flags + usage limits
-
-#### Template System v2
-- **Monaco Editor**: Syntax highlighting
-- **AI Generation**: Prompt → GPT → HTML
-- **Variable Chips**: Click to insert
-
----
+- ✨ Linkora 品牌重塑與新 UI 設計（Dark SaaS 質感）。
+- ✨ Monaco Editor 整合與 AI 關鍵字生成。
+- ✨ Email 追蹤系統與訂閱系統基礎架構。
 
 ## [v1.0] - 2026-03-21
-
-### Initial Release
-- Basic scraper (Yahoo search dorking)
-- Email finder (MX verification)
-- AI classification (GPT-4o-mini)
-- Email template system
-- SMTP scheduler
+- 初始版本：基本爬蟲、Email 發現、AI 開發信生成。
 
 ---
-
-## Migration Notes
-
-### v2.2 → v2.3
-
-```sql
-ALTER TABLE leads ADD COLUMN email_source VARCHAR(50);
-```
-
-### v1.0 → v2.0
-
-```sql
-ALTER TABLE leads ADD COLUMN user_id INT;
-ALTER TABLE email_campaigns ADD COLUMN user_id INT;
-ALTER TABLE email_templates ADD COLUMN user_id INT;
-ALTER TABLE email_logs ADD COLUMN user_id INT;
-
-CREATE TABLE plans (...);
-CREATE TABLE users (...);
-CREATE TABLE sessions (...);
-CREATE TABLE subscriptions (...);
-CREATE TABLE usage_logs (...);
-```
-
-#### API Changes
-- Old: `Authorization: Bearer <token>`
-- New: `Cookie: session_id=<uuid>`
+*Created by Antigravity AI - Document Cleanup Task*

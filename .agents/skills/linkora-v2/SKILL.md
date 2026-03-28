@@ -1,56 +1,75 @@
 ---
-name: Linkora V2 Engine Skill
+name: Linkora v3.1.8 Engine Skill
 description: Core technical instructions for managing and developing the Linkora B2B Lead Gen & Outreach platform.
 ---
 
-# Linkora V2 Engine Skill
+# Linkora v3.1.8 Engine Skill
 
-This skill is designed for AI agents to maintain and develop the Linkora 2.0 B2B platform efficiently.
+This skill is designed for AI agents to maintain and develop the Linkora v3.1.8 B2B platform efficiently.
 
-## 🏗️ Project Architecture
+---
+
+## 🏗️ Project Architecture (v3.1.8)
 
 ### Backend (FastAPI)
 - **Framework**: FastAPI (Async).
 - **ORM**: SQLAlchemy 2.0.
-- **Auth**: JWT RBAC (Admin, Vendor, Member).
-- **Core Files**: `backend/main.py` (API), `backend/models.py` (DB).
+- **Database**: **PostgreSQL Only** (SQLite is deprecated).
+- **Auth**: **Session-based Cookies** (httponly).
+- **Control**: APScheduler for background campaigns.
 
 ### Frontend (React/Vite)
 - **Stack**: React 18, TypeScript, Tailwind CSS.
-- **Auth**: `AuthContext.tsx` + `RoleGuard.tsx`.
-- **API**: `frontend/src/services/api.ts` (Dynamic `fetchWithAuth`).
+- **Theme**: Linkora Pro Glassmorphism.
 
 ---
 
-## 🧩 Business Logic: Wholesale Billing
-- **Vendors** pay Linkora per Lead found by their team.
-- **Aggregation**: Total Leads (Vendor + Members) * `vendor.pricing_config['per_lead']`.
-- **Dashboard**: `Analytics.tsx` handles role-based financial views.
+## 🧩 Business Logic: Wholesale & Isolation
+- **Role Isolation**: Schema-based (`uat` vs `public`).
+- **Data Sync**: Global Lead Pool syncs with Private Lead Pool to reduce scraping costs.
+- **Billing**: Vendor billing base on team-wide lead discovery.
 
 ---
 
 ## 💾 Database Schema (Critical Tables)
 - `users`: `email`, `role`, `vendor_id`.
-- `vendors`: `user_id`, `company_name`, `pricing_config` (JSON).
-- `leads`: `company_name`, `contact_email`, `status`, `user_id`.
-- `scrape_tasks`: `keywords`, `status`, `leads_found`, `user_id`.
-- `email_logs`: `log_uuid`, `opened`, `clicked`, `replied`, `user_id`.
+- `leads` / `global_leads`: Core discovery data.
+- `system_settings`: The Hub for API Keys & mappings.
 
 ---
 
-## 📂 Search & Token Optimization
-- **Do NOT read**: `node_modules`, `dist`, `.venv`.
-- **Key Configs**: `render.yaml` (Production), `docker-compose.yml` (Local).
-- **Styling**: Always use **Tailwind**. Icons: `lucide-react`.
+## 🚀 Role-based Documentation (Canonical)
+- 🏗️ **Architecture**: `docs/sa/README.md`
+- 📡 **API Specs**: `docs/bepg/API.md`
+- 🤖 **Scraper Logic**: `docs/bepg/SCRAPER_DOCUMENTATION.md`
+- 🛰️ **DevOps & Debug**: `docs/devops/README.md`
+- 🧬 **DB & Schema**: `docs/dba/DATABASE_ENV.md`
+
+## 🛠️ Automated Task Routing (LWE) & VCP Rule
+When receiving a task, classify it and prioritize the corresponding guides:
+1. **Bugfix Path** (Keywords: *fix, bug, error, fail*):
+   - Check `docs/devops/SCRAPER_DEBUG_GUIDE.md` -> `docs/qa/ROLE_TEST_PLAN.md`.
+2. **Feature Path** (Keywords: *add, new, feat, request*):
+   - Check `docs/pm/ROADMAP.md` -> `docs/sa/ROLE_ARCHITECTURE.md` -> `docs/bepg/API.md`.
+3. **Optimizing Path** (Keywords: *slow, optimization, refactor*):
+   - Check `docs/dba/DATABASE.md` -> `docs/sa/README.md`.
 
 ---
-## 🚀 Commands (Workflow)
-- **Sync Device**: `/pull` or `./scripts/sync.ps1 -Action pull`
-- **Submit Work**: `/commit` or `./scripts/sync.ps1 -Action commit -Message "text"`
-- **Production Release**: `./scripts/sync.ps1 -Action deploy` (Merges UAT to PRD)
+
+## 📦 Mandatory Delivery Rule: VCP (Verify-Commit-Push)
+Before declaring a task as **"Done"**, the Agent MUST:
+1. **V (Verify)**: Run `./scripts/test.ps1` (or relevant logic test) and ensure zero errors.
+2. **C (Commit)**: Prepare a detailed commit message reflecting the actual changes.
+3. **P (Push)**: Execute the **`/commit`** workflow to push changes to the `uat` branch.
+   - *Constraint*: ALL work must eventually reach the `uat` branch to be considered successful.
+
 ---
+
 ## 🧪 Testing & Standards
+- **Local Dev**: Follow `docs/bepg/DEVELOPMENT_GUIDE.md`.
+- **QA Standards**: Follow `docs/qa/README.md` (RBAC & Scraper stress tests).
+- **Verification Script**: Always use `./scripts/test.ps1` for backend/sync checks.
 - **Zero-Garbage Policy**: No temporary files in root or core folders.
-- **Workflow**: Follow `docs/TESTING.md` before merging to **PRD**.
-- **Standards**: Strictly follow `docs/DEVELOPMENT_STANDARDS.md`.
-- **Render**: Deploys only from **PRD** branch.
+
+---
+*Created by Antigravity AI - System Optimization v3.1.8*

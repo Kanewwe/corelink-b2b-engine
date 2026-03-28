@@ -80,24 +80,36 @@ CONTACT_PAGE_PATHS = [
     "/en/contact", "/us/contact",
 ]
 
-async def scrape_website_emails(domain: str) -> List[Dict]:
+async def scrape_website_emails(domain: str, user_id: int = None) -> List[Dict]:
     """從公司官網直接爬取 email（首頁 + 聯絡頁）"""
+    from config_utils import get_api_key
+    from database import SessionLocal
+    
+    db = SessionLocal()
+    scraperapi_key = get_api_key(db, "scraperapi", user_id)
+    db.close()
+    
     found_emails = []
     base_url = f"https://{domain}"
     pages_to_try = [base_url] + [base_url + path for path in CONTACT_PAGE_PATHS]
 
     async with httpx.AsyncClient(
-        timeout=10,
+        timeout=15,
         follow_redirects=True,
         headers={
             "User-Agent": random.choice(USER_AGENTS),
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
         }
     ) as client:
         for url in pages_to_try[:6]:
             try:
-                resp = await client.get(url)
+                # 🛡️ [RESILIENCE] 若有 ScraperAPI Key，則使用代理繞過 403
+                target_url = url
+                if scraperapi_key:
+                    target_url = f"http://api.scraperapi.com?api_key={scraperapi_key}&url={quote(url)}&render=false"
+                    # add_log(f"🛡️ [PROXY] Using ScraperAPI for {domain}")
+
+                resp = await client.get(target_url)
                 if resp.status_code == 404:
                     continue
                 if resp.status_code != 200:
@@ -488,7 +500,7 @@ def deduplicate_emails(emails: List[Dict]) -> List[Dict]:
 # 主程式：整合三層策略
 # ══════════════════════════════════════════
 
-async def find_emails_free(domain: str, company_name: str = "", timeout: int = 30) -> Dict:
+async def find_emails_free(domain: str, company_name: str = "", timeout: int = 30, user_id: int = None) -> Dict:
     """
     整合三層 email 發現策略
     ✅ 新增：整體 timeout 保護（最多 30 秒）
@@ -507,7 +519,7 @@ async def find_emails_free(domain: str, company_name: str = "", timeout: int = 3
     try:
         # Layer 1: 直接爬官網（最高優先）
         add_log(f"🔍 Layer 1: 爬取官網 {domain}")
-        layer1_emails = await scrape_website_emails(domain)
+        layer1_emails = await scrape_website_emails(domain, user_id=user_id)
         
         for email in layer1_emails:
             result["emails"].append(email)

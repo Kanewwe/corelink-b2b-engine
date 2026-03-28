@@ -28,7 +28,37 @@ frontend/src/
 ├── index.css            ← Tailwind base + 舊有全域樣式
 ├── main.tsx             ← 引入順序：index.css → tokens.css → components.css
 └── components/
-    └── Layout.tsx       ← 含 Sidebar Drawer + Bottom TabBar
+    └── Layout.tsx    ## 🎨 色彩與氛圍 (Color & Tone)
+
+Linkora Pro 核心主題色為 **#6366f1 (Indigo)** 與 **#000000 (Black)** 的結合，並透過透明度達成「毛玻璃」質感。
+
+### 🌈 核心 HSL 變數
+可以在 `frontend/src/index.css` 找到：
+- `--primary`: `239 84% 67%` (Indigo)
+- `--glass-bg`: `0 0% 100% / 0.05` (5% White)
+- `--glass-border`: `0 0% 100% / 0.1` (10% White)
+
+---
+
+## 🏗️ 毛玻璃組件標準 (Glassmorphism Tokens)
+
+### 1. 核心容器 (Glass Panel)
+代碼實作：`.glass-panel`
+```css
+/* 預定義於 index.css */
+.glass-panel {
+  @apply bg-glass-panel backdrop-blur-md border border-glass-border rounded-2xl;
+}
+```
+
+### 2. 常用 Utility Classes
+- **背景層**: `bg-glass-panel` (等同於 `bg-white/5`)
+- **邊框層**: `border-glass-border` (等同於 `border-white/10`)
+- **動畫系統**: 頁面過渡統一使用 `animate-in zoom-in-95 duration-300`。
+
+---
+
+## 📐 佈局規範 (Layout)
 ```
 
 ---

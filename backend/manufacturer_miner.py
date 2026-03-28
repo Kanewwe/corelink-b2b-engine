@@ -77,7 +77,7 @@ async def search_via_apify_thomasnet(keyword: str, market: str = "US", max_resul
         }
 
         # 🚀 升級 Actor: 使用 zen-studio/thomasnet-suppliers-scraper (Rising Star 2026)
-        actor_id = "zen-studio/thomasnet-suppliers-scraper"
+        actor_id = get_api_key(db, "apify_miner_actor", user_id) or "zen-studio/thomasnet-suppliers-scraper"
         
         try:
             if db and task_id:
@@ -96,9 +96,9 @@ async def search_via_apify_thomasnet(keyword: str, market: str = "US", max_resul
             run = None
 
         if not run or not run.get("defaultDatasetId"):
-            # 備援 Actor
+            # 備援 Actor (Dynamic Backup possible via system_settings too, but here we hardcode stable secondary)
             backup_actor = "jeeves_is_my_copilot/thomasnet-supplier-directory-scraper"
-            add_log(f"⚠️ 嘗試備援 Thomasnet Actor: {backup_actor}...", level="warning")
+            add_log(f"⚠️ [RESILIENCE] 嘗試備援 Thomasnet Actor: {backup_actor}...", level="warning")
             try:
                 run = await asyncio.wait_for(
                     asyncio.to_thread(client.actor(backup_actor).call, run_input=run_input),
@@ -113,6 +113,11 @@ async def search_via_apify_thomasnet(keyword: str, market: str = "US", max_resul
 
         dataset = client.dataset(run["defaultDatasetId"])
         items = dataset.list_items().items
+        
+        # 🆕 [RESILIENCE] 檢查是否成功但 0 筆
+        if not items:
+            add_log(f"⚠️ [RESILIENCE] Actor {actor_id} 成功但返回 0 筆資料 (Items=0)。建議檢查 Actor 是否下架或頁面結構變更。", level="warning")
+            return []
 
         results = []
         for item in items:
@@ -342,7 +347,7 @@ async def manufacturer_mine(
                         
                         if not contact_email:
                             # free 模式：從官網爬取
-                            email_result = await find_emails_free(domain_found, company_name)
+                            email_result = await find_emails_free(domain_found, company_name, user_id=user_id)
                             best = email_result.get("best_email")
                             if best and best.get("email"):
                                 contact_email = best["email"]

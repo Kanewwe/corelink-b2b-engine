@@ -1,87 +1,98 @@
-# Linkora B2B Engine 2.0 - 專案交付手冊 (Project Handbook)
+# Linkora - 專案交付與業務架構手冊 (Project Handbook)
 
-本手冊旨在說明 Linkora 2.0 的業務邏輯、系統操作、程式架構與資料庫結構，供維運與後續開發參考。
-
----
-
-## 1. 業務流程 (Business Workflow)
-
-Linkora 的核心為「自動化開發與外包管理」，其核心業務流程如下：
-
-1.  **資源探勘 (Lead Generation)**: 
-    *   使用者選擇「製造商模式」或「Yellowpages 模式」。
-    *   系統透過爬蟲 (Google/Bing/API) 抓取潛在客戶資料（公司名、網址、Email、產業）。
-    *   任務記錄於 `History` 以供隨時下載或重新匯入。
-2.  **開發聯繫 (Outreach)**: 
-    *   設定 SMTP 郵件伺服器。
-    *   建立自定義郵件模板，由 AI 標籤進行動態替換。
-    *   執行發信任務，系統自動附加「開信追蹤」與「點擊追蹤」代碼。
-3.  **成效分析 (Performance Tracking)**: 
-    *   收集回傳的追蹤數據（開信率、點擊率）。
-    *   呈現於 Analytics 儀表板，輔助決策。
-4.  **委外結帳 (Wholesale Billing)**: 
-    *   **Admin** 根據廠商 (Vendor/委外廠商) 旗下成員的總工作量（Lead 產出數）。
-    *   乘上預設的「批發單價」產出帳單。
+本手冊旨在說明 Linkora v3.1.8 的核心業務邏輯、系統操作流程、權限架構與後台管理規範，供維運與後續功能擴展參考。
 
 ---
 
-## 2. 系統操作 (Operation Guide)
+## 1. 核心業務流程 (Business Workflow)
 
-### 👑 管理員 (Admin)
-*   **廠商管理**: 可建立、編輯、刪除「委外廠商 (Vendor)」，並設定其每筆 Lead 的批發單價。
-*   **全局監控**: Analytics 可切換查看單一廠商、個別 Member 或全系統的效能。
+Linkora 的營運核心在於「資源探勘 (Mining)」、「自動聯繫 (Outreach)」與「委外對帳 (Wholesale Billing)」的閉環。
 
-### 🏭 委外廠商 (Vendor / 委外廠商)
-*   **團隊管理**: 可管理旗下的成員 (Member) 帳號。
-*   **對帳中心**: Analytics 儀表板顯示「本月對帳摘要」，標示該廠商旗下所有成員完成的 Lead 數量與應付費用。
+1.  **資源探勘 (Auto-Miner)**: 
+    - 使用者輸入關鍵字，AI 自動擴展並由 **Zen-studio 探勘引擎** 執行異步任務。
+    - **全域隔離池 (Global Isolation Pool)**：優先從資料庫中同步已匹配資料，若不足則發動異地探勘。
+    - 任務日誌記錄於資料庫，支援隨時斷點重啟或結果回溯。
 
-### 👷 成員 (Member / 一般成員)
-*   **第一線操作**: 執行 Lead Engine 探勘、維護信件模板、執行發信任務與查看個人探勘歷史。
+2.  **開發聯繫 (Outreach Automator)**: 
+    - 系統支援多封發信分組。
+    - 結合 **AI 標籤分析**，自動將 `{{company_name}}` 等變數替換為個人化內容。
+    - 發信任務自動注入 **Pixel 追蹤碼**，數據會即時回傳至分析儀表板。
 
----
-
-## 3. 程式碼說明 (Architecture)
-
-### 📂 目錄結構
-*   `/backend`: FastAPI (Python) 核心引擎。
-    *   `main.py`: API Entry Points & 所有業務邏輯路由。
-    *   `models.py`: SQLAlchemy 資料庫模型 (DB Tables)。
-    *   `auth.py`: JWT/Bearer 與 Cookie 多重驗證 & `require_role` 多角色權限守衛。
-    *   `database.py`: PostgreSQL 連線管理 (支援 `search_path` Schema 切換)。
-    *   `scrape_simple.py` & `manufacturer_miner.py`: 爬蟲與 AI 廠商探勘核心。
-*   `/frontend`: React (TypeScript) 現代化介面。
-    *   `/src/contexts/AuthContext.tsx`: 全域身分管理。
-    *   `/src/components/RoleGuard.tsx`: 介面存取權限控制。
-    *   `/src/pages/VendorAdmin.tsx`: 廠商 CRUD 管理介面。
-    *   `/src/pages/Analytics.tsx`: 基於角色的成效與結帳儀表板。
-
-### 🔐 權限保護機制
-*   **後端**: 使用 `Depends(require_role(["admin", "vendor"]))` 守衛 API 端點。
-*   **前端**: 使用 `<RoleGuard>` 元件。若角色不符（如 Member 試圖進入廠商管理頁面）會自動導回。
+3.  **委外對帳 (Wholesale Billing Logistics)**: 
+    - 針對「委外廠商 (Vendor)」所屬成員 (Member) 產出的有效資料進行統計。
+    - Admin 後台可設定各廠商的「Lead 批發單價」。
+    - 儀表板自動核算當月帳單。
 
 ---
 
-## 4. 資料庫結構 (DB Schema)
+## 2. 系統角色與權限 (RBAC Architecture)
+
+| 角色 (Role) | 權限範圍 | 核心頁面 |
+| :--- | :--- | :--- |
+| **👑 Admin** | 全域監控、API Key 管理、廠商 CRUD、全站參數配置 | `Admin Hub`, `Vendor Management` |
+| **🏭 Vendor** | 團隊管理、查看旗下 Member 的總產量與應帳金額 | `Team Analytics`, `Member Management` |
+| **👷 Member** | 第一線操作：探勘任務、模板編寫、發信執行 | `Lead Engine`, `Email Campaign` |
+
+---
+
+## 3. 技術架構細節 (Architecture Deep-Dive)
+
+### 後端核心 (FastAPI)
+- `auth.py`: 實作 **Cookie-based Session** 與 **Bearer Token** 雙重驗證機制，滿足 Web UI 與 External API 的不同需求。
+- `email_sender_job.py`: 使用 **APScheduler** 維護一組可動態重啟的發信佇列，並具備 Retry 邏輯。
+- `manufacturer_miner.py`: v3.1.8 現代化驅動，支援 Bing / Google CSE 的 Fail-over 備援切換。
+
+### 前端架構 (Vite + React)
+- `/src/contexts/AuthContext.tsx`: 管理全域登入狀態與角色緩存。
+- `/src/components/RoleGuard.tsx`: 頁面與組件級別的權限過濾器。
+
+---
+
+## 4. 資料庫架構 (DB Schema Summary)
 
 | 資料表 | 說明 | 關鍵欄位 |
 | :--- | :--- | :--- |
-| **users** | 帳號表 | `email`, `role` (admin/vendor/member), `vendor_id` (關聯到廠商 ID) |
-| **vendors** | 委外廠商資料 | `user_id`, `company_name`, `pricing_config` (JSON 單價：$50/lead) |
-| **leads** | 客戶名單 | `company_name`, `website_url`, `contact_email`, `status` |
-| **scrape_tasks** | 探勘任務記錄 | `market`, `keywords`, `miner_mode`, `leads_found` |
-| **email_logs** | 郵件追蹤記錄 | `opened`, `clicked`, `recipient`, `sent_at` |
+| **users** | 核心帳號表 | `role` (admin/vendor/member), `vendor_id` |
+| **leads** | 潛在客戶名單 | `user_id`, `company_name`, `contact_email`, `status` |
+| **global_leads** | 全域隔離池原始庫 | `domain`, `raw_data_json`, `last_scraped_at` |
+| **email_campaigns** | 行銷任務紀錄 | `subject`, `template_id`, `status` (Draft/Sent) |
+| **email_logs** | 成效追蹤細項 | `opened_at`, `clicked_at`, `ip_address` |
 
 ---
 
-## 5. 部署說明 (Deployment)
+## 5. 維運與故障排除 (Ops & Troubleshooting)
 
-*   **雲端部署 (Render)**: 
-    *   已配置 `render.yaml`，推送至 GitHub 後會自動執行。
-    *   前端為靜態站點 (Fast static serving)。
-    *   後端為 Docker Container。
-*   **本地測試 (Docker Compose)**:
-    *   執行 `docker-compose up` 啟動前端與後端。
-    *   **資料庫隔離**：本專案在 Render 使用單一 Postgres 實例，透過 `APP_ENV=production` 或 `uat` 自動切換 Schema 達成環境隔離。
+- **日誌追蹤**：系統核心日誌會緩存於 `backend/logger.py` 中，並可透過 `/api/system-logs` 即時獲取。
+## 5. 職能協作與任務路由 (Task Routing & Collaboration)
+
+為了確保需求從「輸入」到「驗收」能自動化流轉，Linkora 採用以下決策模型：
+
+```mermaid
+graph TD
+    A[需求輸入 / User 反饋] --> B{場景判斷}
+    B -- 修復/錯誤 --> C[Path A: Bugfix]
+    B -- 新增/擴充 --> D[Path B: Feature]
+    B -- 優化/重構 --> E[Path C: Optimizing]
+    
+    C --> C1[QA 複現 & DevOps 除錯]
+    C1 --> C2[PG 修復]
+    C2 --> C3[QA 二次驗證]
+    
+    D --> D1[PM 評估 & SA 定義規格]
+    D1 --> D2[PG 分支開發]
+    D2 --> D3[QA & User 驗收]
+    
+    E --> E1[DBA/SA 診斷]
+    E1 --> E2[PG 優化實作]
+    E2 --> E3[QA 品質探勘]
+    
+    C3 --> F[PRD 部署與日誌同步]
+    D3 --> F
+    E3 --> F
+```
+
+> [!TIP]
+> 具體自動化判定邏輯與各階段 SOP 連結，請參閱 **[WORKFLOW_ENGINE.md](docs/WORKFLOW_ENGINE.md)**。
 
 ---
-*Generated by Antigravity AI on 2026-03-25*
+*Generated by Antigravity AI - Linkora v3.1.8 Documentation Support*

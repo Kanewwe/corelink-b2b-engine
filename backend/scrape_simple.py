@@ -189,7 +189,7 @@ def scrape_simple(market: str = "US", pages: int = 3, keywords: list = None, use
                                 elif not contact_email:
                                     # free 模式：跳過官網爬取（太慢），直接用 Layer 3 Guessing
                                     from free_email_hunter import find_emails_free
-                                    email_result = find_emails_free(lead_domain, name, timeout=5)
+                                    email_result = find_emails_free(lead_domain, name, timeout=5, user_id=user_id)
                                     best_email_obj = email_result.get("best_email")
                                     if best_email_obj:
                                         contact_email = best_email_obj.get("email", "")
@@ -315,8 +315,9 @@ def scrape_keyword_page_apify(keyword: str, page: int, market: str = "US", db=No
     location_map = {"US": "United States", "UK": "United Kingdom", "CA": "Canada", "AU": "Australia"}
     location = location_map.get(market, market)
     
-    # 支援新版 Actor (junipr)
-    actor_id = "junipr~yellow-pages-scraper"
+    # 支援新版 Actor (junipr or dynamic setting)
+    actor_id = get_api_key(db, "apify_simple_actor", user_id) or "junipr~yellow-pages-scraper"
+    
     # v3.2: searchTerms 應為字串（非陣列），否則返回垃圾資料
     run_input = {
         "searchTerms": keyword,
@@ -332,13 +333,14 @@ def scrape_keyword_page_apify(keyword: str, page: int, market: str = "US", db=No
     
     try:
         _log("info", f"🌐 呼叫 Apify: {actor_id} | 關鍵字: {keyword}")
-        run = client.actor(actor_id).call(run_input=run_input)
+        # 🛡️ 加強超時保護與重試
+        run = client.actor(actor_id).call(run_input=run_input, timeout=60) # Simple mode 60s is enough
         
         if not run or not run.get("defaultDatasetId"):
-            _log("warning", "主 Actor 無 dataset，切換備援 Actor")
+            _log("warning", f"[RESILIENCE] Actor {actor_id} 無效，切換備援 Actor")
             run = client.actor("automation-lab/yellowpages-scraper").call(run_input={
                 "searchTerms": keyword, "location": location, "maxResults": 20
-            })
+            }, timeout=60)
 
         if not run or not run.get("defaultDatasetId"): 
             _log("error", "所有 Actor 都無法取得 dataset")
@@ -347,6 +349,10 @@ def scrape_keyword_page_apify(keyword: str, page: int, market: str = "US", db=No
         dataset = client.dataset(run["defaultDatasetId"])
         items = dataset.list_items().items
         
+        if not items:
+            _log("warning", f"⚠️ [RESILIENCE] Actor {actor_id} 已執行成功但返回 0 筆資料 (Items=0)。這可能意味著 Actor 已失效或被封鎖。")
+            return []
+            
         _log("info", f"📦 Apify 回傳 {len(items)} 筆原始資料")
         
         results = []

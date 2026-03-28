@@ -1,50 +1,23 @@
-# Linkora v3.2 → v3.5 長期 Roadmap
+# Linkora v3.1.8-resilience → v3.5 長期 Roadmap
 
-> **版本：** 1.1.0（2026-03-28 更新）  
+> **版本：** 1.2.0 (2026-03-28 v3.1.8-resilience 發佈)  
 > **適用對象：** Kane（技術創辦人）  
-> **Review 頻率：** 每兩週一次（每個 Sprint 結束）
+> **狀態：** 核心基建 (Postgres/Isolation/Engine) 已穩定。
 
 ---
 
-## 現況診斷（2026-03-28 v2 — 重大發現）
+## 🚀 已完成基建 (v3.1.8-resilience Milestone)
 
-### 🔴 緊急（Blocker）— 所有爬蟲失效的根本原因
-
-經過完整診斷，發現**三層次問題**疊加：
-
-| 層次 | 問題 | 根本原因 | 狀態 |
-|------|------|---------|------|
-| **Token** | 錯誤 Apify key（JdJ vs GdJ）| 之前用錯誤 key 測試所有 actors | ✅ 已確認正確 key |
-| **Actor Path** | Junipr 正確路徑是 `junipr~yellow-pages-scraper`（波浪號）| 之前用斜線路徑 | ✅ 已修復 |
-| **Junipr Actor** | SUCCEEDED 但 items=0, datasetId=none | **Actor 已實質下架（2026-03已確認）** | 🔴 已確認 |
-| **Direct Scraping** | YellowPages.com 回 403 Forbidden | 需要更換 UA 或 proxy | 🟡 需處理 |
-| **Thomasnet** | `zen-studio/thomasnet-suppliers-scraper` → 404 | Actor 已下架 | 🔴 需替代方案 |
-| **所有付費 Actors** | yellowpages-scraper → FAILED/404/400 | 帳號訂閱問題或 actors 下架 | 🔴 需重新評估 |
-
-### 🟡 高優先（已修復）
-| 問題 | 修復 |
-|------|------|
-| SystemSettings API 路由錯誤 | ✅ GET `/admin/settings` → `/system/settings` |
-| 版本號顯示 V3.1.9 | ✅ 改為 `V3.2 (AI Intelligence)` |
-| ScrapeMonitor TypeScript 錯誤 | ✅ 移除未使用變數 |
-
-### 🔧 Sprint 0 新任務（更新後）
-
-| Task | 優先 | 說明 |
-|------|------|------|
-| S0-A. Junipr 確認下架 | 🔴 | ✅ 已確認，items=0，需替代方案 | ✅ 已確認 |
-
-### 📊 目前系統狀態（2026-03-28 09:00）
-- Leads 總數：81（全部 email_candidates=null，無用）
-- 所有 Apify YellowPages/Thomasnet actors 已確認失效
-- Direct YellowPages → 403 Forbidden
-- **結論：需採購 B2B Data API 或重構爬蟲策略**
+| 模組 | 產出 | 狀態 |
+| :--- | :--- | :--- |
+| **資料架構** | PostgreSQL + Schema-based 多租戶隔離 | ✅ 已上線 |
+| **核心佈署** | `migrations.py` 自動化欄位補全機制 | ✅ 已上線 |
+| **控制中心** | System Settings Hub (API Key 映射) | ✅ 已上線 |
+| **探勘引擎** | 180s 超時保護 + 全域隔離池 (Pool Sync) | ✅ 已上線 |
 
 ---
 
-## Sprint 切割
-
-### Sprint 0：止血 & 穩定（1-2週）
+## 🔧 目前 Sprint 任務 (優化與維護)
 **目標：** 讓爬蟲四模式**至少有一個**能完整跑通（爬到→入庫→有email）
 
 | Task | 負責 | 預期產出 | 優先 |
