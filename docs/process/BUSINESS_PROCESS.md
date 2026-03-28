@@ -1,6 +1,6 @@
 # Linkora B2B 引擎 — 業務流程與預期效益 (Detailed)
 
-> **版本：** 1.1.0 (v3.1.8 同步)  
+> **版本：** 1.2.0 (v3.2 AI Intelligence)  
 > **更新日期：** 2026-03-28  
 > **適用對象：** 管理層、業務團隊、技術團隊
 
@@ -68,14 +68,16 @@ Day 2-7: 探勘階段
 ├─ 輸入關鍵字與市場
 ├─ 執行背景爬蟲任務
 ├─ 查看 History 任務進度
+├─ **生成 AI 公司情報 (Company Brief)** ✨
 └─ 探勘結果自動入庫 (Leads)
 
 Day 8-14: 郵件階段
 ├─ 進入 Templates 建立開發信
-├─ 使用 AI 生成或手動編輯
+├─ 使用 AI 生成、**優化 3 個主旨變體** ✨
+├─ 產生 **A/B 理性與感性版本** 進行測試 ✨
 ├─ 進入 Campaigns 執行投遞
 ├─ 選擇目標 Leads 群組
-├─ 設定發送參數 (時間/批次)
+├─ 設定發送參數 (時間/批次/最佳發送時間建議) ✨
 └─ 自動化投遞執行
 
 Day 15-30: 追蹤階段
@@ -150,7 +152,8 @@ Monthly: 結算流程
 
 - **爬蟲來源被封**: 採兩層 Fallback (Thomasnet → Bing → Google CSE)
 - **郵件進入垃圾匣**: 實施 SPF/DKIM 硬性校準與個人化 AI 開頭
+- **開發不穩定**: 強制執行 **VCP (Verify-Commit-Push) 交付規約**
 - **法規合規 (GDPR)**: 嚴格執行 `SearchPath` 數據隔離與隱私過濾
 
 ---
-*Created by Antigravity AI - Detailed Business Operations v3.1.8*
+*Created by Antigravity AI - Detailed Business Operations v3.2 AI Intelligence*
