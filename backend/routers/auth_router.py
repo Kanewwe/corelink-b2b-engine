@@ -206,3 +206,26 @@ def get_subscription(request: Request, session_id: str = Cookie(None), db: Sessi
     if not sub:
         return {"subscription": None, "plan": None}
     return {"subscription": {"id": sub.id, "status": sub.status}, "plan": {"name": sub.plan.name}}
+
+
+# ─── User Points (v3.7) ──────────────────────────────────────────────────────
+
+@router.get("/user/points")
+def get_user_points(request: Request, session_id: str = Cookie(None), db: Session = Depends(get_db)):
+    """v3.7: 回傳當前用戶可用點數 (Credits)"""
+    # 支援 Bearer Token
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        session_id = auth_header.split(" ")[1]
+
+    if not session_id:
+        raise HTTPException(status_code=401, detail="請先登入")
+    
+    session = auth_module.get_session(db, session_id)
+    if not session:
+        raise HTTPException(status_code=401, detail="Session 已過期")
+    
+    user = session.user
+    from billing_service import get_point_balance
+    balance = get_point_balance(user.id)
+    return {"points": balance}
