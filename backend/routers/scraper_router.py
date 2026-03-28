@@ -14,6 +14,8 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Cookie, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from sqlalchemy import func, desc
+from datetime import datetime, timedelta
 
 from database import get_db
 import models
@@ -231,3 +233,76 @@ def stop_scheduler(current_user: models.User = Depends(get_current_user)):
 def get_scheduler_status(current_user: models.User = Depends(get_current_user)):
     import email_sender_job
     return email_sender_job.get_scheduler_status()
+
+
+# ─── Scraper Health Dashboard (v3.7) ──────────────────────────────────────────
+
+@router.get("/health/stats")
+def get_scraper_health_stats(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """
+    SA v3.5: 取得探勘引擎健康度遙測數據 (成功率、延遲、狀態分佈)
+    """
+    # 1. 抓取最近 7 天的 Data
+    lookback_days = 7
+    cutoff = datetime.utcnow() - timedelta(days=lookback_days)
+
+    # 2. 聚合總成功率 (Success Rate)
+    # 定義成功為 HTTP 2xx
+    total_logs = db.query(models.ScrapeLog).filter(models.ScrapeLog.created_at >= cutoff).count()
+    if total_logs == 0:
+        return {"success": True, "total_logs": 0, "message": "目前尚無近 7 天的監控數據"}
+
+    success_logs = db.query(models.ScrapeLog).filter(
+        models.ScrapeLog.created_at >= cutoff,
+        models.ScrapeLog.http_status >= 200,
+        models.ScrapeLog.http_status < 300
+    ).count()
+
+    success_rate = (success_logs / total_logs) * 100
+
+    # 3. 按 Miner Mode 統計平均響應時間
+    miner_stats = db.query(
+        models.ScrapeTask.miner_mode,
+        func.avg(models.ScrapeLog.response_time).label("avg_latency"),
+        func.count(models.ScrapeLog.id).label("total_requests")
+    ).join(models.ScrapeLog).filter(
+        models.ScrapeLog.created_at >= cutoff,
+        models.ScrapeLog.response_time.isnot(None)
+    ).group_by(models.ScrapeTask.miner_mode).all()
+
+    # 4. HTTP 狀態碼分佈 (Pie Chart Data)
+    status_dist = db.query(
+        models.ScrapeLog.http_status,
+        func.count(models.ScrapeLog.id).label("count")
+    ).filter(
+        models.ScrapeLog.created_at >= cutoff,
+        models.ScrapeLog.http_status.isnot(None)
+    ).group_by(models.ScrapeLog.http_status).all()
+
+    # 5. 最近 24 小時的響應趨勢 (Time Series - 按小時聚合)
+    limit_24h = datetime.utcnow() - timedelta(hours=24)
+    trend_data = db.query(
+        func.date_trunc('hour', models.ScrapeLog.created_at).label('hour'),
+        func.avg(models.ScrapeLog.response_time).label('avg_latency')
+    ).filter(
+        models.ScrapeLog.created_at >= limit_24h,
+        models.ScrapeLog.response_time.isnot(None)
+    ).group_by('hour').order_by('hour').all()
+
+    return {
+        "success": True,
+        "summary": {
+            "total_requests": total_logs,
+            "success_rate": round(success_rate, 2),
+            "status": "Healthy" if success_rate > 90 else "Degraded" if success_rate > 70 else "Critical"
+        },
+        "miner_metrics": [
+            {"mode": m[0], "latency": round(float(m[1] or 0), 3), "count": m[2]} for m in miner_stats
+        ],
+        "status_distribution": [
+            {"status": s[0], "count": s[1]} for s in status_dist
+        ],
+        "latency_trend": [
+            {"time": t[0].isoformat() if t[0] else "", "latency": round(float(t[1] or 0), 3)} for t in trend_data
+        ]
+    }
