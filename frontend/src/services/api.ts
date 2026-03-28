@@ -1,8 +1,4 @@
-export const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-  ? 'http://localhost:8000/api'
-  : window.location.hostname.includes('linkora-frontend-uat')
-    ? 'https://linkora-backend-uat.onrender.com/api'
-    : '/api';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 // v3.7 Security Secret (應與後端一致)
 const SECURITY_SECRET = 'linkora-dev-secret-key-123456';

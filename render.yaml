@@ -55,6 +55,8 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "20"
+      - key: VITE_API_BASE_URL
+        value: "https://linkora-backend.onrender.com/api"
 
   # 4. React 前端 (UAT/Staging - Branch: uat)
   - type: web
@@ -75,6 +77,8 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "20"
+      - key: VITE_API_BASE_URL
+        value: "https://linkora-backend-uat.onrender.com/api"
 
 databases:
   # 5. PostgreSQL 資料庫 (由所有環境共用，或可在後續擴展為多資料庫)
