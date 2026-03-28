@@ -69,19 +69,24 @@ def init_db():
 
 
 def _run_migrations(engine):
-    """v3.2: 為已存在的資料表新增 v3.2 新增的欄位"""
+    """v3.2-v3.7: 為已存在的資料表新增欄位"""
     from sqlalchemy import text
     
     schema_name = "uat" if APP_ENV == "uat" else "public"
     
     migrations = [
-        # leads 表新增 AI 評分欄位
+        # leads 表新增 AI 評分欄位 (v3.2)
         ("leads", "ai_score", "INTEGER DEFAULT 0"),
         ("leads", "ai_score_tags", "TEXT"),
         ("leads", "ai_brief", "TEXT"),
         ("leads", "ai_suggestions", "TEXT"),
         ("leads", "ai_scored_at", "TIMESTAMP"),
         ("leads", "error_message", "TEXT"),
+        # leads 表新增 v3.7 欄位
+        ("leads", "override_name", "VARCHAR(200)"),
+        ("leads", "override_email", "VARCHAR(255)"),
+        ("leads", "personal_notes", "TEXT"),
+        ("leads", "custom_tags", "VARCHAR(255)"),
         # email_logs 表新增 AI 回信分析欄位 (Sprint 2)
         ("email_logs", "reply_intent", "VARCHAR(50)"),
         ("email_logs", "reply_analysis", "TEXT"),
