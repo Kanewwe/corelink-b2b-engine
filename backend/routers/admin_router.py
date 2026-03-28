@@ -109,9 +109,11 @@ def debug_leads(db: Session = Depends(get_db)):
 @router.post("/init-db")
 def init_db_endpoint(current_user: models.User = Depends(get_current_user)):
     from database import engine, Base
+    from migrations import run_migrations
     try:
         Base.metadata.create_all(bind=engine)
-        return {"message": "Database tables created successfully"}
+        run_migrations()  # v3.7.25: 執行 schema migrations
+        return {"message": "Database tables created and migrations applied successfully"}
     except Exception as e:
         return {"error": str(e)}
 
