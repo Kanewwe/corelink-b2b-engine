@@ -133,7 +133,6 @@ def ensure_admin_exists():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # ─── Run DB migrations FIRST (ensures user_id and other columns exist) ───
     try:
         from migrations import run_migrations
         run_migrations()

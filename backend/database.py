@@ -2,12 +2,16 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 import os
 
-# ─── DATABASE_URL from env (Enforced: PostgreSQL) ───
+# ─── DATABASE_URL from env (Enforced: PostgreSQL for non-test env) ───
 DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
+APP_ENV = os.getenv("APP_ENV", "production")  # 'production', 'uat', or 'test'
+
+if not DATABASE_URL and APP_ENV != "test":
     raise EnvironmentError("❌ [CRITICAL] DATABASE_URL is not set! SQLite is deprecated. Please configure PostgreSQL.")
 
-APP_ENV = os.getenv("APP_ENV", "production")  # 'production' or 'uat'
+if not DATABASE_URL and APP_ENV == "test":
+    DATABASE_URL = "sqlite:///:memory:"
+    print("ℹ️ [Database] APP_ENV=test and no DATABASE_URL found. Using SQLite In-Memory.")
 
 # Fix Render's postgres:// -> postgresql://
 if DATABASE_URL.startswith("postgres://"):

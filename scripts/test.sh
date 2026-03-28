@@ -24,9 +24,10 @@ cd "$PROJECT_ROOT"
 
 # Add backend to PYTHONPATH
 export PYTHONPATH="$PROJECT_ROOT/backend"
-# Set dummy DATABASE_URL for testing (since conftest.py overrides it with SQLite in-memory)
-export DATABASE_URL="postgresql://localhost/test_db"
+# Set APP_ENV to test (allows database.py to use SQLite fallback)
 export APP_ENV="test"
+# Ensure DATABASE_URL is UNSET for full SQLite verification
+unset DATABASE_URL
 
 # Run pytest
 # Using python3 specifically for macOS convention
