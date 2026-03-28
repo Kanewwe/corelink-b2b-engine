@@ -109,28 +109,44 @@ app.add_middleware(
 @app.middleware("http")
 async def catch_exceptions_middleware(request: Request, call_next):
     """
-    v3.6/v3.7: 異常捕捉與安全校驗中介層
+    v3.17: 極致 CORS 相容化 - 全局強制注入標頭
     """
+    # 預先識別原點
+    origin = request.headers.get("Origin")
+    is_allowed = origin in ALLOWED_ORIGINS
+    
+    # 手動處裡 OPTIONS 預檢，避免進入後續邏輯 (解決 Missing Header 最快方式)
+    if request.method == "OPTIONS" and is_allowed:
+        response = Response()
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        return response
+
     try:
-        # 1. 執行安全簽名校驗 (v3.7) 
-        # 只針對 API 寫入操作 (POST, PUT, PATCH, DELETE)
-        # v3.7: HMAC 安全簽名核查 (已於 v3.7.12 停用)
-        
-        # 2. 執行後續邏輯
+        # 1. 執行後續邏輯
         start_time = time.time()
         response = await call_next(request)
         response.headers["X-Process-Time"] = str(time.time() - start_time)
         
-        # 3. 解決 'eval' 被瀏覽器阻擋的問題 (v3.7.6 強化版)
+        # 2. 解決 'eval' 被瀏覽器阻擋的問題
         response.headers["Content-Security-Policy"] = CSP_RULES
         
+        # 3. 強制注入 CORS 標頭 (不論成功碼為何)
+        if is_allowed:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "*"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+            
         return response
     except Exception as e:
         import traceback
         error_trace = traceback.format_exc()
         add_log(f"🔥 [API Error] {request.method} {request.url.path}: {e}")
         
-        # Return JSON instead of raising, to prevent "Unexpected token I" in frontend
+        # 建立 JSON 錯誤回應
         resp = JSONResponse(
             status_code=500,
             content={
@@ -140,6 +156,14 @@ async def catch_exceptions_middleware(request: Request, call_next):
                 "trace": error_trace if os.getenv("APP_ENV") != "production" else None
             }
         )
+        
+        # 即使在 Error 回應中也必須強制注入 CORS，否則前端看不見 Detail
+        if is_allowed:
+            resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
+            resp.headers["Access-Control-Allow-Methods"] = "*"
+            resp.headers["Access-Control-Allow-Headers"] = "*"
+            
         resp.headers["Content-Security-Policy"] = CSP_RULES
         return resp
 
