@@ -1,4 +1,16 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+// 1. 優先取用環境變數 (Build-time)
+const envUrl = import.meta.env.VITE_API_BASE_URL;
+
+// 2. 執行期 Hostname 自動導航 (Run-time 雙重保險)
+export const API_BASE_URL = envUrl || (
+  window.location.hostname.includes('localhost') || window.location.hostname === '127.0.0.1' 
+    ? 'http://localhost:8000/api' :
+  window.location.hostname.includes('linkora-frontend-uat') 
+    ? 'https://linkora-backend-uat.onrender.com/api' :
+  window.location.hostname.includes('linkora-frontend') 
+    ? 'https://linkora-backend.onrender.com/api' :
+  '/api' // 最後的相對路徑回退
+);
 
 // v3.7 Security Secret (應與後端一致)
 const SECURITY_SECRET = 'linkora-dev-secret-key-123456';
