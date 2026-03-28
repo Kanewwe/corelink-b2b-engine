@@ -214,52 +214,55 @@ async def manufacturer_mine(
 
     add_task_log(db, task_id, "info", f"製造商模式啟動 | 關鍵字: {keyword} | 配額: {remaining_quota}")
 
-    # Step 1: Thomasnet
-    all_companies = await search_via_apify_thomasnet(keyword, market, max_results=40, db=db, user_id=user_id)
+    # ── v3.5 Waterfall Strategy Pipeline ──
+    all_companies = []
+    strategies = [
+        {"name": "thomasnet_apify", "max": 40},
+        {"name": "yellowpages_apify_fallback", "max": 20}
+    ]
 
-    # Step 2: Yellowpages (Fallback)
-    if len(all_companies) < 15 and apify_token:
-        add_task_log(db, task_id, "info", "結果不足，啟動備援 黃頁尋機...", keyword=keyword)
+    for strat in strategies:
+        if len(all_companies) >= 15: # 若已有足夠資料則跳過後續備援
+            break
+            
+        add_task_log(db, task_id, "info", f"🚀 執行探勘策略: {strat['name']}...")
+        
         try:
-            from apify_client import ApifyClient
-            client = ApifyClient(apify_token)
-            yp_input = {
-                "searchTerms": [f"{keyword} manufacturer"],
-                "location": "United States" if market == "US" else market,
-                "maxResults": 20,
-                "extractEmails": True,
-                "includeDetails": True
-            }
-            run = await asyncio.to_thread(client.actor("junipr/yellow-pages-scraper").call, run_input=yp_input)
-            if run and run.get("defaultDatasetId"):
-                yp_items = client.dataset(run["defaultDatasetId"]).list_items().items
-                for item in yp_items:
-                    name = (item.get("businessName") or item.get("name", "")).strip()
-                    website = (item.get("website") or item.get("url", "")).strip()
-                    domain = extract_domain(website)
-                    
-                    if name and len(name) > 3:
-                        # 提取最佳 Email
-                        email = extract_best_email(item)
-                        
-                        email_candidates_str = ""
-                        raw_emails = item.get("email") or item.get("emails") or item.get("contactEmail") or []
-                        if isinstance(raw_emails, list):
-                            email_candidates_str = ", ".join([str(e) for e in raw_emails if e])
-                        elif isinstance(raw_emails, str):
-                            email_candidates_str = raw_emails
-                        
-                        all_companies.append({
-                            "company_name": name,
-                            "website": website,
-                            "domain": domain,
-                            "description": item.get("description", ""),
-                            "email": raw_emails[0] if raw_emails else "",
-                            "email_candidates": ", ".join(raw_emails),
-                            "source": "apify_yellowpages",
-                        })
+            if strat["name"] == "thomasnet_apify":
+                results = await search_via_apify_thomasnet(keyword, market, max_results=strat["max"], db=db, user_id=user_id)
+                all_companies.extend(results)
+            
+            elif strat["name"] == "yellowpages_apify_fallback" and apify_token:
+                # 原有的 Yellowpages Fallback 邏輯
+                from apify_client import ApifyClient
+                client = ApifyClient(apify_token)
+                yp_input = {
+                    "searchTerms": [f"{keyword} manufacturer"],
+                    "location": "United States" if market == "US" else market,
+                    "maxResults": strat["max"],
+                    "extractEmails": True
+                }
+                # 🛡️ 備援也要有超時保護
+                run = await asyncio.wait_for(
+                    asyncio.to_thread(client.actor("junipr/yellow-pages-scraper").call, run_input=yp_input),
+                    timeout=120
+                )
+                if run and run.get("defaultDatasetId"):
+                    yp_items = client.dataset(run["defaultDatasetId"]).list_items().items
+                    for item in yp_items:
+                        name = (item.get("businessName") or item.get("name", "")).strip()
+                        website = (item.get("website") or item.get("url", "")).strip()
+                        if name and len(name) > 3:
+                            all_companies.append({
+                                "company_name": name,
+                                "website": website,
+                                "domain": extract_domain(website),
+                                "description": item.get("description", ""),
+                                "source": "apify_yellowpages",
+                                "email": extract_best_email(item)
+                            })
         except Exception as e:
-            add_log(f"⚠️ 備援尋機失敗: {str(e)[:80]}", level="warning")
+            add_task_log(db, task_id, "warning", f"⚠️ 策略 {strat['name']} 執行失敗: {str(e)[:100]}")
 
     if not all_companies:
         task_record.status = "Completed"

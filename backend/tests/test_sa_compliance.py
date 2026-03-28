@@ -5,26 +5,16 @@ import os
 # Align Python path to backend root
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from database import SessionLocal
+from database import SessionLocal as TestSessionLocal, engine
 import models
 from billing_service import deduct_points, get_point_balance
 from scraper_utils import log_scrape_health
 import json
 import uuid
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-# --- Setup Test Database (SQLite Fallback if no PostgreSQL) ---
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    TEST_DB_PATH = "/tmp/test_sa.db"
-    DATABASE_URL = f"sqlite:///{TEST_DB_PATH}"
-    print(f"ℹ️ [Test] Using SQLite fallback: {TEST_DB_PATH}")
-
-engine = create_engine(DATABASE_URL)
-TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# Create tables in test DB
+# --- Setup Test Database (Ensuring Tables Exist on the Shared Engine) ---
+# Create tables in test DB (Fresh for each run)
+models.Base.metadata.drop_all(bind=engine)
 models.Base.metadata.create_all(bind=engine)
 
 # --- SA Specification Validation Tests ---

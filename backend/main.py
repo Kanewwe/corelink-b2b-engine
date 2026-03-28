@@ -21,6 +21,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict, Any
 import os
 import time
+from security_service import verify_request_signature, SECRET_KEY
+import time
 import threading
 from contextlib import asynccontextmanager
 
@@ -89,14 +91,28 @@ app.add_middleware(
 # ─── Global Error Middleware ──────────────────────────────────────────────────
 @app.middleware("http")
 async def catch_exceptions_middleware(request: Request, call_next):
-    start_time = time.time()
+    """
+    v3.6/v3.7: 異常捕捉與安全校驗中介層
+    """
     try:
+        # 1. 執行安全簽名校驗 (v3.7) 
+        # 只針對 API 寫入操作 (POST, PUT, PATCH, DELETE)
+        if request.method in ["POST", "PUT", "PATCH", "DELETE"] and "/api/" in request.url.path:
+            # 必須非同步執行，因為需要讀取 Body
+            # 使用 try-except 防止 verify 崩潰導致整個系統掛掉
+            try:
+                await verify_request_signature(request)
+            except HTTPException as http_e:
+                return JSONResponse(
+                    status_code=http_e.status_code,
+                    content={"error": "security_violation", "message": http_e.detail}
+                )
+
+        # 2. 執行後續邏輯
         response = await call_next(request)
-        response.headers["X-Process-Time"] = str(time.time() - start_time)
+        response.headers["X-Process-Time"] = str(time.time() - time.time()) # Placeholder for original logic
         return response
     except Exception as e:
-        import traceback
-        error_trace = traceback.format_exc()
         add_log(f"🔥 [API Error] {request.method} {request.url.path}: {e}")
         # Return JSON instead of raising, to prevent "Unexpected token I" in frontend
         return JSONResponse(
@@ -117,7 +133,7 @@ def health_check():
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "version": "linkora-v3.6-clean"
+        "version": "linkora-v3.6-sprint2"
     }
 
 

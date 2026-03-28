@@ -59,6 +59,13 @@ class KeywordGenerateRequest(BaseModel):
     count: int = 5
 
 
+class ResearchStrategyRequest(BaseModel):
+    keyword: str
+    market: str = "US"
+    strategy: str = "thomasnet"
+    pages: int = 1
+
+
 # ─── Routes ─────────────────────────────────────────────────────────────────
 
 @router.post("/scrape")
@@ -190,6 +197,19 @@ def generate_keywords(req: KeywordGenerateRequest, current_user: models.User = D
         return {"success": True, "keywords": keywords}
     except Exception as e:
         return {"success": False, "message": str(e)}
+
+
+@router.post("/test-strategy")
+async def test_strategy(req: ResearchStrategyRequest, current_user: models.User = Depends(get_current_user)):
+    """v3.5 Research Bench: Test a scraping strategy without impacting user workspace"""
+    from research_bench import ResearchBench
+    bench = ResearchBench(user_id=current_user.id)
+    strategy_obj = bench.strategies.get(req.strategy)
+    if not strategy_obj:
+        return {"success": False, "message": f"Unknown strategy: {req.strategy}"}
+    
+    result = await strategy_obj.run(req.keyword, req.market, req.pages)
+    return {"success": True, "result": result}
 
 
 @router.post("/scheduler/start")

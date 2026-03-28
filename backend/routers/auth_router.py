@@ -93,13 +93,16 @@ def register(req: RegisterReq, request: Request, response: Response, db: Session
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent")
     )
-    response.set_cookie(key="session_id", value=session.id, httponly=True, max_age=86400 * 30, samesite="lax")
+    # v3.7 stability: 確保使用生成的 ID 而非會過期的物件屬性
+    session_id = session.id
+    
+    response.set_cookie(key="session_id", value=session_id, httponly=True, max_age=86400 * 30, samesite="lax")
     add_log(f"✅ 新用戶註冊: {user.email}")
     user_info = auth_module.get_user_full_info(db, user)
 
     return {
         "message": "註冊成功",
-        "access_token": session.id,
+        "access_token": session_id,
         "user": user_info["user"]
     }
 
@@ -127,23 +130,25 @@ def auth_login(req: AuthLoginReq, request: Request, response: Response, db: Sess
     )
     if not session:
         raise HTTPException(status_code=500, detail="建立連線階段失敗，請重試")
+    
+    # v3.7 stability: 提前抓取 ID
+    session_id = session.id
 
-    response.set_cookie(key="session_id", value=session.id, httponly=True, max_age=86400 * 30, samesite="lax")
+    response.set_cookie(key="session_id", value=session_id, httponly=True, max_age=86400 * 30, samesite="lax")
     add_log(f"✅ 用戶登入: {user.email}")
     
     try:
         user_info = auth_module.get_user_full_info(db, user)
         return {
             "message": "登入成功",
-            "access_token": session.id,
+            "access_token": session_id,
             "user": user_info["user"]
         }
     except Exception as e:
         add_log(f"⚠️ [Auth] Login info fetch failed, using basic to_dict: {e}")
-        # Return fallback user info if full info fails (v3.6 stability)
         return {
             "message": "登入成功 (正在初始化訂閱數據...)",
-            "access_token": session.id,
+            "access_token": session_id,
             "user": user.to_dict()
         }
 

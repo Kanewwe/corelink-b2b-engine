@@ -55,10 +55,13 @@ def send_email_job():
             # Get first email candidate
             to_email = lead.email_candidates.split(",")[0].strip()
             
-            # Get default template for attachment
-            template = db.query(models.EmailTemplate).filter(
-                models.EmailTemplate.is_default == True
+            # v3.5: Provider Factory Logic
+            channel = db.query(models.EmailChannelSettings).filter(
+                models.EmailChannelSettings.user_id == lead.user_id,
+                models.EmailChannelSettings.is_active == True
             ).first()
+            
+            provider = channel.provider if channel else "smtp"
             
             # Create email log for tracking BEFORE sending
             email_log = email_tracker.create_email_log(
@@ -69,43 +72,78 @@ def send_email_job():
             )
             
             try:
-                if SMTP_USER and SMTP_PASSWORD:
-                    msg = MIMEMultipart()
-                    msg['From'] = SMTP_USER
-                    msg['To'] = to_email
-                    msg['Subject'] = campaign.subject
+                # Process HTML content with tracking
+                html_content = campaign.content
+                if html_content:
+                    # Inject tracking pixel and click redirects
+                    processed_html, _ = email_tracker.process_email_content(
+                        html_content, email_log.log_uuid
+                    )
+                else:
+                    processed_html = campaign.content
+
+                success = False
+                error_msg = ""
+                
+                # --- Provider Execution ---
+                if provider == "postmark" and channel and channel.api_token:
+                    from postmark_service import send_postmark_email
+                    success, error_msg = send_postmark_email(
+                        api_token=channel.api_token,
+                        from_email=channel.from_email or channel.user.email,
+                        to_email=to_email,
+                        subject=campaign.subject,
+                        html_body=processed_html,
+                        message_stream=channel.message_stream
+                    )
+                else:
+                    # Fallback to SMTP
+                    # 1. Check user-specific SMTP
+                    user_smtp = db.query(models.SMTPSettings).filter(
+                        models.SMTPSettings.user_id == lead.user_id
+                    ).first()
                     
-                    # Process HTML content with tracking
-                    html_content = campaign.content
-                    if html_content:
-                        # Inject tracking pixel and click redirects
-                        processed_html, _ = email_tracker.process_email_content(
-                            html_content, email_log.log_uuid
-                        )
-                        msg.attach(MIMEText(processed_html, 'html'))
+                    smtp_config = {
+                        "host": user_smtp.smtp_host if user_smtp else SMTP_SERVER,
+                        "port": user_smtp.smtp_port if user_smtp else SMTP_PORT,
+                        "user": user_smtp.smtp_user if user_smtp else SMTP_USER,
+                        "pass": user_smtp.smtp_password if user_smtp else SMTP_PASSWORD,
+                        "from": user_smtp.from_email if user_smtp else (channel.from_email if channel else SMTP_USER)
+                    }
+                    
+                    if smtp_config["user"] and smtp_config["pass"]:
+                        msg = MIMEMultipart()
+                        msg['From'] = smtp_config["from"]
+                        msg['To'] = to_email
+                        msg['Subject'] = campaign.subject
+                        
+                        msg.attach(MIMEText(processed_html, 'html' if html_content else 'plain'))
+
+                        # Attach file if template has attachment_url
+                        attachment_url = template.attachment_url if template and template.attachment_url else None
+                        if attachment_url:
+                            import requests as _requests
+                            try:
+                                resp = _requests.get(attachment_url, timeout=10)
+                                resp.raise_for_status()
+                                filename = attachment_url.split('/')[-1].split('?')[0]
+                                part = MIMEApplication(resp.content, Name=filename)
+                                part['Content-Disposition'] = f'attachment; filename="{filename}"'
+                                msg.attach(part)
+                                add_log(f"📎 [附件] 已夾帶: {filename}")
+                            except Exception as attach_err:
+                                add_log(f"⚠️ [附件] 夾帶失敗: {attach_err}")
+
+                        with smtplib.SMTP(smtp_config["host"], smtp_config["port"]) as server:
+                            server.starttls()
+                            server.login(smtp_config["user"], smtp_config["pass"])
+                            server.send_message(msg)
+                        
+                        success = True
                     else:
-                        msg.attach(MIMEText(campaign.content, 'plain'))
+                        error_msg = "No valid SMTP or Postmark configuration found"
 
-                    # Attach file if template has attachment_url
-                    attachment_url = template.attachment_url if template and template.attachment_url else None
-                    if attachment_url:
-                        import requests as _requests
-                        try:
-                            resp = _requests.get(attachment_url, timeout=10)
-                            resp.raise_for_status()
-                            filename = attachment_url.split('/')[-1].split('?')[0]
-                            part = MIMEApplication(resp.content, Name=filename)
-                            part['Content-Disposition'] = f'attachment; filename="{filename}"'
-                            msg.attach(part)
-                            add_log(f"📎 [附件] 已夾帶: {filename}")
-                        except Exception as attach_err:
-                            add_log(f"⚠️ [附件] 夾帶失敗: {attach_err}")
-
-                    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-                        server.starttls()
-                        server.login(SMTP_USER, SMTP_PASSWORD)
-                        server.send_message(msg)
-                    
+                if success:
                     # Update status
                     campaign.status = "Sent"
                     lead.status = "Email_Sent"
@@ -119,22 +157,16 @@ def send_email_job():
                     # v3.5: Billing Check (Email = 1 pt)
                     deduct_points(lead.user_id, "email_sent", {"log_id": email_log.id})
                     
-                    add_log(f"✅ [發信] 成功寄送至 {to_email} ({lead.company_name})")
+                    add_log(f"✅ [發信] ({provider}) 成功寄送至 {to_email} ({lead.company_name})")
                 else:
-                    # No SMTP configured, mark as ready
-                    campaign.status = "Ready_To_Send"
-                    add_log(f"📋 [發信] {lead.company_name} 信件已準備好，但未設定 SMTP")
+                    add_log(f"❌ [發信] ({provider}) 失敗: {error_msg}")
+                    campaign.status = "Send_Failed"
+                    email_tracker.update_email_log_status(email_log.log_uuid, "failed")
                 
-                db.commit()
-                
-            except smtplib.SMTPSenderRefused as e:
-                add_log(f"❌ [發信] 發送失敗 - 地址被拒絕: {str(e)}")
-                campaign.status = "Hard_Bounce"
-                email_tracker.update_email_log_status(email_log.log_uuid, "hard_bounce")
                 db.commit()
                 
             except Exception as e:
-                add_log(f"❌ [發信] 發送失敗 ({lead.company_name}): {str(e)}")
+                add_log(f"❌ [發信] 嚴重錯誤 ({lead.company_name}): {str(e)}")
                 campaign.status = "Send_Failed"
                 email_tracker.update_email_log_status(email_log.log_uuid, "failed")
                 db.commit()
@@ -153,8 +185,13 @@ def start_scheduler():
         add_log("⏰ [排程] 排程器已在運行中")
         return
     scheduler.add_job(send_email_job, 'interval', minutes=2, id='email_sender')
+    
+    # v3.5: Crawler Health Heartbeat (Every 12 hours)
+    from jobs.health_job import run_health_check_sync
+    scheduler.add_job(run_health_check_sync, 'interval', hours=12, id='crawler_health')
+    
     scheduler.start()
-    add_log("⏰ [排程] 信件發送排程器已啟動 (每 2 分鐘)")
+    add_log("⏰ [排程] 信件發送與爬蟲監聽器已啟動 (v3.5)")
 
 def stop_scheduler():
     """Stop the background scheduler."""

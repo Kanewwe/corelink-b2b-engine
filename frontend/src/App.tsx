@@ -18,6 +18,7 @@ import SystemSettings from './pages/SystemSettings';
 import MemberAdmin from './pages/MemberAdmin';
 import AdminDashboard from './pages/AdminDashboard';
 import ScrapeMonitor from './pages/ScrapeMonitor';
+import CrawlerResearch from './pages/CrawlerResearch';
 
 function App() {
   return (
@@ -56,6 +57,11 @@ function App() {
             <Route path="admin/settings" element={
               <RoleGuard require={['admin']}>
                 <SystemSettings />
+              </RoleGuard>
+            } />
+            <Route path="admin/research" element={
+              <RoleGuard require={['admin']}>
+                <CrawlerResearch />
               </RoleGuard>
             } />
             <Route path="admin/members" element={

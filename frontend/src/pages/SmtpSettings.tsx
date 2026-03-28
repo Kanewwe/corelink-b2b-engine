@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { getSmtpSettings, saveSmtpSettings } from '../services/api';
-import { Mail, Shield, Server, User, Key, Save, AlertCircle, CheckCircle2, Sparkles, Globe, Zap } from 'lucide-react';
+import { getSmtpSettings, saveSmtpSettings, getEmailChannelSettings } from '../services/api';
+import { Mail, Shield, Server, User, Key, Save, AlertCircle, CheckCircle2, Sparkles, Globe, Zap, ArrowRight, Settings } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import EmailChannelWizard from '../components/EmailChannelWizard';
 
 const SmtpSettings: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -17,17 +18,37 @@ const SmtpSettings: React.FC = () => {
     from_name: 'Linkora Prospecting'
   });
 
+  const [channelSettings, setChannelSettings] = useState<any>(null);
+  const [showWizard, setShowWizard] = useState(false);
+
+  const fetchSettings = async () => {
+    try {
+      // Fetch Legacy SMTP
+      const smtpResp = await getSmtpSettings();
+      if (smtpResp.ok) {
+        const data = await smtpResp.json();
+        if (data) setForm({ 
+          smtp_host: data.smtp_host || '', 
+          smtp_port: data.smtp_port || 587, 
+          smtp_user: data.smtp_user || '', 
+          smtp_password: data.smtp_password || '', 
+          smtp_encryption: data.smtp_encryption || 'tls', 
+          from_email: data.from_email || '', 
+          from_name: data.from_name || 'Linkora Prospecting' 
+        });
+      }
+
+      // Fetch v3.5 Channel Settings
+      const channelResp = await getEmailChannelSettings();
+      if (channelResp.ok) {
+        const cData = await channelResp.json();
+        setChannelSettings(cData);
+      }
+    } catch { toast.error('讀取設定失敗'); }
+    finally { setLoading(false); }
+  };
+
   useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        const resp = await getSmtpSettings();
-        if (resp.ok) {
-          const data = await resp.json();
-          if (data) setForm({ smtp_host: data.smtp_host || '', smtp_port: data.smtp_port || 587, smtp_user: data.smtp_user || '', smtp_password: data.smtp_password || '', smtp_encryption: data.smtp_encryption || 'tls', from_email: data.from_email || '', from_name: data.from_name || 'Linkora Prospecting' });
-        }
-      } catch { toast.error('讀取設定失敗'); }
-      finally { setLoading(false); }
-    };
     fetchSettings();
   }, []);
 
@@ -76,144 +97,203 @@ const SmtpSettings: React.FC = () => {
       </div>
 
       {/* ── Main Content ── */}
-      <div className="smtp-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24 }}>
-
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-          {/* 伺服器連線配置 */}
-          <div className="card">
-            <div className="card__header">
-              <h3 className="card__title">
-                <Server size={16} style={{ color: 'var(--color-primary)' }} />
-                伺服器連線配置
-              </h3>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-              <div>
-                <label className="form-label">SMTP 主機位址 (Host)</label>
-                <div className="form-input-wrapper">
-                  <Server size={14} className="input-icon" />
-                  <input required placeholder="e.g. smtp.gmail.com" className="form-input"
-                    value={form.smtp_host} onChange={e => setForm({ ...form, smtp_host: e.target.value })} />
-                </div>
-              </div>
-              <div>
-                <label className="form-label">傳輸埠號 (Port)</label>
-                <div className="form-input-wrapper">
-                  <Globe size={14} className="input-icon" />
-                  <input required type="number" placeholder="587" className="form-input"
-                    value={form.smtp_port} onChange={e => setForm({ ...form, smtp_port: parseInt(e.target.value) })} />
-                </div>
-              </div>
-              <div>
-                <label className="form-label">加密協議 (Encryption)</label>
-                <div className="form-input-wrapper">
-                  <Shield size={14} className="input-icon" />
-                  <select className="form-select" style={{ paddingLeft: 38 }}
-                    value={form.smtp_encryption} onChange={e => setForm({ ...form, smtp_encryption: e.target.value })}>
-                    <option value="tls">STARTTLS（推薦 587）</option>
-                    <option value="ssl">SSL/TLS（465）</option>
-                    <option value="none">不加密（不建議）</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 認證與寄件人身份 */}
-          <div className="card">
-            <div className="card__header">
-              <h3 className="card__title">
-                <Sparkles size={16} style={{ color: 'var(--color-accent-teal)' }} />
-                認證與寄件人身份
-              </h3>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-              <div>
-                <label className="form-label">認證帳號 (Username)</label>
-                <div className="form-input-wrapper">
-                  <User size={14} className="input-icon" />
-                  <input required placeholder="your-email@gmail.com" className="form-input"
-                    value={form.smtp_user} onChange={e => setForm({ ...form, smtp_user: e.target.value })} />
-                </div>
-              </div>
-              <div>
-                <label className="form-label">授權密碼 (Password)</label>
-                <div className="form-input-wrapper">
-                  <Key size={14} className="input-icon" />
-                  <input required type="password" placeholder="••••••••" className="form-input"
-                    value={form.smtp_password} onChange={e => setForm({ ...form, smtp_password: e.target.value })} />
-                </div>
-              </div>
-              <div>
-                <label className="form-label">顯示寄件人名稱</label>
-                <input placeholder="Linkora Sales Team" className="form-input"
-                  value={form.from_name} onChange={e => setForm({ ...form, from_name: e.target.value })} />
-              </div>
-              <div>
-                <label className="form-label">預設回信 Email（選填）</label>
-                <input type="email" placeholder="sales@yourcompany.com" className="form-input"
-                  value={form.from_email} onChange={e => setForm({ ...form, from_email: e.target.value })} />
-              </div>
-            </div>
-          </div>
-
-          {/* Submit */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 8 }}>
-            <button type="submit" disabled={saving} className="btn-primary btn--lg">
-              {saving
-                ? <><div className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />儲存中...</>
-                : <><Save size={16} />儲存並啟用發信通道</>
-              }
+      {showWizard ? (
+        <div className="card-glass p-8 animate-in fade-in zoom-in duration-300">
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Sparkles className="text-primary" /> Postmark 通道配置嚮導
+            </h2>
+            <button onClick={() => setShowWizard(false)} className="text-sm text-text-muted hover:text-white transition-colors">
+              返回傳統 SMTP
             </button>
           </div>
-        </form>
+          <EmailChannelWizard 
+            initialData={channelSettings} 
+            onComplete={() => { setShowWizard(false); fetchSettings(); }} 
+          />
+        </div>
+      ) : (
+        <div className="smtp-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {/* Postmark CTA Banner (v3.5) */}
+            {channelSettings?.provider !== 'postmark' && (
+              <div 
+                onClick={() => setShowWizard(true)}
+                className="card-glass border-primary/20 bg-primary/5 p-6 flex justify-between items-center cursor-pointer hover:border-primary/40 transition-all group"
+              >
+                <div className="flex gap-4 items-center">
+                  <div className="p-3 rounded-2xl bg-primary text-white shadow-lg shadow-primary/30">
+                    <Zap size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold flex items-center gap-2">
+                      升級到 Postmark 專業通道 <span className="badge badge--primary ml-2">推薦 v3.5</span>
+                    </h3>
+                    <p className="text-sm text-text-muted mt-1">
+                      告別 SMTP 頻繁進垃圾桶的困擾。獲取 90%+ 抵達率與分秒級發信體驗。
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight className="group-hover:translate-x-1 transition-transform" />
+              </div>
+            )}
+            
+            {channelSettings?.provider === 'postmark' && (
+              <div className="card-glass border-success/30 bg-success/5 p-6 flex justify-between items-center mb-4">
+                <div className="flex gap-4 items-center">
+                  <div className="p-3 rounded-2xl bg-success text-white">
+                    <CheckCircle2 size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold">Postmark 通道已啟用</h3>
+                    <p className="text-sm text-text-muted mt-1">
+                      當前發信身份: <span className="text-success font-medium">{channelSettings.from_email}</span>
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => setShowWizard(true)} className="btn-outline flex items-center gap-2">
+                  <Settings size={14} /> 重新配置通道
+                </button>
+              </div>
+            )}
 
-        {/* Sidebar */}
-        <aside style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div className="card" style={{ borderColor: 'rgba(91,127,255,0.2)', background: 'rgba(91,127,255,0.05)' }}>
-            <div className="card__header">
-              <h4 className="card__title">
-                <AlertCircle size={15} style={{ color: 'var(--color-primary)' }} />
-                發信指南
-              </h4>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div className="card" style={{ padding: 12 }}>
-                <strong style={{ color: 'var(--color-primary)', display: 'block', marginBottom: 4, fontSize: 12 }}>Google Gmail</strong>
-                <p style={{ fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.6, margin: 0 }}>
-                  必須使用「網頁應用程式密碼」。請至 Google 帳戶 → 安全性 → 2 步驗證 → 應用程式密碼中產生。
-                </p>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {/* 伺服器連線配置 */}
+              <div className="card">
+                <div className="card__header">
+                  <h3 className="card__title">
+                    <Server size={16} style={{ color: 'var(--color-primary)' }} />
+                    伺服器連線配置
+                  </h3>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                  <div>
+                    <label className="form-label">SMTP 主機位址 (Host)</label>
+                    <div className="form-input-wrapper">
+                      <Server size={14} className="input-icon" />
+                      <input required placeholder="e.g. smtp.gmail.com" className="form-input"
+                        value={form.smtp_host} onChange={e => setForm({ ...form, smtp_host: e.target.value })} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="form-label">傳輸埠號 (Port)</label>
+                    <div className="form-input-wrapper">
+                      <Globe size={14} className="input-icon" />
+                      <input required type="number" placeholder="587" className="form-input"
+                        value={form.smtp_port} onChange={e => setForm({ ...form, smtp_port: parseInt(e.target.value) })} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="form-label">加密協議 (Encryption)</label>
+                    <div className="form-input-wrapper">
+                      <Shield size={14} className="input-icon" />
+                      <select className="form-select" style={{ paddingLeft: 38 }}
+                        value={form.smtp_encryption} onChange={e => setForm({ ...form, smtp_encryption: e.target.value })}>
+                        <option value="tls">STARTTLS（推薦 587）</option>
+                        <option value="ssl">SSL/TLS（465）</option>
+                        <option value="none">不加密（不建議）</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="card" style={{ padding: 12 }}>
-                <strong style={{ color: 'var(--color-accent-teal)', display: 'block', marginBottom: 4, fontSize: 12 }}>Outlook / O365</strong>
-                <p style={{ fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.6, margin: 0 }}>
-                  主機: smtp.office365.com<br />埠號: 587 (TLS)
-                </p>
+
+              {/* 認證與寄件人身份 */}
+              <div className="card">
+                <div className="card__header">
+                  <h3 className="card__title">
+                    <Sparkles size={16} style={{ color: 'var(--color-accent-teal)' }} />
+                    認證與寄件人身份
+                  </h3>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                  <div>
+                    <label className="form-label">認證帳號 (Username)</label>
+                    <div className="form-input-wrapper">
+                      <User size={14} className="input-icon" />
+                      <input required placeholder="your-email@gmail.com" className="form-input"
+                        value={form.smtp_user} onChange={e => setForm({ ...form, smtp_user: e.target.value })} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="form-label">授權密碼 (Password)</label>
+                    <div className="form-input-wrapper">
+                      <Key size={14} className="input-icon" />
+                      <input required type="password" placeholder="••••••••" className="form-input"
+                        value={form.smtp_password} onChange={e => setForm({ ...form, smtp_password: e.target.value })} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="form-label">顯示寄件人名稱</label>
+                    <input placeholder="Linkora Sales Team" className="form-input"
+                      value={form.from_name} onChange={e => setForm({ ...form, from_name: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="form-label">預設回信 Email（選填）</label>
+                    <input type="email" placeholder="sales@yourcompany.com" className="form-input"
+                      value={form.from_email} onChange={e => setForm({ ...form, from_email: e.target.value })} />
+                  </div>
+                </div>
               </div>
-              <div className="page-banner page-banner--warning" style={{ margin: 0, padding: '10px 14px', fontSize: 11 }}>
-                <Zap size={13} style={{ flexShrink: 0 }} />
-                頻繁發送開發信建議配置專門的營收域名，以防主域名權重受損。
+
+              {/* Submit */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 8 }}>
+                <button type="submit" disabled={saving} className="btn-primary btn--lg">
+                  {saving
+                    ? <><div className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />儲存中...</>
+                    : <><Save size={16} />儲存並啟用發信通道</>
+                  }
+                </button>
               </div>
-            </div>
+            </form>
           </div>
 
-          <div className="card">
-            <div className="card__header">
-              <h4 className="card__title">
-                <Mail size={15} />
-                通道測試工具
-              </h4>
+          {/* Sidebar */}
+          <aside style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="card" style={{ borderColor: 'rgba(91,127,255,0.2)', background: 'rgba(91,127,255,0.05)' }}>
+              <div className="card__header">
+                <h4 className="card__title">
+                  <AlertCircle size={15} style={{ color: 'var(--color-primary)' }} />
+                  發信指南
+                </h4>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div className="card" style={{ padding: 12 }}>
+                  <strong style={{ color: 'var(--color-primary)', display: 'block', marginBottom: 4, fontSize: 12 }}>Google Gmail</strong>
+                  <p style={{ fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.6, margin: 0 }}>
+                    必須使用「網頁應用程式密碼」。請至 Google 帳戶 → 安全性 → 2 步驗證 → 應用程式密碼中產生。
+                  </p>
+                </div>
+                <div className="card" style={{ padding: 12 }}>
+                  <strong style={{ color: 'var(--color-accent-teal)', display: 'block', marginBottom: 4, fontSize: 12 }}>Outlook / O365</strong>
+                  <p style={{ fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.6, margin: 0 }}>
+                    主機: smtp.office365.com<br />埠號: 587 (TLS)
+                  </p>
+                </div>
+                <div className="page-banner page-banner--warning" style={{ margin: 0, padding: '10px 14px', fontSize: 11 }}>
+                  <Zap size={13} style={{ flexShrink: 0 }} />
+                  頻繁發送開發信建議配置專門的營收域名，以防主域名權重受損。
+                </div>
+              </div>
             </div>
-            <p style={{ fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.6, marginBottom: 12 }}>
-              系統將發送一封測試郵件至您的帳號，確保連線協議、TLS 握手及認證參數完全正確。
-            </p>
-            <button disabled className="btn-outline" style={{ width: '100%', opacity: 0.5, cursor: 'not-allowed', justifyContent: 'center' }}>
-              通道測試即將推出
-            </button>
-          </div>
-        </aside>
-      </div>
+
+            <div className="card">
+              <div className="card__header">
+                <h4 className="card__title">
+                  <Mail size={15} />
+                  通道測試工具
+                </h4>
+              </div>
+              <p style={{ fontSize: 12, color: 'var(--color-text-muted)', lineHeight: 1.6, marginBottom: 12 }}>
+                系統將發送一封測試郵件至您的帳號，確保連線協議、TLS 握手及認證參數完全正確。
+              </p>
+              <button disabled className="btn-outline" style={{ width: '100%', opacity: 0.5, cursor: 'not-allowed', justifyContent: 'center' }}>
+                通道測試即將推出
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
     </div>
   );
 };

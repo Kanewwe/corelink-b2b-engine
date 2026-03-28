@@ -2,6 +2,9 @@ export const API_BASE_URL = window.location.hostname === 'localhost' || window.l
   ? 'http://localhost:8000/api'
   : '/api';
 
+// v3.7 Security Secret (應與後端一致)
+const SECURITY_SECRET = 'linkora-dev-secret-key-123456';
+
 export const getAuthHeaders = (): HeadersInit => {
   const token = localStorage.getItem('token');
   return {
@@ -10,11 +13,48 @@ export const getAuthHeaders = (): HeadersInit => {
   };
 };
 
+/**
+ * v3.7: 使用 Web Crypto API 產生 HMAC-SHA256 簽名
+ */
+async function generateSignature(payload: string, timestamp: string): Promise<string> {
+  try {
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(SECURITY_SECRET);
+    const message = encoder.encode(`${timestamp}.${payload}`);
+    
+    const key = await window.crypto.subtle.importKey(
+      'raw', 
+      keyData, 
+      { name: 'HMAC', hash: 'SHA-256' }, 
+      false, 
+      ['sign']
+    );
+    
+    const signature = await window.crypto.subtle.sign('HMAC', key, message);
+    return Array.from(new Uint8Array(signature))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+  } catch (e) {
+    console.error('Signature generation failed', e);
+    return '';
+  }
+}
+
 export const fetchWithAuth = async (endpoint: string, options: RequestInit = {}): Promise<Response> => {
-  const headers = getAuthHeaders();
+  const headers: any = getAuthHeaders();
   
   if (options.headers) {
     Object.assign(headers, options.headers);
+  }
+
+  // v3.7: 為所有非 GET 請求建立安全簽名
+  if (options.method && options.method !== 'GET') {
+    const timestamp = Date.now().toString();
+    const payload = options.body ? String(options.body) : '';
+    const signature = await generateSignature(payload, timestamp);
+    
+    headers['X-Linkora-Signature'] = signature;
+    headers['X-Linkora-Timestamp'] = timestamp;
   }
 
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -76,6 +116,18 @@ export const saveSmtpSettings = (data: any) => fetchWithAuth('/settings/smtp', {
   body: JSON.stringify(data)
 });
 
+// Settings - Email Channel (v3.5)
+export const getEmailChannelSettings = () => fetchWithAuth('/settings/email-channel');
+export const saveEmailChannelSettings = (data: any) => fetchWithAuth('/settings/email-channel', {
+  method: 'POST',
+  body: JSON.stringify(data)
+});
+export const testPostmarkApi = (apiToken: string) => fetchWithAuth(`/test/postmark?api_token=${apiToken}`, {
+  method: 'POST'
+});
+export const checkPostmarkDomain = (domain: string, apiToken: string) => 
+  fetchWithAuth(`/test/postmark/domain?domain=${domain}&api_token=${apiToken}`);
+
 // Templates
 export const getTemplates = () => fetchWithAuth('/templates');
 export const createTemplate = (data: any) => fetchWithAuth('/templates', {
@@ -97,6 +149,13 @@ export const generateAiTemplate = (data: any) => fetchWithAuth('/templates/ai-ge
 // Dashboard & Leads
 export const getDashboardStats = () => fetchWithAuth('/dashboard/stats');
 export const getLeads = () => fetchWithAuth('/leads');
+
+// v3.5: Crawler Research Bench
+export const testStrategy = (data: any) => fetchWithAuth('/test-strategy', {
+  method: 'POST',
+  body: JSON.stringify(data)
+});
+
 export const findEmail = (leadId: number) => fetchWithAuth(`/leads/${leadId}/find-email`, {
   method: 'POST'
 });

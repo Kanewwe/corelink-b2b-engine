@@ -1,0 +1,6 @@
+- [20260328_2136] ❌ FAILED - [View Log](file:///Users/borenxiao/corelink-b2b-engine/docs/qa/archives/TEST_RESULT_20260328_2136.log)
+- [20260328_2137] ❌ FAILED - [View Log](file:///Users/borenxiao/corelink-b2b-engine/docs/qa/archives/TEST_RESULT_20260328_2137.log)
+- [20260328_2138] ❌ FAILED - [View Log](file:///Users/borenxiao/corelink-b2b-engine/docs/qa/archives/TEST_RESULT_20260328_2138.log)
+- [20260328_2138] ❌ FAILED - [View Log](file:///Users/borenxiao/corelink-b2b-engine/docs/qa/archives/TEST_RESULT_20260328_2138.log)
+- [20260328_2139] ❌ FAILED - [View Log](file:///Users/borenxiao/corelink-b2b-engine/docs/qa/archives/TEST_RESULT_20260328_2139.log)
+- [20260328_2139] ✅ PASSED - [View Log](file:///Users/borenxiao/corelink-b2b-engine/docs/qa/archives/TEST_RESULT_20260328_2139.log)

@@ -162,7 +162,13 @@ Monthly: 結算流程
 
 為確保 Linkora 邁向 v3.5 商業化穩定性，所有技術交付均需遵循 **VCP+** 標準：
 
-### 6.1 資料庫遷移標準程序 (DB Migration SOP)
+### 6.1 軟體品質驗證標準 (QA & Testing SOP)
+
+1.  **測試執行**: 每次開發完成後，開發者 **必須** 執行 `./scripts/test_sop.sh` 進行全系統驗證。
+2.  **結果封存**: 測試日誌將由腳本自動命名並存入 `docs/qa/archives/`。
+3.  **異動稽核**: 確保 `docs/qa/TEST_HISTORY.md` 更新後，才可將其標記為「測試通過」。
+
+### 6.2 資料庫遷移標準程序 (DB Migration SOP)
 
 1.  **PR 審核期**: 開發者需附上 `migrate_vX_Y.py` 與所產生的 SQL 變動清單。
 2.  **UAT 部署期**: 推送後，開發者確保 **Self-Healing Migration** 成功執行（檢查 Render 啟動日誌）。

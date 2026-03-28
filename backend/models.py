@@ -111,6 +111,7 @@ class User(Base):
     subscriptions = relationship("Subscription", back_populates="user", cascade="all, delete-orphan")
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
     smtp_settings = relationship("SMTPSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    email_channel_settings = relationship("EmailChannelSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")
     
     def set_password(self, password: str):
         """Hash and set password"""
@@ -348,6 +349,47 @@ class SMTPSettings(Base):
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
 
+# ══════════════════════════════════════════
+# Email Channel Settings (v3.5 Postmark)
+# ══════════════════════════════════════════
+
+class EmailChannelSettings(Base):
+    __tablename__ = "email_channel_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    
+    provider = Column(String(50), default="postmark") # 'smtp', 'postmark', 'resend'
+    
+    # Postmark specific
+    api_token = Column(String(255), nullable=True) # Usually Encrypted in production
+    message_stream = Column(String(50), default="outbound")
+    
+    # Common identity
+    from_email = Column(String(255), nullable=True)
+    from_name = Column(String(255), nullable=True)
+    
+    # Status
+    is_active = Column(Boolean, default=True)
+    
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # 關聯
+    user = relationship("User", back_populates="email_channel_settings")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "provider": self.provider,
+            "api_token": self.api_token,
+            "message_stream": self.message_stream,
+            "from_email": self.from_email,
+            "from_name": self.from_name,
+            "is_active": self.is_active,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+        }
+
 
 # ══════════════════════════════════════════
 # 以下是原有的模型（已加入 user_id）
@@ -417,6 +459,10 @@ class ScrapeLog(Base):
     keyword = Column(String(255), nullable=True)
     page = Column(Integer, nullable=True)
     items_found = Column(Integer, nullable=True)
+    
+    # SA v3.4: Health Tracking
+    response_time = Column(DECIMAL(10,3), nullable=True) # Seconds
+    http_status = Column(Integer, nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -765,16 +811,17 @@ class EmailLog(Base):
     replied_at = Column(DateTime, nullable=True)
     reply_source = Column(String(50), nullable=True)
     
-    # v3.3: AI 回信分析 (Sprint 2)
-    reply_intent = Column(String(50), nullable=True) # 'positive', 'needs_info', 'declined', etc.
+    # SA v3.5: AI Reply Analysis
+    reply_intent = Column(String(50), nullable=True)
     reply_analysis = Column(Text, nullable=True)
     reply_next_action = Column(Text, nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    lead = relationship("Lead")
     template = relationship("EmailTemplate")
-    
+
     def to_dict(self):
         return {
             "id": self.id,
@@ -792,6 +839,7 @@ class EmailLog(Base):
             "reply_analysis": self.reply_analysis,
             "reply_next_action": self.reply_next_action
         }
+
 class SystemSetting(Base):
     """General key-value storage for system-wide or user-specific settings (e.g., Variable Mapping)"""
     __tablename__ = "system_settings"

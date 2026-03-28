@@ -75,6 +75,17 @@ class SMTPSettingsReq(BaseModel):
     from_name: Optional[str] = None
 
 
+class EmailChannelSettingsReq(BaseModel):
+    provider: str # 'smtp', 'postmark', 'resend'
+    # Postmark specific
+    api_token: Optional[str] = None
+    message_stream: Optional[str] = "outbound"
+    # Common identity
+    from_email: Optional[str] = None
+    from_name: Optional[str] = None
+    is_active: bool = True
+
+
 class AITemplateRequest(BaseModel):
     prompt: str
     style: str = "professional"
@@ -270,6 +281,68 @@ def test_smtp_connection(server: str, port: int, user: str, password: str, curre
         return {"success": False, "message": "Authentication failed."}
     except Exception as e:
         return {"success": False, "message": str(e)}
+
+
+# ─── Email Channel Settings (v3.5 Postmark Integration) ─────────────────────
+
+@router.get("/settings/email-channel")
+def get_email_channel_settings(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """獲取當前 Email 通道設定 (Postmark/SMTP)"""
+    channel = db.query(models.EmailChannelSettings).filter(
+        models.EmailChannelSettings.user_id == current_user.id
+    ).first()
+    return channel.to_dict() if channel else {
+        "provider": "smtp", 
+        "is_active": True,
+        "from_name": "Linkora Pro",
+        "message_stream": "outbound"
+    }
+
+
+@router.post("/settings/email-channel")
+def save_email_channel_settings(req: EmailChannelSettingsReq, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """儲存 Email 通道設定"""
+    channel = db.query(models.EmailChannelSettings).filter(
+        models.EmailChannelSettings.user_id == current_user.id
+    ).first()
+    
+    if not channel:
+        channel = models.EmailChannelSettings(user_id=current_user.id)
+        db.add(channel)
+    
+    channel.provider = req.provider
+    channel.api_token = req.api_token
+    channel.message_stream = req.message_stream or "outbound"
+    channel.from_email = req.from_email
+    channel.from_name = req.from_name
+    channel.is_active = req.is_active
+    
+    db.commit()
+    db.refresh(channel)
+    add_log(f"⚙️ [設定] 用戶 {current_user.email} 已更新 Email 通道為 {req.provider}")
+    return channel.to_dict()
+
+
+@router.post("/test/postmark")
+def test_postmark_api(api_token: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """測試 Postmark API Token 並回傳伺服器名稱 (Step 1 & 4)"""
+    from postmark_service import verify_postmark_token
+    success, result = verify_postmark_token(api_token)
+    if success:
+        add_log(f"✅ Postmark 測試成功: {result} (User: {current_user.email})")
+        return {"success": True, "server_name": result}
+    else:
+        return {"success": False, "message": result}
+
+
+@router.get("/test/postmark/domain")
+def check_postmark_domain(domain: str, api_token: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """檢查網域 DNS 驗證狀態 (Step 3)"""
+    from postmark_service import get_domain_verification_status
+    status = get_domain_verification_status(api_token, domain)
+    if status is None:
+        return {"success": False, "message": "未在 Postmark 找到此網域或查詢失敗"}
+    return {"success": True, "status": status}
 
 
 # ─── Engagements ─────────────────────────────────────────────────────────────
