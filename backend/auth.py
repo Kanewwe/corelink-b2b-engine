@@ -4,7 +4,7 @@ Linkora Authentication Module
 """
 
 from fastapi import HTTPException, Depends, Request, Cookie
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from database import get_db
 from models import User, Session as SessionModel, Subscription, Plan, UsageLog
 from datetime import datetime, timedelta
@@ -37,15 +37,20 @@ def create_session(db: Session, user: User, ip_address: str = None, user_agent: 
 
 
 def get_session(db: Session, session_id: str) -> Optional[SessionModel]:
-    """取得 session，如果過期或不存在回傳 None"""
-    session = db.query(SessionModel).filter(
+    """取得 session，如果過期或不存在回傳 None (v3.6 stability: using joinedload)"""
+    session = db.query(SessionModel).options(
+        joinedload(SessionModel.user)
+    ).filter(
         SessionModel.id == session_id
     ).first()
     
     if session and not session.is_expired():
-        # 更新最後活躍時間
+        # 更新最後活躍時間 (改用 flush 改進穩定性)
         session.last_active_at = datetime.utcnow()
-        db.commit()
+        try:
+            db.flush() 
+        except:
+            pass
         return session
     
     return None
