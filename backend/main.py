@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Request, Cookie, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -16,6 +17,8 @@ from contextlib import asynccontextmanager
 from logger import add_log, SYSTEM_LOGS
 # from billing_service import deduct_points, get_point_balance (Lazy Loaded)
 # import ai_service (Lazy Loaded)
+
+# 台灣時區常數
 TAIPEI_TZ = timezone(timedelta(hours=8))
 
 # Create database tables automatically (supports schema switching)

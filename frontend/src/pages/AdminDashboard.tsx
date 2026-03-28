@@ -3,7 +3,7 @@ import { getAdminStats, getAdminMembers } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   Users, Mail, Search, 
-  Zap, Package, Activity,
+  Package, Activity,
   ArrowUpRight, ArrowDownRight, RefreshCw
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
