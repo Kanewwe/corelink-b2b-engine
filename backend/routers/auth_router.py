@@ -127,13 +127,21 @@ def auth_login(req: AuthLoginReq, request: Request, response: Response, db: Sess
     )
     response.set_cookie(key="session_id", value=session.id, httponly=True, max_age=86400 * 30, samesite="lax")
     add_log(f"✅ 用戶登入: {user.email}")
-    user_info = auth_module.get_user_full_info(db, user)
-
-    return {
-        "message": "登入成功",
-        "access_token": session.id,
-        "user": user_info["user"]
-    }
+    try:
+        user_info = auth_module.get_user_full_info(db, user)
+        return {
+            "message": "登入成功",
+            "access_token": session.id,
+            "user": user_info["user"]
+        }
+    except Exception as e:
+        add_log(f"🚨 [Auth] Login info fetch failed: {e}")
+        # Return fallback user info if full info fails during startup
+        return {
+            "message": "登入成功 (部分資訊讀取中)",
+            "access_token": session.id,
+            "user": user.to_dict()
+        }
 
 
 @router.post("/auth/logout")
@@ -145,9 +153,13 @@ def auth_logout(response: Response, session_id: str = Cookie(None), db: Session 
     return {"message": "已登出"}
 
 
-@router.get("/auth/me")
-def get_me(session_id: str = Cookie(None), db: Session = Depends(get_db)):
+def get_me(request: Request, session_id: str = Cookie(None), db: Session = Depends(get_db)):
     """取得當前用戶資訊"""
+    # 支援 Bearer Token
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        session_id = auth_header.split(" ")[1]
+
     if not session_id:
         raise HTTPException(status_code=401, detail="請先登入")
     session = auth_module.get_session(db, session_id)
@@ -165,9 +177,13 @@ def get_plans(db: Session = Depends(get_db)):
              "max_customers": p.max_customers, "max_emails_month": p.max_emails_month} for p in plans]
 
 
-@router.get("/subscription")
-def get_subscription(session_id: str = Cookie(None), db: Session = Depends(get_db)):
+def get_subscription(request: Request, session_id: str = Cookie(None), db: Session = Depends(get_db)):
     """取得當前用戶訂閱資訊"""
+    # 支援 Bearer Token
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        session_id = auth_header.split(" ")[1]
+
     if not session_id:
         raise HTTPException(status_code=401, detail="請先登入")
     session = auth_module.get_session(db, session_id)

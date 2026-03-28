@@ -27,7 +27,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 import email_tracker
 from logger import add_log
@@ -95,8 +95,19 @@ async def catch_exceptions_middleware(request: Request, call_next):
         response.headers["X-Process-Time"] = str(time.time() - start_time)
         return response
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
         add_log(f"🔥 [API Error] {request.method} {request.url.path}: {e}")
-        raise e
+        # Return JSON instead of raising, to prevent "Unexpected token I" in frontend
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": str(e),
+                "path": request.url.path,
+                "msg": "Internal Server Error (Captured by Middleware)",
+                "trace": error_trace if os.getenv("APP_ENV") != "production" else None
+            }
+        )
 
 
 # ─── Health Check ─────────────────────────────────────────────────────────────

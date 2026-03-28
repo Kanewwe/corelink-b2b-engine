@@ -100,12 +100,24 @@ def get_user_plan(db: Session, user_id: int) -> Plan:
         return subscription.plan
     
     # 沒有有效訂閱 → 回傳 free plan
-    return db.query(Plan).filter(Plan.name == "free").first()
+    try:
+        free_plan = db.query(Plan).filter(Plan.name == "free").first()
+        if free_plan:
+            return free_plan
+    except Exception as e:
+        print(f"⚠️ [auth] Error fetching free plan: {e}")
+    
+    # Emergency fallback if even 'free' doesn't exist yet (v3.6 stability)
+    return Plan(name="free_fallback", display_name="初始化中...", max_customers=50, max_emails_month=10)
 
 
 def get_user_usage(db: Session, user_id: int, plan: Plan = None) -> UsageLog:
     """取得用戶本月用量"""
-    return UsageLog.get_or_create(db, user_id)
+    try:
+        return UsageLog.get_or_create(db, user_id)
+    except Exception as e:
+        print(f"⚠️ [auth] Error fetching usage: {e}")
+        return None # get_user_full_info will handle the None case
 
 
 def get_user_full_info(db: Session, user: User) -> dict:
@@ -119,9 +131,9 @@ def get_user_full_info(db: Session, user: User) -> dict:
     
     return {
         "user": user.to_dict(),
-        "plan": plan.to_dict() if plan else None,
-        "usage": usage.to_dict(plan),
-        "subscription": subscription.to_dict() if subscription else None
+        "plan": plan.to_dict() if plan and hasattr(plan, 'to_dict') else None,
+        "usage": usage.to_dict(plan) if usage and hasattr(usage, 'to_dict') else {"error": "usage_not_ready"},
+        "subscription": subscription.to_dict() if subscription and hasattr(subscription, 'to_dict') else None
     }
 
 

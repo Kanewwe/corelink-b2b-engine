@@ -39,9 +39,9 @@ npm run dev
 Linkora 採用 **Schema-based** 隔離技術，在單一 PostgreSQL 實例中達成環境區分。
 
 ### 自動遷移邏輯
-- 系統啟動時會透過 `database.py` 的 `init_db()` 自動建立 Schema（若為 UAT 則建立 `uat`）。
-- **同步要求**：當您在 `models.py` 新增欄位時，**必須同步**更新 `backend/migrations.py` 中的 `tables_to_patch` 字典。
-- 系統會在啟動時 (`lifespan`) 自動執行 `ALTER TABLE ADD COLUMN IF NOT EXISTS` 以補齊欄位。
+- 系統啟動時會透過 `jobs/__init__.py` 的 `run_startup_tasks()` 自動建立表。
+- **同步要求**：當您在 `models.py` 新增欄位時，**必須同步**更新 `database.py` 中的 `_run_migrations` 函數。
+- 系統會在啟動時其背景線程自動執行 `ALTER TABLE ADD COLUMN IF NOT EXISTS` 以補齊欄位，確保不阻塞啟動。
 
 ### 環境切換
 - `APP_ENV=production` -> 使用預設的 `public` schema。
@@ -78,4 +78,4 @@ Linkora 採行 **VCP (Verify-Commit-Push)** 強制規則，所有開發任務必
 - [ ] 根目錄與 `backend/` 目錄下無雜亂產出的暫存檔。
 
 ---
-*Created by Antigravity AI - Unified Linkora Development Guide v3.1.8*
+*Created by Antigravity AI - Unified Linkora Development Guide v3.6.0 (Modular)*
