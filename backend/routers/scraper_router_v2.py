@@ -1,6 +1,7 @@
 """
 Scraper Router - Extended with Hunter.io (v3.7.30)
 """
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Cookie, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -317,6 +318,3 @@ def sync_global_to_private(
         "synced": synced,
         "skipped": skipped
     }
-
-
-from datetime import datetime
