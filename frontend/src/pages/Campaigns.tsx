@@ -30,14 +30,21 @@ const Campaigns: React.FC = () => {
     if (campaigns.length < 0) setCampaigns([]);
   }, []);
 
-  // v3.2: 載入最佳寄信時間
+  // v3.6: 載入最佳寄信時間 (Sprint 2)
   useEffect(() => {
     const fetchOptimal = async () => {
       try {
         const resp = await getOptimalSendTime();
-        const data = await resp.json();
-        if (data.success) setOptimalTime(data);
-      } catch (e) { /* silent */ }
+        if (resp.ok) {
+          const data = await resp.json();
+          // v3.6 直接回傳時段物件，無須 check .success
+          if (data && data.best_day) {
+            setOptimalTime(data);
+          }
+        }
+      } catch (e) { 
+        console.error("Failed to fetch optimal send time", e);
+      }
     };
     fetchOptimal();
   }, []);
@@ -69,7 +76,7 @@ const Campaigns: React.FC = () => {
               自動化投遞
               <span className="page-title__en">Automated Outreach</span>
             </h1>
-            <span className="version-badge">LINKORA V3.2 (AI Outreach)</span>
+            <span className="version-badge">LINKORA V3.6 (AI Outreach)</span>
           </div>
           <p className="page-subtitle">追蹤所有開發信的寄送狀態、開信率與互動記錄。</p>
         </div>

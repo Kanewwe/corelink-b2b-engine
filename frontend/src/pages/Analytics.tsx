@@ -89,7 +89,7 @@ const Analytics: React.FC = () => {
               成效分析雷達
               <span className="page-title__en">Performance Radar</span>
             </h1>
-            <span className="version-badge">LINKORA V3.2 (AI Radar)</span>
+            <span className="version-badge">LINKORA V3.6 (AI Radar)</span>
           </div>
           <p className="page-subtitle">
             {user?.role === 'admin' ? '全系統營運數據監控' : '委外專案執行進度與結算額'}
@@ -121,7 +121,7 @@ const Analytics: React.FC = () => {
         </div>
       )}
 
-      {/* v3.2: AI 成效摘要 Report */}
+      {/* v3.2/v3.6: AI 成效摘要 Report */}
       {aiSummary && (
         <div className="card mb-6" style={{
           background: 'linear-gradient(135deg, rgba(91,127,255,0.08) 0%, rgba(78,205,196,0.05) 100%)',
@@ -291,7 +291,20 @@ const Analytics: React.FC = () => {
             {data?.records?.slice(0, 20).map((record: any) => (
               <div key={record.id} className="card" style={{ padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--color-text-primary)' }}>{record.company_name}</div>
+                  <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {record.company_name}
+                    {record.reply_intent && (
+                      <span className="badge badge--success" style={{ 
+                        fontSize: '9px', 
+                        padding: '2px 6px', 
+                        background: record.reply_intent === 'positive' ? 'rgba(78,205,196,0.15)' : 'rgba(255,255,255,0.05)',
+                        color: record.reply_intent === 'positive' ? 'var(--color-accent-teal)' : 'var(--color-text-muted)',
+                        border: '1px solid rgba(255,255,255,0.1)'
+                      }}>
+                        🤖 {record.reply_intent.toUpperCase()}
+                      </span>
+                    )}
+                  </div>
                   <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>{record.recipient}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>

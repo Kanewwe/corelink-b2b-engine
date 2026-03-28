@@ -207,12 +207,15 @@ export const generateABVersions = (companyName: string, tag: string = '', keywor
 export const generateAnalyticsSummary = () =>
   fetchWithAuth('/analytics/ai-summary', { method: 'POST' });
 
-// ── v3.2: 最佳寄信時間 & 回覆意圖 ──
+// ── v3.2/v3.6: 最佳寄信時間 & 回覆意圖 ──
 export const getOptimalSendTime = () =>
-  fetchWithAuth('/analytics/optimal-send-time', { method: 'POST' });
+  fetchWithAuth('/ai/recommend-send-time');
 
-export const analyzeReplyIntent = (emailBody: string) =>
-  fetchWithAuth('/analytics/reply-intent', {
+export const analyzeReplyIntent = (emailBody: string, logId?: number) =>
+  fetchWithAuth('/ai/classify-intent', {
     method: 'POST',
-    body: JSON.stringify({ email_body: emailBody })
+    body: JSON.stringify({ email_body: emailBody, log_id: logId })
   });
+
+export const getAiStatsInsight = () =>
+  fetchWithAuth('/ai/stats-insight');
