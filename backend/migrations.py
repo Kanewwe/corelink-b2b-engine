@@ -43,9 +43,33 @@ def run_migrations():
             "ai_brief",
             "ai_suggestions",
             "ai_scored_at",
+            # v3.7.29 行業標籤欄位
+            "industry_code",
+            "industry_name",
+            "sub_industry_code",
+            "sub_industry_name",
+            "industry_tags",
+            "email_verified",
+            "email_confidence",
         ],
         "scrape_tasks": ["miner_mode"],
-        "system_settings": ["user_id", "key", "value"]
+        "system_settings": ["user_id", "key", "value"],
+        "global_leads": [
+            # v3.7.29 行業標籤欄位
+            "industry_code",
+            "industry_name",
+            "sub_industry_code",
+            "sub_industry_name",
+            "industry_tags",
+            "employee_count",
+            "employee_range",
+            "email_verified",
+            "email_confidence",
+            "email_source",
+            "source_mode",
+            "sync_count",
+            "last_synced_at",
+        ]
     }
 
     print(f"🚀 Starting migration on: {engine.url.render_as_string(hide_password=True)}")

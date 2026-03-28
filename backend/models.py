@@ -1,8 +1,9 @@
 """
 Linkora Subscription System - Database Models
-包含：users, sessions, subscriptions, plans, usage_logs
+包含：users, sessions, subscriptions, plans, usage_logs, industry_tags
 
 v2.7.2: 時區統一處理
+v3.7.29: 新增 industry_tags 行業標籤表
 """
 
 from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime, Boolean, DECIMAL, UniqueConstraint
@@ -22,6 +23,48 @@ def _now_utc():
 def _now_utc_naive():
     """取得當前 UTC 時間 (無時區，用於 DB 相容)"""
     return datetime.utcnow()
+
+
+# ══════════════════════════════════════════
+# Industry Tags（行業標籤）v3.7.29
+# ══════════════════════════════════════════
+
+class IndustryTag(Base):
+    """行業標籤主檔"""
+    __tablename__ = "industry_tags"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String(20), unique=True, nullable=False)
+    parent_code = Column(String(20))
+    name_en = Column(String(100), nullable=False)
+    name_zh = Column(String(100), nullable=False)
+    name_short = Column(String(50))
+    level = Column(Integer, default=1)
+    keywords = Column(String(500))
+    company_count = Column(Integer, default=0)
+    icon = Column(String(50))
+    color = Column(String(20))
+    sort_order = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "code": self.code,
+            "parent_code": self.parent_code,
+            "name_en": self.name_en,
+            "name_zh": self.name_zh,
+            "name_short": self.name_short,
+            "level": self.level,
+            "keywords": self.keywords,
+            "company_count": self.company_count,
+            "icon": self.icon,
+            "color": self.color,
+            "sort_order": self.sort_order,
+            "is_active": self.is_active
+        }
+
 
 # ══════════════════════════════════════════
 # Plans（方案定義）
@@ -569,6 +612,17 @@ class Lead(Base):
     # v3.0: 產業分類沉澱 (Canonical Industry)
     industry_taxonomy = Column(String(255), nullable=True)
     
+    # v3.7.29: 行業分類系統
+    industry_code = Column(String(20))
+    industry_name = Column(String(100))
+    sub_industry_code = Column(String(20))
+    sub_industry_name = Column(String(100))
+    industry_tags = Column(String(500))
+    
+    # v3.7.29: Email 品質
+    email_verified = Column(Boolean, default=False)
+    email_confidence = Column(Integer, default=0)
+    
     # v3.2: AI 評分與情報
     ai_score = Column(Integer, default=0)  # 0-100 分
     ai_score_tags = Column(String(255), nullable=True)  # JSON array: ["高匹配","有信箱"]
@@ -655,11 +709,33 @@ class GlobalLead(Base):
     industry = Column(String(100))
     industry_taxonomy = Column(String(255)) # v3.0: 結構化產業路徑
     
+    # v3.7.29: 行業分類系統
+    industry_code = Column(String(20))              # 一級行業代碼 (MFG/TECH/...)
+    industry_name = Column(String(100))             # 一級行業名稱 (製造業/科技業/...)
+    sub_industry_code = Column(String(20))          # 二級行業代碼 (MFG-ELEC/...)
+    sub_industry_name = Column(String(100))         # 二級行業名稱 (電子製造/...)
+    industry_tags = Column(String(500))             # 多標籤（逗號分隔）
+    
+    # 公司規模
+    employee_count = Column(Integer)
+    employee_range = Column(String(20))             # "1-10"|"10-50"|...
+    
     # v3.0: Fact Quality
     is_verified = Column(Boolean, default=False)
     confidence_score = Column(Integer, default=0)
     
+    # v3.7.29: Email 品質
+    email_verified = Column(Boolean, default=False)
+    email_confidence = Column(Integer, default=0)
+    email_source = Column(String(50))               # "hunter"|"guessed"|"apify"
+    
+    # 來源標記
     source = Column(String(100)) # e.g., 'apify_thomasnet', 'apify_yellowpages'
+    source_mode = Column(String(20))                # "general"|"manufacturer"|"sales"|"marketing"
+    
+    # 統計
+    sync_count = Column(Integer, default=0)
+    last_synced_at = Column(DateTime)
     
     last_scraped_at = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -679,9 +755,21 @@ class GlobalLead(Base):
             "ai_tag": self.ai_tag,
             "industry": self.industry,
             "industry_taxonomy": self.industry_taxonomy,
+            "industry_code": self.industry_code,
+            "industry_name": self.industry_name,
+            "sub_industry_code": self.sub_industry_code,
+            "sub_industry_name": self.sub_industry_name,
+            "industry_tags": self.industry_tags,
+            "employee_count": self.employee_count,
+            "employee_range": self.employee_range,
             "is_verified": self.is_verified,
             "confidence_score": self.confidence_score,
+            "email_verified": self.email_verified,
+            "email_confidence": self.email_confidence,
+            "email_source": self.email_source,
             "source": self.source,
+            "source_mode": self.source_mode,
+            "sync_count": self.sync_count,
             "last_scraped_at": self.last_scraped_at.isoformat() if self.last_scraped_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }

@@ -113,12 +113,21 @@ def run_startup_tasks():
     """
     from database import init_db
     from migrations import run_migrations
+    from industry_tags import init_industry_tags
 
     try:
         init_db()
         run_migrations()
         init_default_plans()
         ensure_admin_exists()
-        add_log("🚀 [System] All startup tasks completed in background (v3.6)")
+        # v3.7.29: 初始化行業標籤
+        db = next(get_db())
+        try:
+            init_industry_tags(db)
+        except Exception as e:
+            add_log(f"⚠️ [Industry] Init error: {str(e)}")
+        finally:
+            db.close()
+        add_log("🚀 [System] All startup tasks completed in background (v3.7.29)")
     except Exception as e:
         add_log(f"🚨 [System] Startup task error: {str(e)}")
