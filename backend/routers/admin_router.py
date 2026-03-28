@@ -143,10 +143,19 @@ def debug_leads(db: Session = Depends(get_db)):
 def init_db_endpoint(current_user: models.User = Depends(get_current_user)):
     from database import engine, Base
     from migrations import run_migrations
+    from industry_tags import init_industry_tags
     try:
         Base.metadata.create_all(bind=engine)
-        run_migrations()  # v3.7.25: 執行 schema migrations
-        return {"message": "Database tables created and migrations applied successfully"}
+        run_migrations()
+        # v3.7.30: 初始化行業標籤
+        db = next(get_db())
+        try:
+            init_industry_tags(db)
+        except Exception as e:
+            add_log(f"⚠️ Industry tags init error: {str(e)}")
+        finally:
+            db.close()
+        return {"message": "Database tables created, migrations applied, and industry tags initialized"}
     except Exception as e:
         return {"error": str(e)}
 
