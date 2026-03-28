@@ -478,3 +478,34 @@ def get_scrape_task_detail(task_id: int, db: Session = Depends(get_db), current_
     if not task:
         raise HTTPException(status_code=404, detail="找不到該任務")
     return task.to_dict()
+
+
+@router.delete("/admin/scrape-tasks/{task_id}")
+def delete_scrape_task(task_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(auth_module.require_role(["admin"]))):
+    """刪除單筆爬蟲任務紀錄與其日誌"""
+    task = db.query(models.ScrapeTask).filter(models.ScrapeTask.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="找不到該任務")
+    
+    # 刪除日誌
+    db.query(models.ScrapeLog).filter(models.ScrapeLog.task_id == task_id).delete()
+    db.delete(task)
+    db.commit()
+    
+    add_log(f"Admin {current_user.email} 刪除爬蟲任務 #{task_id}")
+    return {"message": "已刪除", "id": task_id}
+
+
+@router.post("/admin/scrape-tasks/cleanup-all")
+def cleanup_all_scrape_tasks(db: Session = Depends(get_db), current_user: models.User = Depends(auth_module.require_role(["admin"]))):
+    """清除所有已完成或失敗的任務紀錄（保留執行中的）"""
+    tasks = db.query(models.ScrapeTask).filter(models.ScrapeTask.status != "Running").all()
+    count = len(tasks)
+    
+    for t in tasks:
+        db.query(models.ScrapeLog).filter(models.ScrapeLog.task_id == t.id).delete()
+        db.delete(t)
+    
+    db.commit()
+    add_log(f"Admin {current_user.email} 清理了 {count} 筆已結束的任務")
+    return {"message": f"已清理 {count} 筆結束任務", "count": count}

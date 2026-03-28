@@ -97,8 +97,36 @@ export const getGlobalPoolStats = () => fetchWithAuth('/admin/global-pool/stats'
 export const clearGlobalPool = () => fetchWithAuth('/admin/global-pool/clear', {
   method: 'POST'
 });
-export const getAdminGlobalLeads = () => fetchWithAuth('/admin/global-leads');
+// Admin - Global Pool & Scraper Monitor (v3.7.29)
+export const getAdminGlobalLeads = (skip: number = 0, limit: number = 50) => 
+  fetchWithAuth(`/admin/global-leads?skip=${skip}&limit=${limit}`);
+
 export const getAdminAllLeads = () => fetchWithAuth('/admin/all-leads');
+
+export const getAdminScrapeTasks = (status?: string, limit: number = 50) => {
+  const params = new URLSearchParams();
+  if (status) params.append('status', status);
+  params.append('limit', limit.toString());
+  return fetchWithAuth(`/admin/scrape-tasks?${params.toString()}`);
+};
+
+export const getAdminScrapeTaskDetail = (id: number) => fetchWithAuth(`/admin/scrape-tasks/${id}`);
+
+export const deleteAdminScrapeTask = (id: number) => fetchWithAuth(`/admin/scrape-tasks/${id}`, { method: 'DELETE' });
+
+export const cleanupAdminScrapeTasks = () => fetchWithAuth('/admin/scrape-tasks/cleanup-all', { method: 'POST' });
+
+export const getAdminScrapeTaskLogs = (taskId: number, level?: string) => {
+  const params = new URLSearchParams();
+  if (level) params.append('level', level);
+  return fetchWithAuth(`/admin/scrape-tasks/${taskId}/logs?${params.toString()}`);
+};
+
+export const retryAdminScrapeTask = (taskId: number) =>
+  fetchWithAuth(`/admin/scrape-tasks/${taskId}/retry`, { method: 'POST' });
+
+export const cleanupStaleTasks = () =>
+  fetchWithAuth('/admin/scrape-tasks/cleanup', { method: 'POST' });
 
 // Admin - Global Pool CRUD (v3.7.29)
 export const updateGlobalLead = (id: number, data: any) => 
@@ -212,7 +240,12 @@ export const generateAiTemplate = (data: any) => fetchWithAuth('/templates/ai-ge
 
 // Dashboard & Leads
 export const getDashboardStats = () => fetchWithAuth('/dashboard/stats');
-export const getLeads = () => fetchWithAuth('/leads');
+export const getLeads = (search?: string, industry_code?: string) => {
+  const params = new URLSearchParams();
+  if (search) params.append('search', search);
+  if (industry_code) params.append('industry_code', industry_code);
+  return fetchWithAuth(`/leads?${params.toString()}`);
+};
 
 // v3.5: Crawler Research Bench
 export const testStrategy = (data: any) => fetchWithAuth('/test-strategy', {
@@ -274,35 +307,12 @@ export const resetMemberPassword = (id: number) => fetchWithAuth(`/admin/members
 });
 export const getAdminStats = () => fetchWithAuth('/admin/stats');
 
-// ── Admin: 爬蟲監控 ──
-export const getAdminScrapeTasks = (status?: string, limit: number = 50) => {
-  const params = new URLSearchParams();
-  if (status) params.append('status', status);
-  params.append('limit', limit.toString());
-  return fetchWithAuth(`/admin/scrape-tasks?${params}`);
-};
-
-export const getAdminScrapeTaskDetail = (taskId: number) => 
-  fetchWithAuth(`/admin/scrape-tasks/${taskId}`);
-
 // Admin - Proposals (v3.0)
 export const getAdminProposals = (status: string = 'Pending') => fetchWithAuth(`/admin/proposals?status=${status}`);
 export const resolveProposal = (id: number, data: { status: string; reason?: string }) => fetchWithAuth(`/admin/proposals/${id}/resolve`, {
   method: 'POST',
   body: JSON.stringify(data)
 });
-
-export const getAdminScrapeTaskLogs = (taskId: number, level?: string) => {
-  const params = new URLSearchParams();
-  if (level) params.append('level', level);
-  return fetchWithAuth(`/admin/scrape-tasks/${taskId}/logs?${params}`);
-};
-
-export const retryAdminScrapeTask = (taskId: number) =>
-  fetchWithAuth(`/admin/scrape-tasks/${taskId}/retry`, { method: 'PUT' });
-
-export const cleanupStaleTasks = () =>
-  fetchWithAuth('/admin/scrape-tasks/stale', { method: 'DELETE' });
 
 // ── v3.2: AI 評分與情報 ──
 export const getUserPoints = () => fetchWithAuth('/user/points');

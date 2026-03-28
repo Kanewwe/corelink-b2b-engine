@@ -21,6 +21,7 @@ import ScrapeMonitor from './pages/ScrapeMonitor';
 import CrawlerResearch from './pages/CrawlerResearch';
 import ScraperHealth from './pages/ScraperHealth';
 import Inbox from './pages/Inbox';
+import Intelligence from './pages/Intelligence';
 
 function App() {
   return (
@@ -75,6 +76,11 @@ function App() {
             <Route path="admin/members" element={
               <RoleGuard require={['admin']}>
                 <MemberAdmin />
+              </RoleGuard>
+            } />
+            <Route path="admin/intelligence" element={
+              <RoleGuard require={['admin']}>
+                <Intelligence />
               </RoleGuard>
             } />
           </Route>

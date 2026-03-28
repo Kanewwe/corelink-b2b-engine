@@ -108,8 +108,23 @@ def create_and_tag_lead(lead: LeadCreateReq, db: Session = Depends(get_db), curr
 
 
 @router.get("/leads")
-def get_leads(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    leads = db.query(models.Lead).filter(models.Lead.user_id == current_user.id).order_by(models.Lead.id.desc()).all()
+def get_leads(
+    search: Optional[str] = None,
+    industry_code: Optional[str] = None,
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    """取得用戶名單，支援搜尋與分類過濾"""
+    query = db.query(models.Lead).filter(models.Lead.user_id == current_user.id)
+    
+    if search:
+        query = query.filter(models.Lead.company_name.ilike(f"%{search}%"))
+        
+    if industry_code:
+        # 支援直接層級過濾 (MEG-ELEC, MFG, etc.)
+        query = query.filter(models.Lead.industry_code.startswith(industry_code))
+        
+    leads = query.order_by(models.Lead.id.desc()).all()
     return [l.to_dict() for l in leads]
 
 

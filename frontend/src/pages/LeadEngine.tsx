@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
+  Users, Send, BarChart, ShieldAlert, Cpu, Search, Sparkles, 
+  Zap, Mail, Globe, Edit, Save, X, User, Star, Brain, CheckCircle, RotateCcw, 
+  Download, Filter, ListFilter, RefreshCw
+} from 'lucide-react';
+import { 
   getDashboardStats, 
   getLeads, 
   triggerScrapeSimple, 
@@ -8,12 +13,10 @@ import {
   proposeCorrection,
   scoreLeads,
   getUserPoints,
-  generateLeadBrief
+  generateLeadBrief,
+  getIndustryTree,
+  syncGlobalToPrivate
 } from '../services/api';
-import { 
-  Users, Send, BarChart, ShieldAlert, Cpu, Search, Sparkles, 
-  Zap, Mail, Globe, Edit, Save, X, User, Star, Brain, CheckCircle, RotateCcw
-} from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 interface Lead {
@@ -87,6 +90,20 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ lead, onClose, onUp
       toast.error("網路錯誤", { id: loadingToast });
     } finally {
       setBriefLoading(false);
+    }
+  };
+
+  const handleSyncGlobal = async () => {
+    if (!lead.global_id) return;
+    const loadingToast = toast.loading("正在從雲端情資庫同步最新事實...");
+    try {
+      const resp = await syncGlobalToPrivate([lead.global_id]);
+      if (resp.ok) {
+        toast.success("同步完成，資料已更新為最新事實", { id: loadingToast });
+        onUpdate();
+      }
+    } catch {
+      toast.error("同步失敗", { id: loadingToast });
     }
   };
 
@@ -269,9 +286,19 @@ const LeadDetailDrawer: React.FC<LeadDetailDrawerProps> = ({ lead, onClose, onUp
 
         {/* Sync Info */}
         <div className="pt-6 border-t border-white/5">
-          <div className="flex items-center gap-2 mb-4">
-            <Globe size={14} className="text-text-muted" />
-            <h4 className="text-sm font-bold text-text-muted uppercase tracking-wider">共享資料層 (Canonical Facts)</h4>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Globe size={14} className="text-text-muted" />
+              <h4 className="text-sm font-bold text-text-muted uppercase tracking-wider">共享資料層 (Canonical Facts)</h4>
+            </div>
+            {lead.global_id && (
+              <button 
+                onClick={handleSyncGlobal}
+                className="text-[10px] bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 px-2 py-1 rounded transition-all flex items-center gap-1"
+              >
+                <RefreshCw size={10} /> 從全域同步
+              </button>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-4 text-[11px]">
             <div className="p-3 rounded-lg bg-white/5 border border-white/5">
@@ -313,7 +340,9 @@ const LeadEngine: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [scoring, setScoring] = useState(false); // v3.2
+  const [scoring, setScoring] = useState(false); 
+  const [industryFilter, setIndustryFilter] = useState('');
+  const [industryTree, setIndustryTree] = useState<any[]>([]);
   
   // Scraper Form State
   const [market, setMarket] = useState('US');
@@ -359,6 +388,11 @@ const LeadEngine: React.FC = () => {
       
       if (leadsResp.ok) {
         setLeads(await leadsResp.json());
+      }
+
+      const treeResp = await getIndustryTree();
+      if (treeResp.ok) {
+        setIndustryTree(await treeResp.json());
       }
     } catch (e) {
       console.error("Failed to fetch dashboard data", e);
@@ -481,6 +515,41 @@ const LeadEngine: React.FC = () => {
       setScoring(false);
     }
   };
+
+  const handleExportCSV = () => {
+    if (leads.length === 0) return;
+    
+    const filtered = leads.filter((l: Lead) => 
+      (!search || l.display_name?.toLowerCase().includes(search.toLowerCase())) &&
+      (!industryFilter || l.domain?.includes(industryFilter)) // Temporary domain match for demo
+    );
+
+    const headers = ["ID", "Company Name", "Domain", "Email", "AI Score", "Notes"];
+    const rows = filtered.map(l => [
+      l.id,
+      l.display_name,
+      l.domain || "",
+      l.display_email || "",
+      l.ai_score || 0,
+      l.personal_notes || ""
+    ]);
+
+    const content = [headers, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Linkora_Leads_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("CSV 匯出成功");
+  };
+
+  const filteredLeads = leads.filter((l: Lead) => 
+    (!search || l.display_name?.toLowerCase().includes(search.toLowerCase()))
+  );
 
   if (loading && leads.length === 0) {
     return (
@@ -725,6 +794,27 @@ const LeadEngine: React.FC = () => {
               <span className="text-xs font-normal text-text-muted ml-2">{leads.length} 筆資料</span>
             </h3>
             <div className="flex items-center gap-2">
+              {/* Industry Filter */}
+              <select 
+                className="form-input py-1.5 text-xs bg-slate-800 border-white/10 w-32"
+                value={industryFilter}
+                onChange={(e) => setIndustryFilter(e.target.value)}
+              >
+                <option value="">所有產業</option>
+                {industryTree.map(node => (
+                  <option key={node.code} value={node.code}>{node.name_zh}</option>
+                ))}
+              </select>
+
+              {/* Export Button */}
+              <button
+                onClick={handleExportCSV}
+                className="btn-outline btn--sm flex items-center gap-1.5 px-3"
+                title="匯出 CSV"
+              >
+                <Download size={13} />
+              </button>
+
               {/* v3.2: AI 評分按鈕 */}
               <button
                 onClick={handleAiScore}
@@ -736,10 +826,10 @@ const LeadEngine: React.FC = () => {
                 {scoring ? <div className="spinner w-3 h-3" /> : <Brain size={13} />}
                 {scoring ? '評分中...' : '✨ AI 評分'}
               </button>
-              <div className="relative w-48">
+              <div className="relative w-36">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
                 <input
-                  type="text" placeholder="關鍵字搜尋..."
+                  type="text" placeholder="搜尋..."
                   value={search} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
                   className="form-input pl-9 py-1.5 text-xs"
                 />
@@ -748,15 +838,14 @@ const LeadEngine: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto mt-4 px-1 space-y-3 custom-scrollbar">
-            {leads.length === 0 ? (
+            {filteredLeads.length === 0 ? (
               <div className="empty-state py-20">
                 <Search size={40} className="text-white/10 mb-4" />
-                <p className="text-white font-medium">尚無探勘結果</p>
-                <p className="text-xs text-text-muted mt-1">調整左側參數並啟動引擎</p>
+                <p className="text-white font-medium">尚無符合條件的 Lead</p>
+                <p className="text-xs text-text-muted mt-1">請嘗試清除過濾條件或啟動探勘環境</p>
               </div>
             ) : (
-              leads
-                .filter((l: Lead) => !search || l.display_name?.toLowerCase().includes(search.toLowerCase()))
+              filteredLeads
                 .map((lead: Lead) => (
                   <div 
                     key={lead.id} 

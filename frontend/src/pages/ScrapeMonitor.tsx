@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   getAdminScrapeTasks, retryAdminScrapeTask, 
-  cleanupStaleTasks, getAdminScrapeTaskLogs 
+  cleanupStaleTasks, getAdminScrapeTaskLogs,
+  deleteAdminScrapeTask, cleanupAdminScrapeTasks
 } from '../services/api';
 import { 
   RefreshCw, Play, Trash2, ChevronDown, ChevronRight, 
@@ -124,11 +125,24 @@ const ScrapeMonitor: React.FC = () => {
     }
   };
 
+  const handleDeleteTask = async (taskId: number) => {
+    if (!confirm(`確定要刪除任務 #${taskId} 嗎？此操作不可恢復。`)) return;
+    try {
+      const resp = await deleteAdminScrapeTask(taskId);
+      if (resp.ok) {
+        toast.success(`任務 #${taskId} 已刪除`);
+        setTasks(prev => prev.filter(t => t.id !== taskId));
+      }
+    } catch {
+      toast.error('刪除失敗');
+    }
+  };
+
   const handleCleanup = async () => {
-    if (!confirm('清理所有卡住超過 10 分鐘的任務？')) return;
+    if (!confirm('清理所有結束（Completed/Failed）的任務記錄？')) return;
     setCleaning(true);
     try {
-      const resp = await cleanupStaleTasks();
+      const resp = await cleanupAdminScrapeTasks();
       if (resp.ok) {
         const data = await resp.json();
         toast.success(data.message);
@@ -279,11 +293,24 @@ const ScrapeMonitor: React.FC = () => {
                     </div>
 
                     {/* Stats */}
-                    <div style={{ textAlign: 'right', minWidth: 80 }}>
-                      <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--color-primary)' }}>
+                    <div style={{ textAlign: 'right', minWidth: 100 }}>
+                      <div style={{ fontWeight: 700, fontSize: 16, color: task.status === 'Running' ? 'var(--color-accent)' : 'var(--color-primary)' }}>
                         {task.leads_found}
                       </div>
-                      <div style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>leads</div>
+                      <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginBottom: 4 }}>leads discovered</div>
+                      
+                      {task.status === 'Running' && (
+                        <div style={{ width: '100%', height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
+                          <div 
+                            className="progress-shimmer" 
+                            style={{ 
+                              width: '100%', 
+                              height: '100%', 
+                              background: 'linear-gradient(90deg, #3b82f6, #60a5fa)',
+                            }} 
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {/* Duration */}
@@ -300,16 +327,27 @@ const ScrapeMonitor: React.FC = () => {
                     </div>
 
                     {/* Actions */}
-                    {(task.status === 'Failed' || task.status === 'Completed') && (
+                    <div className="flex gap-2">
+                      {(task.status === 'Failed' || task.status === 'Completed') && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleRetry(task.id); }}
+                          className="btn-outline btn--sm"
+                          style={{ flexShrink: 0 }}
+                          title="重新啟動任務"
+                        >
+                          <Play size={12} />
+                        </button>
+                      )}
+                      
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleRetry(task.id); }}
-                        className="btn-outline btn--sm"
+                        onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }}
+                        className="btn-outline btn--sm hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30"
                         style={{ flexShrink: 0 }}
+                        title="刪除任務記錄"
                       >
-                        <Play size={12} />
-                        重試
+                        <Trash2 size={12} />
                       </button>
-                    )}
+                    </div>
                   </div>
 
                   {/* Expanded Detail */}

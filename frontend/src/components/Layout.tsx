@@ -16,6 +16,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/admin/members':  'Linkora - 會員管理',
   '/admin/dashboard':'Linkora - 系統監控',
   '/admin/research': 'Linkora - 爬蟲調研實驗室',
+  '/admin/intelligence': 'Linkora - 情資庫管理中心',
 };
 
 // 底部 TabBar 項目（手機版主要導覽）
