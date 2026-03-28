@@ -36,6 +36,15 @@ from logger import add_log
 
 # ─── Timezone ────────────────────────────────────────────────────────────────
 TAIPEI_TZ = timezone(timedelta(hours=8))
+CSP_RULES = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; "
+    "style-src 'self' 'unsafe-inline' https:; "
+    "font-src 'self' data: https:; "
+    "img-src 'self' data: https:; "
+    "connect-src 'self' https:; "
+    "frame-ancestors 'self';"
+)
 
 
 # ─── Lifespan (Non-blocking — v3.5+ 規範) ────────────────────────────────────
@@ -112,23 +121,17 @@ async def catch_exceptions_middleware(request: Request, call_next):
         response = await call_next(request)
         response.headers["X-Process-Time"] = str(time.time() - time.time()) # Placeholder for original logic
         
-        # 3. 解決 'eval' 被瀏覽器阻擋的問題 (v3.7.4)
-        csp_rules = (
-            "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
-            "style-src 'self' 'unsafe-inline'; "
-            "font-src 'self' data:; "
-            "img-src 'self' data: https:; "
-            "connect-src 'self' https:; "
-            "frame-ancestors 'self';"
-        )
-        response.headers["Content-Security-Policy"] = csp_rules
+        # 3. 解決 'eval' 被瀏覽器阻擋的問題 (v3.7.6 強化版)
+        response.headers["Content-Security-Policy"] = CSP_RULES
         
         return response
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
         add_log(f"🔥 [API Error] {request.method} {request.url.path}: {e}")
+        
         # Return JSON instead of raising, to prevent "Unexpected token I" in frontend
-        return JSONResponse(
+        resp = JSONResponse(
             status_code=500,
             content={
                 "detail": str(e),
@@ -137,6 +140,8 @@ async def catch_exceptions_middleware(request: Request, call_next):
                 "trace": error_trace if os.getenv("APP_ENV") != "production" else None
             }
         )
+        resp.headers["Content-Security-Policy"] = CSP_RULES
+        return resp
 
 
 # ─── Health Check ─────────────────────────────────────────────────────────────
