@@ -90,18 +90,18 @@ const Templates: React.FC = () => {
   const sanitizeAiOutput = (content: string): string => {
     let cleaned = content.trim();
     
-    // 1. 強力移除所有 Markdown 程式碼塊包裹
-    cleaned = cleaned.replace(/^```[a-z]*\n?/i, '');
-    cleaned = cleaned.replace(/```$/i, '');
+    // 1. 強力移除所有 Markdown 程式碼塊包裹 (及其中間可能夾雜的語言標籤)
+    cleaned = cleaned.replace(/```[a-z]*\s*/gi, '');
+    cleaned = cleaned.replace(/```/gi, '');
     
-    // 2. 移除所有 HTML 文件宣告與根標籤 (避免在主 Layout 中嵌套)
+    // 2. 移除所有 HTML 文件宣告與根標籤 (確保產出為片段，避免標籤嵌套 Bug)
     cleaned = cleaned.replace(/<!DOCTYPE[^>]*>/gi, '');
     cleaned = cleaned.replace(/<\/?html[^>]*>/gi, '');
     cleaned = cleaned.replace(/<\/?head[^>]*>/gi, '');
     cleaned = cleaned.replace(/<\/?body[^>]*>/gi, '');
     cleaned = cleaned.replace(/<meta[^>]*>/gi, '');
     cleaned = cleaned.replace(/<link[^>]*>/gi, '');
-    cleaned = cleaned.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ''); // 內部樣式由 Layout 統一提供
+    cleaned = cleaned.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ''); // 樣式由 Layout 負責，避免重複
     cleaned = cleaned.replace(/<title[^>]*>[\s\S]*?<\/title>/gi, '');
     
     return cleaned.trim();

@@ -13,20 +13,24 @@ from classifier import classify_lead as rule_classify
 
 def _clean_html_fragment(text: str) -> str:
     """
-    清洗 AI 輸出的 HTML 片段，移除 Markdown 代碼塊與多餘標籤。
+    極速清洗 AI 輸出的 HTML 片段，徹底移除 Markdown 代碼塊與多餘框架標籤。
     """
     if not text:
         return ""
-    # 移除 Markdown 代碼塊 (如 ```html ... ```)
-    text = re.sub(r'```(?:html|json)?\n?', '', text)
+    
+    # 1. 移除 Markdown 代碼塊 (如 ```html ... ```)
+    # 使用全域替換，處理可能存在的多個代碼塊或中間文字
+    text = re.sub(r'```[a-z]*\s*', '', text, flags=re.IGNORECASE)
     text = text.replace('```', '')
     
-    # 移除 HTML 框架標籤
+    # 2. 移除所有 HTML 文件宣告與根標籤 (不論有無屬性)
     text = re.sub(r'<!DOCTYPE[^>]*>', '', text, flags=re.IGNORECASE)
     text = re.sub(r'<\/?html[^>]*>', '', text, flags=re.IGNORECASE)
     text = re.sub(r'<\/?head[^>]*>', '', text, flags=re.IGNORECASE)
     text = re.sub(r'<\/?body[^>]*>', '', text, flags=re.IGNORECASE)
     text = re.sub(r'<meta[^>]*>', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'<link[^>]*>', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'<title[^>]*>.*?</title>', '', text, flags=re.IGNORECASE | re.DOTALL)
     
     return text.strip()
 
