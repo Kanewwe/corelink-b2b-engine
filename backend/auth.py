@@ -20,8 +20,10 @@ SESSION_EXPIRY_DAYS = 30
 # ══════════════════════════════════════════
 
 def create_session(db: Session, user: User, ip_address: str = None, user_agent: str = None) -> SessionModel:
-    """為用戶建立新 session"""
-    session = SessionModel.create_for_user(
+    """為用戶建立新 session (v3.6 stability: using Re-fetch instead of refresh)"""
+    session_id = str(uuid.uuid4())
+    session = SessionModel(
+        id=session_id,
         user_id=user.id,
         ip_address=ip_address,
         user_agent=user_agent
@@ -31,9 +33,21 @@ def create_session(db: Session, user: User, ip_address: str = None, user_agent: 
     # 更新用戶最後登入時間
     user.last_login_at = datetime.utcnow()
     
-    db.commit()
-    db.refresh(session)
-    return session
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise e
+        
+    # v3.6: 重新抓取 Session 確保它在目前的 Session 中是掛載且預加載 User 的 ( joinedload )
+    # 避免 refresh 失敗導致的 DetachedInstance 錯誤
+    fresh_session = db.query(SessionModel).options(
+        joinedload(SessionModel.user)
+    ).filter(
+        SessionModel.id == session_id
+    ).first()
+    
+    return fresh_session or session
 
 
 def get_session(db: Session, session_id: str) -> Optional[SessionModel]:

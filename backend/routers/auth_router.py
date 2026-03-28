@@ -125,8 +125,12 @@ def auth_login(req: AuthLoginReq, request: Request, response: Response, db: Sess
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent")
     )
+    if not session:
+        raise HTTPException(status_code=500, detail="建立連線階段失敗，請重試")
+
     response.set_cookie(key="session_id", value=session.id, httponly=True, max_age=86400 * 30, samesite="lax")
     add_log(f"✅ 用戶登入: {user.email}")
+    
     try:
         user_info = auth_module.get_user_full_info(db, user)
         return {
@@ -135,10 +139,10 @@ def auth_login(req: AuthLoginReq, request: Request, response: Response, db: Sess
             "user": user_info["user"]
         }
     except Exception as e:
-        add_log(f"🚨 [Auth] Login info fetch failed: {e}")
-        # Return fallback user info if full info fails during startup
+        add_log(f"⚠️ [Auth] Login info fetch failed, using basic to_dict: {e}")
+        # Return fallback user info if full info fails (v3.6 stability)
         return {
-            "message": "登入成功 (部分資訊讀取中)",
+            "message": "登入成功 (正在初始化訂閱數據...)",
             "access_token": session.id,
             "user": user.to_dict()
         }
