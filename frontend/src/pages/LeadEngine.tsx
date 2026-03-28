@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, Send, BarChart, ShieldAlert, Cpu, Search, Sparkles, 
   Zap, Mail, Globe, Edit, Save, X, User, Star, Brain, CheckCircle, RotateCcw, 
-  Download, Filter, ListFilter, RefreshCw
+  Download, RefreshCw
 } from 'lucide-react';
 import { 
   getDashboardStats, 

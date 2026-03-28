@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Outlet, Navigate, useLocation, useNavigate, NavLink } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, ChevronDown, Menu, X, Search, FileText, Send, BarChart2, Clock, Settings } from 'lucide-react';
+import { LogOut, ChevronDown, Menu, X, Search, FileText, Send, BarChart2, Settings } from 'lucide-react';
 
 const PAGE_TITLES: Record<string, string> = {
   '/lead-engine':    'Linkora - 精準開發雷達',
@@ -25,7 +25,6 @@ const TAB_ITEMS = [
   { to: '/templates',   icon: FileText, label: '模板' },
   { to: '/campaigns',   icon: Send,     label: '投遞' },
   { to: '/analytics',   icon: BarChart2,label: '分析' },
-  { to: '/history',     icon: Clock,    label: '記錄' },
   { to: '/smtp',        icon: Settings, label: '設定' },
 ];
 

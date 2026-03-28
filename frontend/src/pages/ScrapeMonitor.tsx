@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   getAdminScrapeTasks, retryAdminScrapeTask, 
-  cleanupStaleTasks, getAdminScrapeTaskLogs,
+  getAdminScrapeTaskLogs,
   deleteAdminScrapeTask, cleanupAdminScrapeTasks
 } from '../services/api';
 import { 

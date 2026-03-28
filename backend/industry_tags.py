@@ -7,58 +7,7 @@ from database import Base
 from datetime import datetime
 
 
-class IndustryTag(Base):
-    """行業標籤主檔"""
-    __tablename__ = "industry_tags"
-
-    id = Column(Integer, primary_key=True, index=True)
-    
-    # 標籤代碼
-    code = Column(String(20), unique=True, nullable=False)    # "MFG-ELEC"
-    parent_code = Column(String(20))                          # "MFG"
-    
-    # 標籤名稱
-    name_en = Column(String(100), nullable=False)             # "Electronics Manufacturing"
-    name_zh = Column(String(100), nullable=False)             # "電子製造"
-    name_short = Column(String(50))                           # "電子"
-    
-    # 標籤層級
-    level = Column(Integer, default=1)                        # 1=一級, 2=二級
-    
-    # 搜尋關鍵字
-    keywords = Column(String(500))                            # 相關關鍵字（逗號分隔）
-    
-    # 統計
-    company_count = Column(Integer, default=0)
-    
-    # 顯示
-    icon = Column(String(50))
-    color = Column(String(20))
-    
-    # 排序
-    sort_order = Column(Integer, default=0)
-    
-    # 狀態
-    is_active = Column(Boolean, default=True)
-    
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "code": self.code,
-            "parent_code": self.parent_code,
-            "name_en": self.name_en,
-            "name_zh": self.name_zh,
-            "name_short": self.name_short,
-            "level": self.level,
-            "keywords": self.keywords,
-            "company_count": self.company_count,
-            "icon": self.icon,
-            "color": self.color,
-            "sort_order": self.sort_order,
-            "is_active": self.is_active
-        }
+# IndustryTag class removed - now defined in models.py to avoid MetaData conflicts.
 
 
 # 初始行業資料

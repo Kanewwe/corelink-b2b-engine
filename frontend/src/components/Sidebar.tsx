@@ -172,23 +172,16 @@ const Sidebar: React.FC = () => {
         {/* Collapse Toggle */}
         <button
           onClick={toggleCollapse}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-text-muted hover:text-text-main hover:bg-white/5 transition-colors text-xs"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 text-text-muted hover:text-text-main hover:bg-white/5 transition-colors text-[10px] tracking-widest uppercase font-bold"
           title={collapsed ? '展開選單' : '收合選單'}
         >
-          {collapsed ? <ChevronRight size={16} /> : (
+          {collapsed ? <ChevronRight size={14} /> : (
             <>
-              <ChevronLeft size={16} />
-              <span>收合選單</span>
+              <ChevronLeft size={14} />
+              <span>Collapse Sidebar</span>
             </>
           )}
         </button>
-
-        {/* User Info (Removed in v3.7.21, consolidated to Top-Right Header) */}
-        {!collapsed && (
-          <div className="px-4 py-2 text-[10px] text-text-muted text-center border-t border-white/5 opacity-50">
-            Linkora Engine v3.7.21
-          </div>
-        )}
       </div>
     </aside>
   );
