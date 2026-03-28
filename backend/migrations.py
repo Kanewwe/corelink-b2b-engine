@@ -23,7 +23,18 @@ def run_migrations():
             "ai_tag",
             "description",
             "extracted_keywords",
-            "scrape_location"
+            "scrape_location",
+            # v3.7 新增欄位
+            "override_name",
+            "override_email",
+            "personal_notes",
+            "custom_tags",
+            # v3.2 AI 欄位
+            "ai_score",
+            "ai_score_tags",
+            "ai_brief",
+            "ai_suggestions",
+            "ai_scored_at",
         ],
         "scrape_tasks": ["miner_mode"],
         "system_settings": ["user_id", "key", "value"]
@@ -77,6 +88,15 @@ def run_migrations():
                     if column in ["email_sent"]: col_type = "BOOLEAN DEFAULT FALSE"
                     if column in ["email_sent_at", "created_at"]: col_type = "TIMESTAMP"
                     if column in ["company_name", "domain", "status", "assigned_bd", "contact_name", "contact_role", "contact_email", "phone", "address", "city", "state", "zip_code", "categories", "source_domain", "scrape_location", "employee_count", "revenue_range", "website_url", "email_candidates", "extracted_keywords", "ai_tag", "description"]: col_type = "TEXT"
+                    # v3.7 新增欄位類型
+                    if column in ["override_name"]: col_type = "VARCHAR(200)"
+                    if column in ["override_email"]: col_type = "VARCHAR(255)"
+                    if column in ["personal_notes"]: col_type = "TEXT"
+                    if column in ["custom_tags"]: col_type = "VARCHAR(255)"
+                    # v3.2 AI 欄位類型
+                    if column == "ai_score": col_type = "INTEGER DEFAULT 0"
+                    if column in ["ai_score_tags", "ai_brief", "ai_suggestions"]: col_type = "TEXT"
+                    if column == "ai_scored_at": col_type = "TIMESTAMP"
                     
                     # More aggressive check
                     has_column = False
