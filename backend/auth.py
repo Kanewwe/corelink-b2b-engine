@@ -26,7 +26,8 @@ def create_session(db: Session, user: User, ip_address: str = None, user_agent: 
         id=session_id,
         user_id=user.id,
         ip_address=ip_address,
-        user_agent=user_agent
+        user_agent=user_agent,
+        expires_at=datetime.utcnow() + timedelta(days=SESSION_EXPIRY_DAYS)
     )
     db.add(session)
     
