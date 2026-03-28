@@ -127,8 +127,7 @@ const Templates: React.FC = () => {
       if (resp.ok && data.html) {
         toast.success("AI 生成成功！已套用至編輯器。", { id: loadingToast });
         const cleanHtml = sanitizeAiOutput(data.html);
-        const finalBody = `<html>\n<head>\n<style>\nbody { font-family: sans-serif; line-height: 1.6; color: #333; }\n</style>\n</head>\n<body>\n${cleanHtml}\n</body>\n</html>`;
-        setForm(prev => ({ ...prev, body: finalBody, subject: data.subject || prev.subject }));
+        setForm(prev => ({ ...prev, body: cleanHtml, subject: data.subject || prev.subject }));
         setEditorMode('split');
       } else {
         toast.error(data.detail || "AI 服務暫時無法回應", { id: loadingToast });
@@ -208,7 +207,7 @@ const Templates: React.FC = () => {
     setForm(prev => ({ 
       ...prev, 
       subject: v.subject, 
-      body: `<html>\n<head>\n<style>\nbody { font-family: sans-serif; line-height: 1.6; color: #333; }\n</style>\n</head>\n<body>\n${cleanBody}\n<p>Corelink From Concept to Connect</p>\n</body>\n</html>` 
+      body: cleanBody 
     }));
     setShowABModal(false);
     setAbVersions(null);
