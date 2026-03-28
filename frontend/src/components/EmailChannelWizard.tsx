@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  Server, Shield, Globe, Zap, CheckCircle2, 
+  Shield, Zap, CheckCircle2, 
   ArrowRight, ArrowLeft, Mail, Key, ExternalLink, 
   AlertTriangle, Play, Save, Loader2
 } from 'lucide-react';
