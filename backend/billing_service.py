@@ -7,7 +7,7 @@ Linkora v3.5 - Granular Billing Engine (SA Spec)
 """
 
 from database import SessionLocal
-import models
+from database import SessionLocal
 from datetime import datetime
 import json
 
@@ -36,6 +36,7 @@ def deduct_points(user_id: int, action_type: str, meta: dict = None) -> bool:
         # 為了簡化初期實作，我們從 TransactionLog 計算餘額
         
         from sqlalchemy import func
+        import models # Lazy loading to break circular import v3.5
         balance = db.query(func.sum(models.TransactionLog.point_delta)).filter(
             models.TransactionLog.user_id == user_id
         ).scalar() or 1000  # 預設贈送 1000 點給現有用戶 (v3.5 Migration)
@@ -45,6 +46,7 @@ def deduct_points(user_id: int, action_type: str, meta: dict = None) -> bool:
             return False
         
         # 2. 記錄扣點交易
+        import models
         new_tx = models.TransactionLog(
             user_id=user_id,
             action_type=action_type,
@@ -54,6 +56,7 @@ def deduct_points(user_id: int, action_type: str, meta: dict = None) -> bool:
         db.add(new_tx)
         
         # 3. 同步更新 UsageLog (v3.0 Legacy Support)
+        import models
         usage = models.UsageLog.get_or_create(db, user_id)
         if action_type == "scrape":
             usage.customers_count += 1
@@ -78,6 +81,7 @@ def get_point_balance(user_id: int) -> int:
     db = SessionLocal()
     try:
         from sqlalchemy import func
+        import models # Lazy loading to break circular import v3.5
         balance = db.query(func.sum(models.TransactionLog.point_delta)).filter(
             models.TransactionLog.user_id == user_id
         ).scalar() or 1000 # Default for existing users
